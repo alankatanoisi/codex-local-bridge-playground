@@ -1,0 +1,1217 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Local Bridge Runner — Quick Start</title>
+    <style>
+      :root {
+        --bg: #fafafa;
+        --fg: #1a1a1a;
+        --muted: #666;
+        --accent: #2563eb;
+        --accent-light: #dbeafe;
+        --code-bg: #f3f4f6;
+        --border: #e5e7eb;
+        --success: #059669;
+        --warn: #d97706;
+        --danger: #dc2626;
+        --radius: 8px;
+        --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        line-height: 1.65;
+        color: var(--fg);
+        background: var(--bg);
+        margin: 0;
+        padding: 0;
+      }
+
+      header {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        color: #fff;
+        padding: 3rem 1.5rem 2.5rem;
+        text-align: center;
+      }
+
+      header h1 {
+        margin: 0 0 0.5rem;
+        font-size: 2rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+
+      header p {
+        margin: 0;
+        opacity: 0.85;
+        font-size: 1.1rem;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-top: 1rem;
+      }
+
+      .badge.read-only {
+        background: var(--success);
+        color: #fff;
+      }
+
+      main {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 2rem 1.5rem 4rem;
+      }
+
+      section {
+        margin-bottom: 2.5rem;
+      }
+
+      h2 {
+        font-size: 1.35rem;
+        font-weight: 700;
+        margin: 0 0 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      h3 {
+        font-size: 1.05rem;
+        font-weight: 600;
+        margin: 1.5rem 0 0.5rem;
+        color: var(--muted);
+      }
+
+      p {
+        margin: 0 0 1rem;
+      }
+
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+
+      .callout {
+        border-radius: var(--radius);
+        padding: 1rem 1.25rem;
+        margin: 1rem 0;
+        border-left: 4px solid var(--accent);
+        background: var(--accent-light);
+      }
+
+      .callout strong {
+        display: block;
+        margin-bottom: 0.25rem;
+      }
+
+      .callout.warn {
+        border-left-color: var(--warn);
+        background: #fffbeb;
+      }
+
+      .callout.danger {
+        border-left-color: var(--danger);
+        background: #fef2f2;
+      }
+
+      .callout.success {
+        border-left-color: var(--success);
+        background: #ecfdf5;
+      }
+
+      pre {
+        background: var(--code-bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1rem 1.25rem;
+        overflow-x: auto;
+        font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+        font-size: 0.875rem;
+        line-height: 1.5;
+        box-shadow: var(--shadow);
+      }
+
+      code {
+        font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+        font-size: 0.9em;
+        background: var(--code-bg);
+        padding: 0.15em 0.35em;
+        border-radius: 4px;
+      }
+
+      pre code {
+        background: transparent;
+        padding: 0;
+      }
+
+      .step {
+        display: flex;
+        gap: 1rem;
+        align-items: flex-start;
+        margin-bottom: 1.5rem;
+      }
+
+      .step-number {
+        flex-shrink: 0;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        background: var(--accent);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.875rem;
+        margin-top: 0.1rem;
+      }
+
+      .step-body {
+        flex: 1;
+      }
+
+      .step-body p {
+        margin-bottom: 0.75rem;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+        margin: 1rem 0;
+      }
+
+      th,
+      td {
+        text-align: left;
+        padding: 0.6rem 0.75rem;
+        border-bottom: 1px solid var(--border);
+      }
+
+      th {
+        font-weight: 600;
+        color: var(--muted);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+
+      tr:last-child td {
+        border-bottom: none;
+      }
+
+      .tool-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1rem;
+        margin: 1rem 0;
+      }
+
+      .tool-card {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1rem;
+        background: #fff;
+        box-shadow: var(--shadow);
+      }
+
+      .tool-card h4 {
+        margin: 0 0 0.25rem;
+        font-size: 0.95rem;
+        color: var(--accent);
+      }
+
+      .tool-card p {
+        margin: 0;
+        font-size: 0.875rem;
+        color: var(--muted);
+      }
+
+      footer {
+        text-align: center;
+        padding: 2rem;
+        color: var(--muted);
+        font-size: 0.875rem;
+        border-top: 1px solid var(--border);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Local Bridge Runner</h1>
+      <p>
+        A compact local coding agent built around a minimal core, explicit capability groups, and project-local
+        customization. The bridge is the model transport; the runner is the surface we actively shape.
+      </p>
+      <span class="badge read-only">CLI Runner</span>
+      <span class="badge read-only" style="background: #6366f1; margin-left: 0.5rem">Minimal Runner Lab</span>
+    </header>
+
+    <main>
+      <section>
+        <h2>What it does</h2>
+        <p>
+          The runner sends your prompt through the local bridge (usually on <code>localhost:11437</code>), receives
+          Anthropic-native tool requests, executes approved local tools, and sends the results back to the model. The
+          bridge supplies transport and credentials; the runner supplies the agent loop, tools, prompts, permissions,
+          transcripts, and command-line experience.
+        </p>
+        <div class="callout success">
+          <strong>Design direction</strong>
+          Keep the core small and make power features explicit: prompt templates, profiles, <code>.bridge-runner/</code>
+          project files, hooks, archives, shell, and advanced patch mode are all opt-in building blocks.
+        </div>
+        <p>
+          In the <strong>playground</strong> checkout, the runner is layered like a small extensible harness: an
+          optional <strong>coordinator</strong> runs phased work (research → synthesize → execute → verify), the
+          <strong>kernel</strong> is the core tool loop, and a <strong>session store</strong> keeps canonical
+          <code>*.state.json</code> files for reliable resume.
+        </p>
+      </section>
+
+      <section>
+        <h2>Which folder to use</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Folder</th>
+              <th>When to use it</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>/Users/alanman/Developer/claude-local-bridge-playground</code></td>
+              <td>Active runner lab: prompts, tools, permissions, docs, coordinator, hooks, skills, and archives.</td>
+            </tr>
+            <tr>
+              <td><code>/Users/alanman/Developer/claude-local-bridge</code></td>
+              <td>Archived canonical reference. Do not use it for playground runner experiments unless Alan asks.</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="callout warn">
+          <strong>Unknown option <code>--session-id</code>?</strong>
+          You may be in an older checkout. Use the playground folder for runner-lab flags, or run
+          <code>node bin/local-bridge-runner.js --help</code> to see what your copy supports.
+        </div>
+      </section>
+
+      <section>
+        <h2>Before you start</h2>
+        <p>
+          Make sure the bridge is running. In VS Code, start the extension (or press <kbd>F5</kbd> in development mode).
+          Then verify:
+        </p>
+        <pre><code>curl -s http://localhost:11437/v1/debug \
+  -H "x-claude-local-bridge-debug-token: PASTE_TOKEN_HERE" \
+  | python3 -m json.tool</code></pre>
+        <p>
+          The debug endpoint requires the local debug token printed in the Claude Local Bridge Output log. Look for
+          <code>"credentialPolicy": "oauth-only"</code> and <code>"authenticated": true</code>.
+        </p>
+        <p>
+          Caller auth is optional. If you intentionally enable it in VS Code settings, also set the local caller token
+          in Terminal before runner commands:
+        </p>
+        <pre><code>export BRIDGE_CALLER_TOKEN=local-dev-token</code></pre>
+        <p>That token authorizes your local terminal to call your local bridge. It is not your Anthropic credential.</p>
+      </section>
+
+      <section>
+        <h2>Quick start in 3 steps</h2>
+
+        <div class="step">
+          <div class="step-number">1</div>
+          <div class="step-body">
+            <p><strong>Ask a simple question</strong> (no tools needed)</p>
+            <pre><code>cd "/Users/alanman/Developer/claude-local-bridge-playground"
+node bin/local-bridge-runner.js "What is 2 + 2?"</code></pre>
+            <p>The model should answer immediately with no tool calls.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-number">2</div>
+          <div class="step-body">
+            <p><strong>Ask about your project</strong> (triggers inspection tools)</p>
+            <pre><code>node bin/local-bridge-runner.js \
+  --verbose \
+  "List the main files in this repo and explain what each does"</code></pre>
+            <p>
+              You will see step-by-step progress in stderr as the model calls <code>list_files</code> and
+              <code>read_file</code>.
+            </p>
+            <p>
+              At the end of every run the runner prints a one-line token/cost summary to stderr, e.g.
+              <code>[runner usage] in=1234 out=567 cache_read=8901 (reuse 78%) ~$0.0123</code>. The dollar
+              amount is an estimate; <code>reuse</code> is the share of prompt tokens served from cache.
+              Use <code>--log-level quiet</code> to hide it or <code>--verbose</code> for a fuller breakdown.
+              The same numbers are saved to the JSONL transcript and to the <code>--human-log</code> file.
+            </p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-number">3</div>
+          <div class="step-body">
+            <p><strong>Check the transcript</strong></p>
+            <pre><code>ls ~/.bridge-runner/logs/</code></pre>
+            <p>Every run writes a timestamped JSONL file so you can review what the model did.</p>
+            <p>
+              In the playground, also try <code>--session-id my-run</code> — session state is saved separately at
+              <code>~/.bridge-runner/sessions/my-run.state.json</code>.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Testing Other Local Folders</h2>
+        <p>
+          The safest pattern is to run the runner from this repository, then point it at another project with
+          <code>--cwd</code>. Think of it as two folders:
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Folder</th>
+              <th>What it means</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Runner repo folder</td>
+              <td>The folder that contains <code>bin/local-bridge-runner.js</code>.</td>
+            </tr>
+            <tr>
+              <td>Target project folder</td>
+              <td>The folder you want the model's tools to inspect or edit. This is passed as <code>--cwd</code>.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Read-only smoke test against any project</h3>
+        <pre><code>cd "/Users/alanman/Developer/claude-local-bridge-playground"
+node bin/local-bridge-runner.js \
+  --cwd "/Users/alanman/path/to/another/project" \
+  --max-steps 8 \
+  --verbose \
+  "List the top-level files, summarize what this project does, then stop. Do not edit files."</code></pre>
+
+        <p>
+          If it worked, you should see verbose lines like <code>[runner] step 1: tool_call list_files</code>, followed
+          by a final summary. If the model loops, lower <code>--max-steps</code> and make the prompt more explicit.
+        </p>
+
+        <h3>Attach files from that target project</h3>
+        <pre><code>cd "/Users/alanman/Developer/claude-local-bridge-playground"
+node bin/local-bridge-runner.js \
+  --cwd "/Users/alanman/path/to/another/project" \
+  --include-file README.md \
+  --include-file package.json \
+  "Review the attached files and explain the project setup. Do not edit files."</code></pre>
+
+        <h3>Use stdin from that target project</h3>
+        <pre><code>cd "/Users/alanman/Developer/claude-local-bridge-playground"
+cat "/Users/alanman/path/to/another/project/README.md" | node bin/local-bridge-runner.js \
+  --cwd "/Users/alanman/path/to/another/project" \
+  "Summarize this README and suggest one next thing to inspect."</code></pre>
+
+        <div class="callout warn">
+          <strong>Avoid the old prototype folder</strong>
+          If you run from <code>claude-local-bridge-runner-test</code>, you may be using stale code. Use the clean
+          worktree path above, or replace it with the real folder that contains the current runner.
+        </div>
+      </section>
+
+      <section>
+        <h2>Available tools</h2>
+        <p>
+          The runner exposes read tools by default and can also expose guarded edit and shell tools when you enable
+          them.
+        </p>
+        <div class="tool-grid">
+          <div class="tool-card">
+            <h4>list_files</h4>
+            <p>
+              List files and directories under a relative path. Skips <code>.git</code>, <code>node_modules</code>,
+              <code>dist</code>, <code>build</code>, and <code>coverage</code> by default.
+            </p>
+          </div>
+          <div class="tool-card">
+            <h4>read_file</h4>
+            <p>
+              Read a file by relative path. Text files support offset/limit paging. Images
+              (<code>.png</code>, <code>.jpg</code>, <code>.gif</code>, <code>.webp</code>) and PDFs return multimodal
+              blocks for the model (size caps apply). Blocks secret-looking files (<code>.env</code>, <code>*.pem</code>,
+              etc.).
+            </p>
+          </div>
+          <div class="tool-card">
+            <h4>lsp_query</h4>
+            <p>
+              Query a local language server for definition, references, hover, or diagnostics. Hidden unless you pass
+              <code>--enable-lsp</code> and install a server such as <code>typescript-language-server</code>.
+            </p>
+          </div>
+          <div class="tool-card">
+            <h4>search_text</h4>
+            <p>
+              Search for text inside the project. Prefers ripgrep, falls back to grep, then to a pure Node walk.
+              Case-insensitive.
+            </p>
+          </div>
+          <div class="tool-card">
+            <h4>glob</h4>
+            <p>
+              Find files by glob pattern (for example <code>**/*.test.js</code>). Results are relative paths sorted by
+              modification time, capped at 100 files. Skips noisy directories like <code>node_modules</code>.
+            </p>
+          </div>
+          <div class="tool-card">
+            <h4>manage_tasks</h4>
+            <p>
+              In-session task checklist the model can create, update, and complete. Stored in the session file — no
+              filesystem access. Useful for multi-step runs.
+            </p>
+          </div>
+          <div class="tool-card">
+            <h4>spawn_agent</h4>
+            <p>
+              Delegate a focused subtask to a child agent with its own context. Uses built-in or file agents via
+              <code>WorkerRuntime</code>. Top-level only — children cannot spawn further children. Asks for confirmation
+              unless <code>--dont-ask</code> is set.
+            </p>
+          </div>
+          <div class="tool-card">
+            <h4>enter_worktree / exit_worktree / list_worktrees</h4>
+            <p>
+              Create isolated git worktrees on fresh branches and switch into them, so edits happen without touching the
+              main checkout. Use the optional <code>slot</code> parameter for <strong>parallel worktrees</strong> in one
+              run — re-enter the same slot to switch cwd. <code>list_worktrees</code> shows active slots and orphan dirs.
+              <code>exit_worktree</code> restores the original cwd; pass <code>cleanup=true</code> to remove the
+              worktree and branch. CLI: <code>node bin/local-bridge-runner.js runner worktrees list</code>. Requires
+              <code>--cwd</code> to be a git repo.
+            </p>
+          </div>
+          <div class="tool-card">
+            <h4>run_skill</h4>
+            <p>
+              Load a skill Markdown body by name from <code>.bridge-runner/skills/</code> or
+              <code>.cursor/skills/</code>. Read-only — returns text for the model; does not execute shell or network
+              steps embedded in the skill.
+            </p>
+          </div>
+          <div class="tool-card">
+            <h4>git_status</h4>
+            <p>Run <code>git status --short</code>. Read-only. Never adds, commits, resets, or pushes.</p>
+          </div>
+          <div class="tool-card">
+            <h4>edit_file / write_file / apply_patch</h4>
+            <p>
+              Mutating tools for exact replacements, full writes, and patch-based changes. Writes are atomic, edits can
+              use a SHA-256 guard, and they ask for confirmation unless you pass <code>--accept-edits</code>.
+            </p>
+          </div>
+          <div class="tool-card">
+            <h4>bash / manage_shell_jobs</h4>
+            <p>
+              Optional shell tools with timeouts and output limits. Hidden from the model unless you pass
+              <code>--allow-shell</code>. <code>manage_shell_jobs</code> runs long-lived commands in the background
+              (start/list/poll/kill) with the same shell-policy scanner as synchronous <code>bash</code>.
+            </p>
+          </div>
+          <div class="tool-card">
+            <h4>undo</h4>
+            <p>Restore file backups created by write tools. This is the recovery path if an edit goes wrong.</p>
+          </div>
+          <div class="tool-card">
+            <h4>undo_edit</h4>
+            <p>
+              Restore the backup from a specific current-run edit or write by <code>tool_use_id</code>, or undo the most
+              recent change for a path.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Custom agents from files</h2>
+        <p>
+          Pass <code>--agent &lt;name&gt;</code> or <code>--agent path/to/agent.md</code> to load a Markdown file with YAML
+          frontmatter (the same format as
+          <a href="https://github.com/VoltAgent/awesome-claude-code-subagents">awesome-claude-code-subagents</a>).
+          Bare names resolve under <code>.bridge-runner/agents/</code> in the project, then
+          <code>~/.bridge-runner/agents/</code>.
+        </p>
+        <p>
+          This repo ships <code>code-reviewer</code>, <code>debugger</code>, <code>refactoring-specialist</code>, and
+          <code>test-automator</code> under <code>.bridge-runner/agents/</code>. Claude Code tool names are mapped to
+          runner tools; network and MCP tools are dropped. <code>Bash</code> requires <code>--allow-shell</code>.
+        </p>
+        <pre><code>node bin/local-bridge-runner.js --cwd . --agent code-reviewer "Review src/runner/agents/"</code></pre>
+      </section>
+
+      <section>
+        <h2>CLI options</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Flag</th>
+              <th>Default</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>--cwd &lt;path&gt;</code></td>
+              <td><code>.</code></td>
+              <td>Working directory the tools operate inside</td>
+            </tr>
+            <tr>
+              <td><code>--model &lt;name&gt;</code></td>
+              <td><code>claude-sonnet-4-6</code></td>
+              <td>
+                Model to request from the bridge. Use <code>--model claude-opus-4-8</code> for the newest Opus model.
+              </td>
+            </tr>
+            <tr>
+              <td><code>--max-tokens &lt;n&gt;</code></td>
+              <td><code>2000</code></td>
+              <td>Max tokens per model response</td>
+            </tr>
+            <tr>
+              <td><code>--max-steps &lt;n&gt;</code></td>
+              <td><code>16</code></td>
+              <td>Maximum tool loops before giving up</td>
+            </tr>
+            <tr>
+              <td><code>--transcript &lt;path&gt;</code></td>
+              <td><code>~/.bridge-runner/logs/&lt;timestamp&gt;.jsonl</code></td>
+              <td>Where to write the JSONL transcript</td>
+            </tr>
+            <tr>
+              <td><code>--human-log &lt;path&gt;</code></td>
+              <td>off</td>
+              <td>Where to write a plain text log that is easier for a human to read</td>
+            </tr>
+            <tr>
+              <td><code>--trace-level &lt;level&gt;</code></td>
+              <td><code>off</code></td>
+              <td>
+                Write flight-recorder traces with <code>summary</code>, <code>redacted</code>, or <code>full</code>
+              </td>
+            </tr>
+            <tr>
+              <td><code>--trace-path &lt;path&gt;</code></td>
+              <td>automatic</td>
+              <td>Choose the runner trace JSONL path; the bridge writes a correlated trace separately</td>
+            </tr>
+            <tr>
+              <td><code>--bridge-url &lt;url&gt;</code></td>
+              <td><code>http://127.0.0.1:11437/v1/messages</code></td>
+              <td>Override the local bridge endpoint/root; useful when the runner is inside a container</td>
+            </tr>
+            <tr>
+              <td><code>--include-file &lt;path&gt;</code></td>
+              <td>off</td>
+              <td>Copy a bounded project file into the prompt context; repeat for multiple files</td>
+            </tr>
+            <tr>
+              <td><code>--caller-token &lt;token&gt;</code></td>
+              <td><code>BRIDGE_CALLER_TOKEN</code></td>
+              <td>Token your local runner sends to the local bridge when caller auth is enabled</td>
+            </tr>
+            <tr>
+              <td><code>--allowed-tools &lt;list&gt;</code></td>
+              <td>all visible tools</td>
+              <td>Expose only the comma-separated tools you name</td>
+            </tr>
+            <tr>
+              <td><code>--resume &lt;path&gt;</code></td>
+              <td>off</td>
+              <td>Continue from an existing transcript</td>
+            </tr>
+            <tr>
+              <td><code>--session-id &lt;id&gt;</code></td>
+              <td>off</td>
+              <td>
+                Playground: save/load canonical session at <code>~/.bridge-runner/sessions/&lt;id&gt;.state.json</code>
+              </td>
+            </tr>
+            <tr>
+              <td><code>--session-path &lt;path&gt;</code></td>
+              <td>off</td>
+              <td>Playground: explicit path to a session state JSON file</td>
+            </tr>
+            <tr>
+              <td><code>--resume-session</code></td>
+              <td>off</td>
+              <td>Resume from session store (<code>--session-id</code> or <code>--session-path</code> required)</td>
+            </tr>
+            <tr>
+              <td><code>--new-session</code></td>
+              <td>off</td>
+              <td>Force a fresh session; blocked if prior health is degraded unless you start fresh</td>
+            </tr>
+            <tr>
+              <td><code>--ack-resume-risk</code></td>
+              <td>off</td>
+              <td>Allow resume when session health is degraded (escape hatch)</td>
+            </tr>
+            <tr>
+              <td><code>--fork-from &lt;session-id&gt;</code></td>
+              <td>off</td>
+              <td>Copy an existing session to a new id/path before running</td>
+            </tr>
+            <tr>
+              <td><code>--task-scope</code></td>
+              <td>off</td>
+              <td>One-task preset: default <code>--max-steps 8</code> and tighter compaction</td>
+            </tr>
+            <tr>
+              <td><code>--compact-each-turn</code></td>
+              <td>off</td>
+              <td>Aggressive compaction preset (compact-after-task UX)</td>
+            </tr>
+            <tr>
+              <td><code>--effort &lt;level&gt;</code></td>
+              <td>off</td>
+              <td>
+                Runner-only model effort: <code>low</code>, <code>medium</code>, <code>high</code>, or
+                <code>max</code> (forwarded as <code>output_config.effort</code>)
+              </td>
+            </tr>
+            <tr>
+              <td><code>--auto-memory</code></td>
+              <td>off</td>
+              <td>Opt-in runner auto-memory in context (default off; set <code>BRIDGE_RUNNER_AUTO_MEMORY=1</code>)</td>
+            </tr>
+            <tr>
+              <td><code>--trusted-workspace</code></td>
+              <td>off</td>
+              <td>Playground: enable hooks from <code>.bridge-runner/hooks.json</code> in the target project</td>
+            </tr>
+            <tr>
+              <td><code>--trust-workspace</code></td>
+              <td>off</td>
+              <td>
+                Record workspace trust consent for <code>--cwd</code> (required in CI/non-interactive). Blocks all tools
+                until trusted.
+              </td>
+            </tr>
+            <tr>
+              <td><code>--chaos-ok</code></td>
+              <td>off</td>
+              <td>
+                Allow risky combo: <code>--allow-shell --accept-edits --dont-ask</code>. Never bypasses
+                <code>.env</code> / <code>.ssh</code> hard denies.
+              </td>
+            </tr>
+            <tr>
+              <td><code>--max-wall-clock-ms &lt;n&gt;</code></td>
+              <td>off</td>
+              <td>Stop after N milliseconds (wall-clock budget)</td>
+            </tr>
+            <tr>
+              <td><code>--max-cost-usd &lt;n&gt;</code></td>
+              <td>off</td>
+              <td>Stop after estimated API cost exceeds N USD (advisory pricing table)</td>
+            </tr>
+            <tr>
+              <td><code>--agent &lt;name|path&gt;</code></td>
+              <td>off</td>
+              <td>Built-in profile, file name under <code>.bridge-runner/agents/</code>, or path to agent <code>.md</code></td>
+            </tr>
+            <tr>
+              <td><code>--list-agents</code></td>
+              <td>off</td>
+              <td>List built-in and discovered file agents, then exit</td>
+            </tr>
+            <tr>
+              <td><code>--review-memory</code></td>
+              <td>off</td>
+              <td>List pending memory promotions for approval (no prompt required)</td>
+            </tr>
+            <tr>
+              <td><code>--session-extract</code></td>
+              <td>off</td>
+              <td>After run, queue session learning proposals (requires trusted workspace)</td>
+            </tr>
+            <tr>
+              <td><code>--replay</code></td>
+              <td>off</td>
+              <td>Read-only ledger verification (requires <code>--session-id</code> or <code>--session-path</code>)</td>
+            </tr>
+            <tr>
+              <td><code>--repair</code></td>
+              <td>off</td>
+              <td>Ledger repair plan (requires session; approval-gated in v1)</td>
+            </tr>
+            <tr>
+              <td><code>--max-context-tokens &lt;n&gt;</code></td>
+              <td>off</td>
+              <td>Warn near budget; halt at 2× budget (playground compaction)</td>
+            </tr>
+            <tr>
+              <td><code>--max-tool-calls-per-turn &lt;n&gt;</code></td>
+              <td>off</td>
+              <td>Cap tool calls per model response</td>
+            </tr>
+            <tr>
+              <td><code>--plan</code></td>
+              <td>off</td>
+              <td>Plan mode: describe actions instead of executing writes and shell commands</td>
+            </tr>
+            <tr>
+              <td><code>--no-network</code></td>
+              <td>off</td>
+              <td>Best-effort HTTP/HTTPS proxy guard for shell commands; not a sandbox</td>
+            </tr>
+            <tr>
+              <td><code>--bare</code></td>
+              <td>off</td>
+              <td>Force minimal startup context (no instruction docs, repo block, or skills)</td>
+            </tr>
+            <tr>
+              <td><code>--include-instruction-docs</code></td>
+              <td>off</td>
+              <td>Opt in to AGENTS.md / CLAUDE.md / OPENCODE.md instruction hierarchy</td>
+            </tr>
+            <tr>
+              <td><code>--include-repo-context</code></td>
+              <td>off</td>
+              <td>Opt in to a session-stable repo-context block (cwd/git fingerprint)</td>
+            </tr>
+            <tr>
+              <td><code>--agent project</code></td>
+              <td>off</td>
+              <td>Personality preset with richer context defaults (docs + repo map)</td>
+            </tr>
+            <tr>
+              <td><code>--agent bench</code></td>
+              <td>off</td>
+              <td>Benchmark preset for realistic dev tasks; shell and edit flags still need explicit opt-in</td>
+            </tr>
+            <tr>
+              <td><code>--list-agents</code></td>
+              <td>—</td>
+              <td>List built-in runner personalities</td>
+            </tr>
+            <tr>
+              <td><code>--permission-mode &lt;m&gt;</code></td>
+              <td>default</td>
+              <td>Claude Code–style permission bundle (plan, accept-edits, dont-ask, auto, …)</td>
+            </tr>
+            <tr>
+              <td><code>--tools &lt;list&gt;</code></td>
+              <td>all</td>
+              <td>Expose only listed tools (alias: <code>--allowed-tools</code>)</td>
+            </tr>
+            <tr>
+              <td><code>--system-prompt &lt;text&gt;</code></td>
+              <td>minimal built-in</td>
+              <td>Override the default system prompt sent to the model</td>
+            </tr>
+            <tr>
+              <td><code>--append-system-prompt</code> / file variants</td>
+              <td>off</td>
+              <td>Append text after the default system prompt</td>
+            </tr>
+            <tr>
+              <td><code>--continue</code></td>
+              <td>off</td>
+              <td>Resume from the latest transcript in <code>~/.bridge-runner/logs/</code></td>
+            </tr>
+            <tr>
+              <td><code>--accept-edits</code></td>
+              <td>off</td>
+              <td>Auto-approve edit and write tools</td>
+            </tr>
+            <tr>
+              <td><code>--allow-shell</code></td>
+              <td>off</td>
+              <td>Expose the bash tool to the model</td>
+            </tr>
+            <tr>
+              <td><code>--test-watch</code></td>
+              <td>off</td>
+              <td>After successful writes, auto-run detected tests (requires <code>--allow-shell</code>)</td>
+            </tr>
+            <tr>
+              <td><code>--dont-ask</code></td>
+              <td>off</td>
+              <td>Auto-approve shell commands once bash is enabled</td>
+            </tr>
+            <tr>
+              <td><code>--shell-timeout &lt;ms&gt;</code></td>
+              <td><code>30000</code></td>
+              <td>Timeout for shell commands; explicit eval runs can raise this up to <code>900000</code></td>
+            </tr>
+            <tr>
+              <td><code>--output-format &lt;f&gt;</code></td>
+              <td><code>text</code></td>
+              <td>Choose <code>text</code>, <code>json</code>, or parseable <code>stream-json</code> lines</td>
+            </tr>
+            <tr>
+              <td><code>--stream</code></td>
+              <td>off</td>
+              <td>Print model output live as it streams</td>
+            </tr>
+            <tr>
+              <td><code>--verbose</code></td>
+              <td>off</td>
+              <td>Print step-by-step progress to stderr</td>
+            </tr>
+            <tr>
+              <td><code>--help</code></td>
+              <td>—</td>
+              <td>Show help and exit</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Example commands</h2>
+
+        <h3>Explain a specific file</h3>
+        <pre><code>node bin/local-bridge-runner.js \
+  --verbose \
+  "Explain what src/server.js does. Do not edit files."</code></pre>
+
+        <h3>Inspect a different local folder</h3>
+        <pre><code>node bin/local-bridge-runner.js \
+  --cwd "/Users/alanman/path/to/another/project" \
+  --allowed-tools list_files,read_file,search_text,glob,git_status \
+  --verbose \
+  "List the files in this project and summarize what it does. Do not edit files."</code></pre>
+
+        <h3>Create a clean throw-away lab</h3>
+        <pre><code>cd "/Users/alanman/Developer/claude-local-bridge-playground"
+LAB="$(node scripts/create-runner-throwaway-lab.js)"
+node bin/local-bridge-runner.js \
+  --cwd "$LAB" \
+  --agent bench \
+  --trust-workspace \
+  --allow-shell \
+  --accept-edits \
+  --dont-ask \
+  --chaos-ok \
+  --max-steps 24 \
+  "Fix the calculator bug, run npm test, and summarize the result."</code></pre>
+        <p>
+          This helper creates a brand-new timestamped folder under
+          <code>~/Documents/claude-local-bridge-runner-throwaway-labs/</code>, so an old copied repo cannot pollute a
+          tiny smoke test.
+        </p>
+
+        <h3>Review code from stdin</h3>
+        <pre><code>cat src/server.js | node bin/local-bridge-runner.js \
+  "Review this file for potential bugs"</code></pre>
+
+        <h3>Include one or more project files</h3>
+        <pre><code>node bin/local-bridge-runner.js \
+  --include-file src/server.js \
+  --include-file README.md \
+  "Review the attached files and explain the main risks"</code></pre>
+
+        <h3>Write a human-readable log</h3>
+        <pre><code>node bin/local-bridge-runner.js \
+  --human-log ~/.bridge-runner/logs/server-review.md \
+  "Explain src/server.js and summarize the answer clearly"</code></pre>
+
+        <h3>Record metadata at each local boundary</h3>
+        <pre><code>node bin/local-bridge-runner.js \
+  --trace-level summary \
+  --allowed-tools list_files,read_file,search_text,glob,git_status \
+  "Inspect this repo and stop without editing files."</code></pre>
+
+        <h3>Search-first workflow</h3>
+        <pre><code>node bin/local-bridge-runner.js \
+  --max-tokens 4096 \
+  --max-steps 6 \
+  "Find where the credential discovery logic lives and summarize how it works"</code></pre>
+
+        <h3>Automation-friendly JSON lines</h3>
+        <pre><code>node bin/local-bridge-runner.js \
+  --output-format stream-json \
+  "List the files and summarize the repo" | jq -c .</code></pre>
+        <p>
+          Stream events include <code>compaction</code> when the playground compactor trims context, and the final
+          <code>result</code> may include <code>stopReason</code> (for example <code>success</code>,
+          <code>max_steps</code>, <code>context_budget_exceeded</code>).
+        </p>
+
+        <h3>Session persistence (playground)</h3>
+        <pre><code>cd "/Users/alanman/Developer/claude-local-bridge-playground"
+node bin/local-bridge-runner.js \
+  --cwd "/Users/alanman/Developer/claude-local-bridge-playground" \
+  --session-id quickstart-demo \
+  --allowed-tools list_files,read_file,search_text,glob,git_status \
+  --max-steps 6 \
+  "List src/runner files and summarize. Do not edit files."</code></pre>
+        <p>Check <code>~/.bridge-runner/sessions/quickstart-demo.state.json</code> after the run.</p>
+
+        <h3>Top-level coordinator (playground)</h3>
+        <pre><code>cd "/Users/alanman/Developer/claude-local-bridge-playground"
+node bin/local-bridge-coordinator.js \
+  --cwd "/Users/alanman/Developer/claude-local-bridge-playground" \
+  --session-id coord-demo \
+  --no-workers \
+  --phases research,synthesize,execute \
+  "Summarize how permissions.js works. Do not edit files."</code></pre>
+        <p><code>--no-workers</code> skips background read-only subprocess workers — a good default while learning.</p>
+
+        <h3>Safe edit with confirmation</h3>
+        <pre><code>node bin/local-bridge-runner.js \
+  "Change the default port comment in src/server.js"</code></pre>
+
+        <h3>Edit and validate automatically</h3>
+        <pre><code>node bin/local-bridge-runner.js \
+  --accept-edits \
+  --allow-shell \
+  "Fix the failing test and then run npm test"</code></pre>
+
+        <h3>Use a different model</h3>
+        <pre><code>node bin/local-bridge-runner.js \
+  --model claude-opus-4-8 \
+  --max-tokens 4096 \
+  "Give me a deep dive on src/runner/context-builder.js"</code></pre>
+        <p>
+          Leave <code>--temperature</code> unset when using <code>claude-opus-4-8</code>. Anthropic rejects non-default
+          sampling settings on Opus 4.8.
+        </p>
+      </section>
+
+      <section>
+        <h2>Flight recorder traces</h2>
+        <p>
+          Use <code>--trace-level summary</code> when you want run metadata without logging prompt bodies. The runner
+          writes a JSONL trace under <code>~/.bridge-runner/traces/</code> and asks the bridge to write a correlated
+          trace under <code>~/.claude-local-bridge/traces/</code>.
+        </p>
+        <p>
+          Summary traces record turn counts, tool decisions, request sizes, visible tool names, response status
+          metadata, and model usage or cache counters returned to the runner. <code>redacted</code> adds scrubbed
+          request, response, tool-input, and tool-result payloads. <code>full</code> keeps the widest local payload
+          details while still redacting authorization and key-looking fields.
+        </p>
+        <p>
+          These traces show what this local runner and bridge can observe. They do not expose Anthropic's internal
+          detection logic or server-side telemetry. Treat redacted and full traces like source-code logs.
+        </p>
+        <p>
+          The runner adds correlation headers automatically. A direct Anthropic <code>/v1/messages</code> bridge client
+          can instead set the VS Code setting <code>claudeLocalBridge.traceLevel</code> or send
+          <code>x-local-bridge-trace-level: summary</code> with an authenticated local request.
+        </p>
+      </section>
+
+      <section>
+        <h2>Plan mode</h2>
+        <p>
+          Pass <code>--plan</code> to make the runner describe what it <em>would</em> do instead of actually doing it.
+          In plan mode, all write and shell tools return dry-run messages like
+          <em>"Plan mode: would Write src/app.js"</em>. Read tools still execute normally so the model can inspect the
+          project.
+        </p>
+        <pre><code>node bin/local-bridge-runner.js \
+  --plan \
+  --max-steps 6 \
+  "Describe what changes you would make to fix the failing test"</code></pre>
+        <p>
+          Plan mode is useful for reviewing the model's intentions before committing to changes. Combine it with
+          <code>--verbose</code> to see each step in stderr.
+        </p>
+      </section>
+
+      <section>
+        <h2>Network control</h2>
+        <p>
+          Pass <code>--no-network</code> to add a best-effort HTTP and HTTPS proxy guard to shell commands. This sets
+          <code>http_proxy</code> and <code>https_proxy</code> to <code>127.0.0.1:1</code> in the tool's environment,
+          which prevents most <code>curl</code>, <code>wget</code>, and <code>npm</code> calls from reaching the
+          internet.
+        </p>
+        <div class="callout warn">
+          <strong>Not a sandbox</strong>
+          A shell command can unset proxy variables or use a protocol those variables do not control. Use
+          <code>--no-network</code> as defense in depth, not as a promise that bash has no network. See the
+          <a href="threat-model.html">threat model</a> for details.
+        </div>
+      </section>
+
+      <section>
+        <h2>Prompt caching and parallel execution</h2>
+        <p>
+          The runner sends <code>cache_control: { type: "ephemeral" }</code> on the system prompt each turn. If you are
+          using the Anthropic API with prompt caching enabled, this reduces repeated instruction tokens on subsequent
+          turns while staying under Anthropic's cache-control block limit.
+        </p>
+        <p>
+          Read-only tools (<code>list_files</code>, <code>read_file</code>, <code>search_text</code>,
+          <code>glob</code>,
+          <code>git_status</code>) are batched before write and shell tools. This means the model's read requests
+          execute faster without waiting for confirmation prompts.
+        </p>
+      </section>
+
+      <section>
+        <h2>Resuming sessions</h2>
+        <p>
+          Use <code>--resume &lt;path&gt;</code> to continue from a specific transcript, or <code>--continue</code> to
+          automatically pick up the latest transcript from <code>~/.bridge-runner/logs/</code>.
+        </p>
+        <pre><code>node bin/local-bridge-runner.js --continue "Now add error handling to the function we just wrote"</code></pre>
+        <p>
+          In the playground, prefer <code>--session-id</code> for reliable resume. The JSONL transcript is an audit log;
+          the <code>*.state.json</code> file under <code>~/.bridge-runner/sessions/</code> is the canonical conversation
+          state when a session id is set.
+        </p>
+        <pre><code>node bin/local-bridge-runner.js \
+  --session-id my-project-1 \
+  --resume ~/.bridge-runner/logs/2025-05-24T12-00-00.jsonl \
+  "What did we decide in the last run?"</code></pre>
+      </section>
+
+      <section>
+        <h2>Context compaction (playground)</h2>
+        <p>
+          Long runs can exceed context limits. The playground compactor applies a ladder: <strong>clip</strong> (trim
+          old tool output), <strong>snip</strong> (collapse middle turns), then <strong>ghost</strong> (summary
+          placeholder). Set <code>--max-context-tokens</code> to get warnings before hard stops.
+        </p>
+      </section>
+
+      <section>
+        <h2>Startup context (minimal by default)</h2>
+        <p>
+          The runner default system prompt is <strong>generic and repo-agnostic</strong>: tool summaries, safety rules,
+          and a neutral coding-assistant identity. It does <strong>not</strong> load project markdown files unless you
+          opt in. Use <code>--include-instruction-docs</code> for the AGENTS.md hierarchy,
+          <code>--include-repo-context</code> for cwd/git fingerprinting, <code>--include-repo-map</code> for a capped
+          tree snapshot, or <code>--agent project</code> for a preset that enables several of these at once.
+          <code>--bare</code> is the strictest minimal mode.
+        </p>
+        <p>
+          The local bridge may still prepend Claude Code OAuth identity text upstream; that is transport context,
+          separate from the runner's minimal startup context.
+        </p>
+      </section>
+
+      <section>
+        <h2>Custom system prompts</h2>
+        <p>
+          Pass <code>--system-prompt "Your custom instructions"</code> to replace the built-in system prompt entirely.
+          Use <code>--append-system-prompt</code> when you only want to add rules on top of the default. This is useful
+          for specialized workflows:
+        </p>
+        <pre><code>node bin/local-bridge-runner.js \
+  --system-prompt "You are a code reviewer. Only read files and provide feedback. Do not edit files." \
+  "Review src/runner/run.js for potential bugs"</code></pre>
+      </section>
+
+      <section>
+        <h2>Safety rules</h2>
+        <div class="callout warn">
+          <strong>Mutations are gated</strong>
+          Edit tools ask for confirmation by default. Shell is disabled by default. Unsafe paths and secret-looking
+          files are blocked even when the mutation tools are enabled. For the full threat model, see
+          <a href="threat-model.html">threat-model.md</a>.
+        </div>
+        <ul>
+          <li>
+            Blocked paths: <code>.env*</code>, <code>*.pem</code>, <code>*.key</code>, <code>*.p8</code>,
+            <code>*.p12</code>, <code>credentials*.json</code>, service-account JSON, token files, and anything that
+            looks like a secret.
+          </li>
+          <li>Blocked escapes: absolute paths and <code>../</code> outside the working directory are rejected.</li>
+          <li>
+            Transcripts live in <code>~/.bridge-runner/logs/</code> (outside the repo) and redact sensitive headers.
+          </li>
+          <li>Human-readable logs also redact secret-looking values before they are written to disk.</li>
+          <li>
+            Write tools save backups in <code>.bridge-runner/backups/</code> so the <code>undo</code> tool can restore
+            them.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Troubleshooting</h2>
+
+        <h3>“Bridge returned HTTP 404” or connection refused</h3>
+        <p>The bridge is not running or is on a different port. Check:</p>
+        <pre><code>curl -s http://localhost:11437/v1/debug \
+  -H "x-claude-local-bridge-debug-token: PASTE_TOKEN_HERE"</code></pre>
+        <p>If that fails, start the bridge first (in VS Code: <code>Claude Local Bridge: Start Server</code>).</p>
+
+        <h3>“No credentials found” in bridge debug</h3>
+        <p>
+          Open Claude Code in your terminal once. The bridge intercepts the live OAuth token from Claude Code's outgoing
+          HTTPS requests.
+        </p>
+
+        <h3>Model loops forever</h3>
+        <p>
+          Use <code>--max-steps</code> to cap the loop. The default is 16. If the model keeps calling tools without
+          reaching a final answer, try making your prompt more specific:
+        </p>
+        <pre><code>"List the files and then stop. Do not call any more tools after listing."</code></pre>
+
+        <h3>Approval was denied automatically</h3>
+        <p>
+          Write and shell approvals need an interactive Terminal prompt. If another program launches the runner without
+          a usable terminal, the runner denies the action instead of guessing. Re-run it directly in Terminal, narrow
+          the task to read-only tools, or intentionally opt in with flags such as <code>--accept-edits</code>.
+        </p>
+
+        <h3>Transcript files filling up</h3>
+        <p>They are small JSONL files in <code>~/.bridge-runner/logs/</code>. You can delete old ones safely:</p>
+        <pre><code>rm ~/.bridge-runner/logs/*.jsonl</code></pre>
+      </section>
+
+      <section>
+        <h2>Next steps</h2>
+        <p>
+          The runner covers inspection, guarded edits, transcript logging, resume, optional shell validation, and (in
+          the playground) session persistence, compaction, coordinator phases, hooks, and skills metadata.
+        </p>
+        <ul>
+          <li><code>README.md</code> — repository direction, runner defaults, and transport guardrails</li>
+          <li><code>AGENTS.md</code> and <code>CLAUDE.md</code> — instructions for future coding agents</li>
+          <li>
+            <a href="command-builder.html">Command builder</a> — form that generates paste-ready runner commands
+          </li>
+        </ul>
+        <div class="callout">
+          <strong>Happy building</strong>
+          If something breaks, check the transcript and run with <code>--verbose</code>. Use
+          <code>--session-id</code> in the playground when you want resume to feel like a real chat thread.
+        </div>
+      </section>
+    </main>
+
+    <footer>Runner lab built on top of the local bridge transport</footer>
+  </body>
+</html>

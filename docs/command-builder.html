@@ -1,0 +1,2483 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Command Builder — Local Bridge Runner</title>
+    <style>
+      :root {
+        --bg: #0d1117;
+        --surface: #161b22;
+        --border: #30363d;
+        --text: #e6edf3;
+        --muted: #8b949e;
+        --blue: #58a6ff;
+        --green: #3fb950;
+        --orange: #d2991d;
+        --red: #f85149;
+        --purple: #bc8cff;
+        --code-bg: #1c2128;
+        --input-bg: #0d1117;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.6;
+        min-height: 100vh;
+      }
+      .container {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 1.5rem;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--border);
+      }
+      header h1 {
+        font-size: 1.3rem;
+        background: linear-gradient(135deg, var(--blue), var(--purple));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      header a {
+        color: var(--muted);
+        font-size: 0.85rem;
+        text-decoration: none;
+      }
+      header a:hover {
+        color: var(--blue);
+      }
+      .header-links {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        align-items: start;
+      }
+      @media (max-width: 700px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1.2rem 1.4rem;
+        margin-bottom: 1rem;
+      }
+      .card h2 {
+        font-size: 1rem;
+        margin-bottom: 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .field {
+        margin-bottom: 0.85rem;
+      }
+      .field:last-child {
+        margin-bottom: 0;
+      }
+      label {
+        display: block;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 0.25rem;
+      }
+      input,
+      select,
+      textarea {
+        width: 100%;
+        background: var(--input-bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text);
+        font-size: 0.9rem;
+        padding: 0.45rem 0.6rem;
+        font-family: inherit;
+        transition: border-color 0.15s;
+      }
+      input:focus,
+      select:focus,
+      textarea:focus {
+        outline: none;
+        border-color: var(--blue);
+        box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.15);
+      }
+      textarea {
+        resize: vertical;
+        min-height: 72px;
+      }
+
+      .row {
+        display: flex;
+        gap: 0.6rem;
+      }
+      .row > .field {
+        flex: 1;
+      }
+
+      .checks {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1.2rem;
+        margin-bottom: 0.7rem;
+      }
+      .checks label.check-label {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.82rem;
+        font-weight: 400;
+        color: var(--text);
+        text-transform: none;
+        letter-spacing: 0;
+        cursor: pointer;
+      }
+      .checks label.check-label > code {
+        font-size: 0.72em;
+        color: var(--muted);
+        border: none;
+        background: none;
+        padding: 0;
+      }
+      .checks input[type='checkbox'] {
+        width: auto;
+        accent-color: var(--blue);
+        cursor: pointer;
+      }
+
+      .toggle-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.8rem;
+      }
+      .toggle-row span {
+        font-size: 0.82rem;
+      }
+      .toggle-row span.detail {
+        color: var(--muted);
+        font-size: 0.75rem;
+      }
+
+      .toggle {
+        position: relative;
+        width: 40px;
+        height: 22px;
+        flex-shrink: 0;
+      }
+      .toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .toggle .slider {
+        position: absolute;
+        inset: 0;
+        background: var(--border);
+        border-radius: 22px;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+      .toggle .slider::before {
+        content: '';
+        position: absolute;
+        height: 16px;
+        width: 16px;
+        left: 3px;
+        bottom: 3px;
+        background: var(--text);
+        border-radius: 50%;
+        transition: 0.2s;
+      }
+      .toggle input:checked + .slider {
+        background: var(--green);
+      }
+      .toggle input:checked + .slider::before {
+        transform: translateX(18px);
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 0.1em 0.5em;
+        border-radius: 8px;
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .badge-read {
+        background: rgba(63, 185, 80, 0.15);
+        color: var(--green);
+      }
+      .badge-write {
+        background: rgba(210, 153, 29, 0.15);
+        color: var(--orange);
+      }
+      .badge-shell {
+        background: rgba(188, 140, 255, 0.15);
+        color: var(--purple);
+      }
+      .badge-recovery {
+        background: rgba(88, 166, 255, 0.15);
+        color: var(--blue);
+      }
+
+      .presets {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-bottom: 1.2rem;
+      }
+      .preset-btn {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        color: var(--text);
+        font-size: 0.78rem;
+        padding: 0.3rem 0.75rem;
+        cursor: pointer;
+        transition: 0.15s;
+        white-space: nowrap;
+      }
+      .preset-btn:hover {
+        border-color: var(--blue);
+        color: var(--blue);
+      }
+      .preset-btn.active {
+        border-color: var(--blue);
+        background: rgba(88, 166, 255, 0.08);
+        color: var(--blue);
+      }
+
+      .cmd-panel {
+        position: sticky;
+        top: 1rem;
+      }
+      .terminal {
+        background: var(--code-bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 0.8rem;
+      }
+      .terminal-bar {
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        padding: 0.45rem 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .terminal-bar .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+      }
+      .terminal-bar .dot:nth-child(1) {
+        background: var(--red);
+      }
+      .terminal-bar .dot:nth-child(2) {
+        background: var(--orange);
+      }
+      .terminal-bar .dot:nth-child(3) {
+        background: var(--green);
+      }
+      .terminal-bar .title {
+        margin-left: 0.4rem;
+        font-size: 0.75rem;
+        color: var(--muted);
+      }
+      .terminal pre {
+        margin: 0;
+        padding: 0.9rem 1rem;
+        font-size: 0.82rem;
+        line-height: 1.7;
+        overflow-x: auto;
+        color: var(--green);
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+      .terminal pre .dim {
+        color: var(--muted);
+      }
+
+      .copy-btn {
+        width: 100%;
+        padding: 0.55rem;
+        border: 1px solid var(--green);
+        background: rgba(63, 185, 80, 0.08);
+        color: var(--green);
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: 0.15s;
+      }
+      .copy-btn:hover {
+        background: rgba(63, 185, 80, 0.15);
+      }
+      .copy-btn.copied {
+        background: rgba(63, 185, 80, 0.2);
+      }
+
+      .tool-list {
+        list-style: none;
+        font-size: 0.78rem;
+      }
+      .tool-list li {
+        padding: 0.3rem 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .tool-list li + li {
+        border-top: 1px solid var(--border);
+      }
+      .tool-list .name {
+        font-weight: 600;
+      }
+      .tool-list .desc {
+        color: var(--muted);
+        font-size: 0.72rem;
+      }
+
+      .shell-warn {
+        background: rgba(210, 153, 29, 0.06);
+        border: 1px solid rgba(210, 153, 29, 0.2);
+        border-radius: 6px;
+        padding: 0.5rem 0.7rem;
+        font-size: 0.75rem;
+        color: var(--orange);
+        margin-top: 0.5rem;
+        display: none;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .shell-warn.show,
+      .note.show {
+        display: flex;
+      }
+
+      .note {
+        background: rgba(88, 166, 255, 0.06);
+        border: 1px solid rgba(88, 166, 255, 0.2);
+        border-radius: 6px;
+        padding: 0.5rem 0.7rem;
+        font-size: 0.75rem;
+        color: var(--blue);
+        margin-top: 0.5rem;
+        display: none;
+      }
+
+      .guide-list {
+        color: var(--muted);
+        font-size: 0.8rem;
+        padding-left: 1rem;
+      }
+      .guide-list li + li {
+        margin-top: 0.35rem;
+      }
+      .tool-choice {
+        align-items: flex-start;
+      }
+      .tool-choice input {
+        margin-top: 0.22rem;
+      }
+      .tool-choice span {
+        display: grid;
+        gap: 0.05rem;
+      }
+      .tool-choice small {
+        color: var(--muted);
+        font-size: 0.72rem;
+      }
+
+      .divider {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 0.8rem 0;
+      }
+
+      .warn-panel {
+        border-radius: 6px;
+        padding: 0.5rem 0.7rem;
+        font-size: 0.78rem;
+        margin-top: 0.5rem;
+        display: none;
+        line-height: 1.45;
+      }
+      .warn-panel.show {
+        display: block;
+      }
+      .warn-panel.conflict {
+        background: rgba(248, 81, 73, 0.08);
+        border: 1px solid rgba(248, 81, 73, 0.35);
+        color: var(--red);
+      }
+      .warn-panel.caution {
+        background: rgba(210, 153, 29, 0.06);
+        border: 1px solid rgba(210, 153, 29, 0.25);
+        color: var(--orange);
+      }
+      .warn-panel.info {
+        background: rgba(88, 166, 255, 0.06);
+        border: 1px solid rgba(88, 166, 255, 0.2);
+        color: var(--blue);
+      }
+
+      .is-muted-control {
+        opacity: 0.45;
+        pointer-events: none;
+      }
+      .check-label.is-muted-control input {
+        pointer-events: none;
+      }
+
+      .subsection-title {
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin: 0.6rem 0 0.35rem;
+      }
+
+      .capability-group {
+        width: 100%;
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 0.2rem;
+        margin-top: 0.25rem;
+      }
+
+      details.advanced-panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        margin-bottom: 1rem;
+      }
+      details.advanced-panel > summary {
+        cursor: pointer;
+        padding: 1rem 1.4rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--text);
+        list-style: none;
+      }
+      details.advanced-panel > summary::-webkit-details-marker {
+        display: none;
+      }
+      details.advanced-panel > summary::before {
+        content: '▸ ';
+        color: var(--muted);
+      }
+      details.advanced-panel[open] > summary::before {
+        content: '▾ ';
+      }
+      details.advanced-panel .advanced-body {
+        padding: 0 1.4rem 1.2rem;
+        border-top: 1px solid var(--border);
+      }
+      details.advanced-panel .advanced-body .card {
+        background: transparent;
+        border: none;
+        padding: 1rem 0 0;
+        margin-bottom: 0;
+      }
+      details.advanced-panel .advanced-body .card + .card {
+        border-top: 1px solid var(--border);
+        margin-top: 0.5rem;
+        padding-top: 1rem;
+      }
+
+      .style-hint {
+        font-size: 0.78rem;
+        color: var(--muted);
+        margin-top: 0.35rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>Command Builder</h1>
+        <nav class="header-links" aria-label="Runner docs">
+          <a href="runner-expansion-roadmap.md">Expansion roadmap</a>
+          <a href="runner-quickstart.html">&larr; Quick Start</a>
+        </nav>
+      </header>
+
+      <div class="layout">
+        <!-- ── LEFT ── FORM ── -->
+        <div>
+          <!-- Prompt -->
+          <div class="card">
+            <h2>Prompt</h2>
+            <div class="field">
+              <textarea
+                id="prompt"
+                placeholder="e.g. Explain how src/server.js works&#10;or: Add JSDoc to every exported function"
+              ></textarea>
+            </div>
+            <ul class="guide-list">
+              <li>Start with a small objective and say whether files may be changed.</li>
+              <li>Use a target project folder when the runner code and the folder under review are different.</li>
+              <li>Copy the command into <strong>Terminal</strong> after the local bridge is already running.</li>
+              <li>
+                All CLI flags are listed in Terminal:
+                <code>node bin/local-bridge-runner.js --help</code>
+              </li>
+              <li>New here? Try a read-only preset first — it inspects files without changing anything.</li>
+            </ul>
+          </div>
+
+          <!-- Presets -->
+          <div class="card">
+            <h2>Quick presets</h2>
+            <p class="style-hint">Pick a starting point, then adjust permission style or folders below.</p>
+            <div class="presets" id="presets">
+              <button class="preset-btn" data-preset="minimal" title="List top-level files and summarize the repo. Read-only, bare context, 8 steps. The safest starting point.">Minimal look-around</button>
+              <button class="preset-btn" data-preset="readonly" title="Read README and runner entry point, explain the loop. Read-only with verbose output, 10 steps.">Read-only exploration</button>
+              <button class="preset-btn" data-preset="plan" title="Propose a small improvement without writing any files. Plan mode — the model describes actions instead of executing them. 10 steps.">Plan first (dry run)</button>
+              <button class="preset-btn" data-preset="confirm" title="Make a small edit, but the runner asks you in Terminal before each file change. 12 steps.">Edit with confirmation</button>
+              <button class="preset-btn" data-preset="auto" title="Fix a typo or wording issue with auto-approved file changes. No shell access, 16 steps.">Auto-approve edits</button>
+              <button class="preset-btn" data-preset="verify" title="Make an improvement, then auto-run tests via --test-watch to verify. Enables shell. 20 steps.">Verify after edits</button>
+              <button class="preset-btn" data-preset="delegate" title="Spawn a code-reviewer subagent to review a file read-only, then summarize findings. 12 steps.">Delegate subagent</button>
+              <button class="preset-btn" data-preset="worktree" title="Edit inside an isolated git worktree branch so your main branch stays clean. The worktree is preserved for review after the run.">Safe edits in a worktree</button>
+              <button class="preset-btn" data-preset="full" title="Full editing and shell access with streaming and verbose output. Runs tests and fixes failures. The most powerful preset — and the most risky. 24 steps.">Edit + shell</button>
+            </div>
+          </div>
+
+          <!-- Run settings -->
+          <div class="card" id="permissionCard">
+            <h2>Run settings</h2>
+
+            <div class="field">
+              <label for="permissionStyle" title="Controls the runner's write and shell permissions. 'Look only' is safest — the model can read but never change files. Each level adds more power and more risk.">What may the runner do?</label>
+              <select id="permissionStyle">
+                <option value="look-only">Look only — read files, no writes</option>
+                <option value="plan-first">Plan first — describe changes, dry-run tools</option>
+                <option value="edit-ask" selected>Edit — ask before each file change</option>
+                <option value="edit-auto">Edit — auto-approve file changes (no shell)</option>
+                <option value="edit-shell">Edit + shell — auto edits and bash (risky)</option>
+              </select>
+              <p id="permissionStyleHint" class="style-hint"></p>
+            </div>
+
+            <input type="checkbox" id="acceptEdits" hidden />
+            <input type="checkbox" id="dontAsk" hidden />
+            <input type="checkbox" id="plan" hidden />
+            <input type="checkbox" id="allowShell" hidden />
+
+            <div id="chaosConflict" class="warn-panel conflict">
+              &#9940; <strong>Blocked:</strong> shell + auto-edits + no prompts needs <code>--chaos-ok</code> (enable under Advanced or
+              pick Edit + shell preset).
+            </div>
+            <div id="permissionCautions" class="warn-panel caution"></div>
+            <div id="shellWarn" class="shell-warn">
+              &#9888; Shell is on — the model can run Terminal commands in your project folder.
+            </div>
+            <div id="planNote" class="note" style="display: none">
+              &#8505; <strong>Plan mode:</strong> the model describes actions instead of executing writes and shell commands.
+            </div>
+
+            <div class="row" style="margin-top: 0.75rem">
+              <div class="field">
+                <label for="cwd" title="The folder the runner's tools operate inside — where it reads, searches, and writes files. This is the project you want the model to work on, not the runner's own folder.">Target project folder</label>
+                <input type="text" id="cwd" placeholder="/Users/alanman/path/to/project" />
+              </div>
+            </div>
+            <div class="field">
+              <label for="runnerPath" title="The folder where the runner code lives — you paste the generated command into Terminal while cd'd into this folder. Usually the claude-local-bridge-playground checkout.">Runner repo folder (where you run the command)</label>
+              <input
+                type="text"
+                id="runnerPath"
+                placeholder="/Users/alanman/Developer/claude-local-bridge-playground"
+              />
+            </div>
+          </div>
+
+          <details class="advanced-panel" id="advancedPanel">
+            <summary>Advanced options</summary>
+            <div class="advanced-body">
+              <!-- 4.1: tier navigation hint -->
+              <p style="font-size: 0.78rem; color: var(--muted); margin-bottom: 0.5rem; border-left: 3px solid var(--border); padding-left: 0.7rem;">
+                <strong style="color: var(--green);">Common extras:</strong> Attach files, Output &amp; logging &nbsp;|&nbsp;
+                <strong style="color: var(--blue);">Tuning:</strong> Model &amp; limits, Prompt templates &nbsp;|&nbsp;
+                <strong style="color: var(--purple);">Expert:</strong> Session &amp; context, Tool catalog
+              </p>
+              <!-- Attachments -->
+              <div class="card">
+                <h2>Attach files</h2>
+                <div class="field">
+                  <label for="attachmentMode" title="How attached files reach the model. 'Read' asks the model to use read_file on the paths. 'Include' embeds file contents via --include-file. 'Stdin' pipes file contents through standard input.">Attachment mode</label>
+                  <select id="attachmentMode">
+                    <option value="read">Ask model to read these project paths</option>
+                    <option value="include">Include file contents with --include-file</option>
+                    <option value="stdin">Pipe file contents through stdin</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="attachedPaths">Relative file paths</label>
+                  <textarea id="attachedPaths" placeholder="src/server.js&#10;README.md"></textarea>
+                </div>
+                <div id="attachmentNote" class="note"></div>
+              </div>
+
+              <!-- Model & limits -->
+              <div class="card">
+                <h2>Model &amp; limits</h2>
+                <div class="field">
+                  <label for="model" title="Which Claude model the runner sends prompts to. Bigger models (like Opus) are smarter but slower and more expensive per turn.">Model</label>
+                  <select id="model">
+                    <option value="claude-sonnet-4-6" selected>claude-sonnet-4-6 (default)</option>
+                    <option value="claude-sonnet-5">claude-sonnet-5</option>
+                    <option value="claude-fable-5">claude-fable-5</option>
+                    <option value="claude-opus-4-8">claude-opus-4-8</option>
+                    <option value="claude-opus-4-7">claude-opus-4-7</option>
+                    <option value="claude-sonnet-4-5">claude-sonnet-4-5</option>
+                    <option value="claude-haiku-4-5">claude-haiku-4-5</option>
+                    <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet</option>
+                  </select>
+                </div>
+                <div class="row">
+                  <div class="field">
+                    <label for="maxSteps" title="Maximum number of model turns before the runner stops. Each step is one model response that may include tool calls. Higher = more work done, more tokens spent.">Max steps</label>
+                    <input type="number" id="maxSteps" value="16" min="1" max="200" />
+                  </div>
+                  <div class="field">
+                    <label for="maxTokens" title="Maximum tokens the model can output in a single response. Higher values let the model write longer answers or bigger code blocks, but cost more.">Max tokens</label>
+                    <input type="number" id="maxTokens" value="2000" min="100" max="32000" />
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="field">
+                    <label for="temperature" title="Controls randomness in model output. 0 = most deterministic, 1 = most creative. Leave blank to use the model's default. Opus 4.8 rejects non-default values.">Temperature</label>
+                    <input type="number" id="temperature" placeholder="model default" min="0" max="1" step="0.1" />
+                    <div class="note show">
+                      &#8505; Leave this blank for Opus 4.8; Anthropic rejects non-default sampling settings on that model.
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="maxContextTokens" title="Token threshold that triggers compaction (summarizing older turns). When the conversation exceeds this, the runner compresses history to stay within the model's context window.">Context warning budget</label>
+                    <input type="number" id="maxContextTokens" placeholder="optional" min="1000" step="1000" />
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="maxToolCalls" title="Limit how many tools the model can call in a single response. Prevents runaway turns where the model makes dozens of file reads at once.">Max tool calls in one turn</label>
+                  <input type="number" id="maxToolCalls" placeholder="optional" min="1" max="100" />
+                </div>
+              </div>
+
+              <!-- Prompt templates -->
+              <div class="card">
+                <h2>Prompt templates</h2>
+                <div class="field">
+                  <label for="promptTemplate" title="Pre-built prompt templates that set the model's approach — explore for read-only orientation, review for code review, cleanup for refactoring, etc. Each suggests safe permissions and tools for its job.">Built-in template</label>
+                  <select id="promptTemplate">
+                    <option value="">none</option>
+                    <option value="explore">explore — read-only orientation</option>
+                    <option value="review">review — findings-first code review</option>
+                    <option value="cleanup">cleanup — simplify while preserving behavior</option>
+                    <option value="verify">verify — run checks and fix failures</option>
+                    <option value="grill">grill — question the user before finishing</option>
+                    <option value="simplify">simplify — review quality after edits</option>
+                  </select>
+                  <small id="promptTemplateHint" style="display: none; color: var(--muted); margin-top: 0.35rem"></small>
+                </div>
+                <div class="field">
+                  <label for="customPromptTemplate">Custom template name or path</label>
+                  <input
+                    type="text"
+                    id="customPromptTemplate"
+                    placeholder=".bridge-runner/prompts/my-template.md or my-template"
+                  />
+                </div>
+                <div class="field">
+                  <label for="promptArgs">Template args (fills <code>{{name}}</code> placeholders)</label>
+                  <input type="text" id="promptArgs" placeholder="focus=error handling  area=src/runner" />
+                  <small style="color: var(--muted); margin-top: 0.25rem">
+                    Space-separated <code>key=value</code> pairs → one <code>--prompt-arg</code> each. Run
+                    <code>node bin/local-bridge-prompts.js show &lt;name&gt;</code> to see a template's parameters.
+                  </small>
+                </div>
+              </div>
+
+              <!-- Output & prompts -->
+              <div class="card">
+                <h2>Output &amp; logging</h2>
+                <div class="checks">
+                  <label class="check-label" title="When on, model responses appear word-by-word in real time instead of all at once. Helpful for watching the model think, but produces more terminal output."> <input type="checkbox" id="stream" /> Stream responses live <code>--stream</code> </label>
+                  <label class="check-label" title="Show extra detail about each step — tool decisions, token counts, and timing. Useful for understanding what the runner is doing under the hood."> <input type="checkbox" id="verbose" /> Show detailed output <code>--verbose</code> </label>
+                  <label class="check-label" id="noNetworkRow" title="Block shell commands from making network requests. Only works when shell is enabled. A safety net so scripts can't reach the internet.">
+                    <input type="checkbox" id="noNetwork" /> Block network in shell <code>--no-network</code>
+                  </label>
+                  <label class="check-label is-muted-control" id="testWatchRow" title="After any file write, automatically run your project's test suite and feed results back to the model so it can fix failures. Requires --allow-shell because tests run in Terminal.">
+                    <input type="checkbox" id="testWatch" /> Auto-run tests after writes <code>--test-watch</code>
+                  </label>
+                  <label class="check-label" id="enableLspRow" title="Give the model access to Language Server Protocol features — go-to-definition, find-references, hover docs, and diagnostics. Requires a running LSP server for your project language.">
+                    <input type="checkbox" id="enableLsp" /> Enable LSP queries <code>--enable-lsp</code>
+                  </label>
+                </div>
+                <div class="field">
+                  <label for="outputFormat" title="How the runner's output appears. 'text' is normal terminal output. 'json' gives one JSON object at the end (good for scripts). 'stream-json' emits JSON lines as events happen (good for piping to other tools).">Output format</label>
+                  <select id="outputFormat">
+                    <option value="text">text — normal terminal output</option>
+                    <option value="json">json — one final JSON object</option>
+                    <option value="stream-json">stream-json — parseable JSON lines</option>
+                  </select>
+                </div>
+                <div class="row">
+                  <div class="field">
+                    <label for="confirmTimeout" title="How long the runner waits for you to approve a file change before timing out. Only matters when file writes require confirmation (edit-ask mode). In milliseconds.">Approval timeout (ms)</label>
+                    <input type="number" id="confirmTimeout" placeholder="optional" min="1000" step="1000" />
+                  </div>
+                  <div class="field">
+                    <label for="logLevel" title="Controls how chatty the runner's own status messages are (separate from the model's output). 'verbose' shows more internal state, 'quiet' suppresses most runner messages.">Runtime messages</label>
+                    <select id="logLevel">
+                      <option value="">normal</option>
+                      <option value="verbose">verbose</option>
+                      <option value="quiet">quiet</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="field" style="margin-top: 0.5rem">
+                  <label for="systemPrompt" title="Replace the runner's built-in system prompt entirely with your own text. Advanced — most use cases are better served by --append-system-prompt which adds to the default instead of replacing it.">Custom system prompt</label>
+                  <input type="text" id="systemPrompt" placeholder="Override the built-in system prompt (optional)" />
+                </div>
+                <div class="row">
+                  <div class="field">
+                    <label for="systemPromptFile" title="Load a full system prompt replacement from a file instead of typing it inline. The file path is relative to --cwd.">System prompt file</label>
+                    <input type="text" id="systemPromptFile" placeholder=".bridge-runner/SYSTEM.md" />
+                  </div>
+                  <div class="field">
+                    <label for="appendSystemPromptFile" title="Load extra rules from a file and append them after the default system prompt. A safe way to add project-specific instructions without losing the built-in safety rules.">Append prompt file</label>
+                    <input type="text" id="appendSystemPromptFile" placeholder=".bridge-runner/APPEND_SYSTEM.md" />
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="appendSystemPrompt" title="Extra rules appended after the default system prompt. Use this to add custom instructions without overriding the built-in prompt. Safer than replacing the system prompt entirely.">Append system prompt text</label>
+                  <input
+                    type="text"
+                    id="appendSystemPrompt"
+                    placeholder="Extra rules to add after the default prompt"
+                  />
+                </div>
+                <div class="field" id="shellTimeoutRow">
+                  <label for="shellTimeout" title="Maximum time a single shell command can run before the runner kills it. In milliseconds. Prevents commands like 'npm install' from hanging forever.">Shell timeout (ms)</label>
+                  <input type="number" id="shellTimeout" value="30000" min="100" max="120000" step="1000" />
+                </div>
+              </div>
+
+              <!-- Session & context -->
+              <div class="card">
+                <h2>Session &amp; context</h2>
+                <p class="subsection-title">Session health</p>
+                <div class="checks">
+                  <label class="check-label" id="newSessionRow" title="Ignore any existing session for this folder and start completely fresh. Previous context is discarded.">
+                    <input type="checkbox" id="newSession" /> Force a fresh session <code>--new-session</code>
+                  </label>
+                  <label class="check-label" id="resumeSessionRow" title="Resume the most recent session for this folder. The model picks up where it left off with its full conversation history intact.">
+                    <input type="checkbox" id="resumeSession" /> Resume last session <code>--resume-session</code>
+                  </label>
+                  <label class="check-label" id="ackResumeRiskRow" title="Override the safety check that normally blocks resuming a degraded session. Use only when you understand and accept the risk that the session's history may be unreliable.">
+                    <input type="checkbox" id="ackResumeRisk" /> Accept degraded-session risk <code>--ack-resume-risk</code>
+                  </label>
+                </div>
+                <div id="sessionConflict" class="warn-panel conflict">
+                  &#9940; <strong>Conflict:</strong> Pick one resume style: <code>--new-session</code>, <code>--resume-session</code>,
+                  <code>--continue</code>, or <code>--resume &lt;transcript&gt;</code> — combining them is confusing.
+                </div>
+                <div class="field">
+                  <label for="forkFrom" title="Start a new session that shares a parent session's history up to a point, then diverges — like a git branch but for agent conversations. Enter the parent session's id.">Fork from session id</label>
+                  <input type="text" id="forkFrom" placeholder="parent-session-id" />
+                </div>
+
+                <p class="subsection-title">Startup context (default: minimal)</p>
+                <p style="font-size: 0.78rem; color: var(--muted); margin: 0 0 0.5rem">
+                  The runner no longer injects AGENTS.md / repo map by default. Opt in below or choose
+                  <code>--agent project</code>.
+                </p>
+                <div class="checks">
+                  <label class="check-label" title="Start with the absolute minimum system prompt — no AGENTS.md, no repo map, no built-in instructions. Use when you want full control over what the model knows, or for a clean experiment."> <input type="checkbox" id="bareContext" /> Skip default instructions <code>--bare</code> </label>
+                  <label class="check-label">
+                    <input type="checkbox" id="includeInstructionDocs" title="Load AGENTS.md and other instruction documents from your project into the system prompt. Gives the model project-specific rules and conventions." /> Load AGENTS.md &amp; instruction docs <code>--include-instruction-docs</code>
+                  </label>
+                  <label class="check-label">
+                    <input type="checkbox" id="includeRepoContext" title="Add a summary of your repository's structure, purpose, and key files to the system prompt. Helps the model orient itself without reading every file." /> Add repo summary to prompt <code>--include-repo-context</code>
+                  </label>
+                  <label class="check-label">
+                    <input type="checkbox" id="includeClaudeMd" title="Load the project's CLAUDE.md file into the system prompt. Contains project-specific working notes. Needs --include-repo-context to activate the loader." /> Include CLAUDE.md <code>--include-claude-md</code>
+                  </label>
+                  <label class="check-label" title="Include a file tree (directory listing) so the model knows what files and folders exist in your project without having to list_files first."> <input type="checkbox" id="includeRepoMap" /> Include file tree <code>--include-repo-map</code> </label>
+                  <label class="check-label" title="Load skill documents from .bridge-runner/skills/ so the model can use specialized workflows like code review, testing, or refactoring patterns."> <input type="checkbox" id="includeSkills" /> Load project skills <code>--include-skills</code> </label>
+                  <label class="check-label">
+                    <input type="checkbox" id="excludeDynamicSystem" title="Remove automatically-generated system prompt sections (like safety rules and tool instructions that the runner adds). Advanced — can break expected model behavior." /> Strip auto-generated prompt sections <code>--exclude-dynamic-system-prompt-sections</code>
+                  </label>
+                  <label class="check-label">
+                    <input type="checkbox" id="noSessionPersistence" title="Don't save any session state after this run. The run still works normally, but there's nothing to --resume-session from later. Useful for one-shot experiments." /> Don't save session state <code>--no-session-persistence</code>
+                  </label>
+                </div>
+                <div class="row">
+                  <div class="field">
+                    <label for="permissionMode" title="A single flag that sets multiple permissions at once. 'auto' is the most permissive (auto-approve edits + skip prompts). Usually the permission style dropdown above is easier to use.">Permission mode</label>
+                    <select id="permissionMode">
+                      <option value="">(individual flags)</option>
+                      <option value="default">default</option>
+                      <option value="plan">plan</option>
+                      <option value="accept-edits">accept-edits</option>
+                      <option value="dont-ask">dont-ask</option>
+                      <option value="accept-edits-dont-ask">accept-edits-dont-ask</option>
+                      <option value="auto">auto</option>
+                    </select>
+                  </div>
+                </div>
+
+                <p class="subsection-title">Task hygiene</p>
+                <div class="checks">
+                  <label class="check-label" title="Tell the model to stay narrowly focused on the specific task in your prompt. Prevents scope creep where the model wanders off to 'improve' unrelated things."> <input type="checkbox" id="taskScope" /> Narrow focus to one task <code>--task-scope</code> </label>
+                  <label class="check-label">
+                    <input type="checkbox" id="compactEachTurn" title="After every model turn, summarize older conversation history to save context window space. Useful for long runs that might hit token limits. Trades precision for longevity." /> Summarize history every turn <code>--compact-each-turn</code>
+                  </label>
+                  <label class="check-label" title="After the run finishes, automatically extract useful patterns and learnings from the conversation and save them to persistent memory for future sessions."> <input type="checkbox" id="autoMemory" /> Auto-promote learnings <code>--auto-memory</code> </label>
+                  <label class="check-label" title="Don't archive this run's data after it finishes. Keeps your ~/.bridge-runner/logs/ folder smaller. The run still works normally — just no post-run copy to the archive."> <input type="checkbox" id="noArchive" /> Skip run archival <code>--no-archive</code> </label>
+                </div>
+                <div class="row">
+                  <div class="field">
+                    <label for="effort" title="How much 'thinking effort' the model should put in. Higher effort = longer, more thorough responses but slower and more expensive. Leave as default unless you need the model to think harder (or faster).">Model effort</label>
+                    <select id="effort">
+                      <option value="">(default)</option>
+                      <option value="low">low</option>
+                      <option value="medium">medium</option>
+                      <option value="high">high</option>
+                      <option value="max">max</option>
+                    </select>
+                  </div>
+                </div>
+
+                <p class="subsection-title">Ledger utilities</p>
+                <div class="checks">
+                  <label class="check-label" id="replayRow" title="Re-run the session ledger's recorded tool calls without sending a new prompt. Used to verify that a past session replays correctly — a diagnostic tool, not a normal run.">
+                    <input type="checkbox" id="replayMode" /> Replay session ledger <code>--replay</code>
+                  </label>
+                  <label class="check-label" id="repairRow" title="Analyze the session ledger and produce a repair plan. Used when a session has diverged or become corrupted. The runner shows the plan before making changes.">
+                    <input type="checkbox" id="repairMode" /> Repair session ledger <code>--repair</code>
+                  </label>
+                </div>
+                <div id="ledgerNote" class="warn-panel info">
+                  &#8505; <strong>Note:</strong> <code>--replay</code> and <code>--repair</code> need <code>--session-id</code> or
+                  <code>--session-path</code>. They exit without running a normal agent loop.
+                </div>
+
+                <div class="field">
+                  <label for="sessionId" title="A name for this session. Sessions track conversation history, tool calls, and state across runs. Use the same id to resume later. Leave blank for an auto-generated id.">Session id</label>
+                  <input type="text" id="sessionId" placeholder="my-run-1" />
+                </div>
+                <div class="field">
+                  <label for="sessionPath" title="Override where the session state file is stored. Normally auto-derived from the session id and stored in ~/.bridge-runner/sessions/. Only needed for non-standard setups.">Session path (optional override)</label>
+                  <input type="text" id="sessionPath" placeholder="~/.bridge-runner/sessions/my-run-1.state.json" />
+                </div>
+                <div class="checks" style="margin-top: 0.5rem">
+                  <label class="check-label">
+                    <input type="checkbox" id="trustedWorkspace" title="Enable project-specific hooks from .bridge-runner/hooks/ (like pre-run and post-run scripts). Only turn this on for projects you control — hooks run arbitrary code." /> Enable project hooks <code>--trusted-workspace</code>
+                  </label>
+                  <label class="check-label">
+                    <input type="checkbox" id="trustWorkspace" title="Pre-answer 'yes' to the first-time folder consent prompt. The runner normally asks once per new --cwd folder whether you trust it. This flag skips that prompt." /> Record folder consent <code>--trust-workspace</code>
+                  </label>
+                  <label class="check-label">
+                    <input type="checkbox" id="chaosOk" title="Acknowledge the most dangerous flag combination: shell + auto-approve edits + no confirmation prompts. The runner blocks this by default because the model could run arbitrary commands with no human review." /> Allow risky combo <code>--chaos-ok</code>
+                  </label>
+                  <label class="check-label">
+                    <input type="checkbox" id="sessionExtract" title="After the run finishes, queue a learning-extraction pass that reviews the conversation for useful patterns — things the model discovered that might help future sessions." /> Queue learning extraction <code>--session-extract</code>
+                  </label>
+                  <label class="check-label">
+                    <input type="checkbox" id="reviewMemory" title="List all promoted memories for this workspace without starting a normal agent loop. An administrative/diagnostic command — it shows what the runner has 'learned' across sessions." /> List saved memories <code>--review-memory</code>
+                  </label>
+                </div>
+                <div class="row">
+                  <div class="field">
+                    <label for="agentProfile" title="An agent profile pre-configures the model's personality and tool access for a specific job (like 'explore' for read-only orientation, or 'project' for richer context). File agents load from .bridge-runner/agents/.">Agent profile or file agent</label>
+                    <select id="agentProfile">
+                      <option value="">(default)</option>
+                      <optgroup label="Built-in profiles">
+                        <option value="explore">explore</option>
+                        <option value="plan">plan</option>
+                        <option value="implement">implement</option>
+                        <option value="verify">verify</option>
+                        <option value="test">test</option>
+                        <option value="bench">bench (eval mode)</option>
+                        <option value="replay">replay</option>
+                        <option value="extractor">extractor</option>
+                        <option value="project">project (richer context)</option>
+                      </optgroup>
+                      <optgroup label=".bridge-runner/agents/">
+                        <option value="code-reviewer">code-reviewer</option>
+                        <option value="debugger">debugger</option>
+                        <option value="refactoring-specialist">refactoring-specialist</option>
+                        <option value="test-automator">test-automator</option>
+                      </optgroup>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="customAgent">Custom agent name/path</label>
+                    <input
+                      type="text"
+                      id="customAgent"
+                      placeholder="awesome-claude-code-subagents/categories/04-quality-security/code-reviewer.md"
+                    />
+                    <div class="small">
+                      Optional override for <code>--agent &lt;name|path&gt;</code>. Compatible Markdown agents map tools
+                      safely; <code>Bash</code> still requires <code>--allow-shell</code>.
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="toolProfile" title="A capability profile layers per-tool allow/deny rules on top of permission flags. For example, 'review-only' restricts to read tools regardless of other settings. Git shell profile still requires --allow-shell.">Capability profile</label>
+                    <select id="toolProfile">
+                      <option value="">(none)</option>
+                      <option value="review-only">review-only</option>
+                      <option value="edit-source-no-shell">edit-source-no-shell</option>
+                      <option value="git-readonly-shell">git-readonly-shell (needs shell)</option>
+                    </select>
+                    <div class="small">
+                      <code>--profile</code> layers per-tool allow/deny over permission flags. Git shell profile still
+                      requires <code>--allow-shell</code>.
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="maxWallClockMs" title="Maximum total real-world time the entire run can take, in milliseconds. The runner stops after this limit regardless of how many steps remain. 600000 = 10 minutes.">Max wall clock (ms)</label>
+                    <input type="text" id="maxWallClockMs" placeholder="600000" />
+                  </div>
+                  <div class="field">
+                    <label for="maxCostUsd" title="Maximum estimated dollar cost before the runner stops. Based on token pricing for the selected model. A safety net against unexpectedly expensive runs.">Max cost USD</label>
+                    <input type="text" id="maxCostUsd" placeholder="2.00" />
+                  </div>
+                  <div class="field">
+                    <label for="budgetInputTokens" title="Hard cap on total input tokens consumed across all steps. The runner warns at 80% and stops at the limit. Child agents spawned during the run inherit the remaining budget.">Budget input tokens (hard cap)</label>
+                    <input type="text" id="budgetInputTokens" placeholder="200000" />
+                    <div class="small">Soft warning at 80%. Uses API usage counters; child spawns inherit remaining budget.</div>
+                  </div>
+                  <div class="field">
+                    <label for="budgetOutputTokens" title="Hard cap on total output tokens the model can generate across all steps. Prevents runaway output costs in long multi-step runs.">Budget output tokens (hard cap)</label>
+                    <input type="text" id="budgetOutputTokens" placeholder="32000" />
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label for="resumePath" title="Resume a previous run from a specific transcript file. The model re-enters the conversation at the point the transcript left off. Use the full path to the .jsonl file.">Resume from transcript</label>
+                  <input type="text" id="resumePath" placeholder="~/.bridge-runner/logs/last.jsonl" />
+                </div>
+
+                <div class="checks" style="margin-top: 0.5rem">
+                  <label class="check-label" id="continueRow" title="Automatically find and resume from the most recent transcript file. Like --resume but you don't have to find the file path yourself.">
+                    <input type="checkbox" id="continueFromLatest" /> Auto-resume from latest <code>--continue</code>
+                  </label>
+                </div>
+
+                <div class="field">
+                  <label for="transcript" title="Where to save this run's transcript — a JSON-lines file recording every model message and tool call. Useful for debugging, replaying, or resuming later. Leave blank for the default path.">Transcript path</label>
+                  <input type="text" id="transcript" placeholder="~/.bridge-runner/logs/&lt;timestamp&gt;.jsonl" />
+                </div>
+
+                <div class="field">
+                  <label for="humanLog" title="Save a plain-text, human-readable log of the run — the prompt, each tool call and result, and the final answer. Easier to read than the JSON transcript. Good for reviewing what happened.">Human-readable log path</label>
+                  <input type="text" id="humanLog" placeholder="~/.bridge-runner/logs/run-notes.md" />
+                </div>
+
+                <div class="row">
+                  <div class="field">
+                    <label for="traceLevel" title="Controls the flight-recorder trace — a low-level log of what the runner sent to the bridge, what came back, and internal decisions. 'off' saves nothing. 'summary' is metadata only. 'redacted' scrubs sensitive content. 'full' logs everything (careful — may include source code).">Flight recorder trace level</label>
+                    <select id="traceLevel">
+                      <option value="off">off - no trace files</option>
+                      <option value="summary">summary - metadata only</option>
+                      <option value="redacted">redacted - scrubbed payloads</option>
+                      <option value="full">full - broad local payloads</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="tracePath" title="Where to save the runner's flight-recorder trace file. Defaults to ~/.bridge-runner/traces/. Only used when trace level is not 'off'.">Runner trace path</label>
+                    <input type="text" id="tracePath" placeholder="~/.bridge-runner/traces/run.runner.jsonl" />
+                  </div>
+                </div>
+                <div class="note show">
+                  &#8505; Traces help debug what the runner built, what the bridge forwarded, tool decisions, usage, and cache
+                  counters returned by the model. Treat redacted and full traces like source-code logs.
+                </div>
+                <div id="traceFullWarn" class="warn-panel caution">
+                  &#9888; <strong>Caution:</strong> <code>--trace-level full</code> can write prompts and source snippets to disk. Use redacted unless you
+                  need deep debugging.
+                </div>
+                <div class="field">
+                  <label for="bridgeUrl" title="Override the URL the runner uses to reach the local bridge. Default is http://127.0.0.1:11437. Change this when the bridge runs on a different port or host (like inside Docker).">Bridge URL override</label>
+                  <input type="text" id="bridgeUrl" placeholder="http://host.docker.internal:11437" />
+                </div>
+                <div class="field">
+                  <label for="callerToken" title="If the bridge has caller authentication enabled (requireCallerAuth in VS Code settings), enter the token here. Can be a literal token or an environment variable reference like $BRIDGE_CALLER_TOKEN.">Caller auth token (optional)</label>
+                  <input type="text" id="callerToken" placeholder="$BRIDGE_CALLER_TOKEN or local-dev-token" />
+                </div>
+              </div>
+
+              <!-- Tool catalog -->
+              <div class="card" id="toolsCard">
+                <h2>
+                  Capability groups
+                  <span style="font-weight: 400; font-size: 0.75rem; color: var(--muted)"
+                    >(what the model can use)</span
+                  >
+                </h2>
+                <p style="font-size: 0.78rem; color: var(--muted); margin-bottom: 0.6rem">
+                  The runner defaults to read, write, and recovery tools. Shell is hidden until
+                  <code>--allow-shell</code>. <code>apply_patch</code> is advanced patch mode and is hidden unless you
+                  opt in here.
+                </p>
+                <div class="checks" id="toolChoices">
+                  <div class="capability-group">Read</div>
+                  <label class="check-label tool-choice" title="List files and folders in a directory. The model uses this to explore your project structure — like running 'ls' in Terminal.">
+                    <input type="checkbox" value="list_files" checked />
+                    <span><strong>list_files</strong><small>Read folder entries</small></span>
+                  </label>
+                  <label class="check-label tool-choice" title="Read the contents of a file. Supports text files, images (.png/.jpg/.gif/.webp — sent as vision input), and PDFs. The model's primary way to understand your code.">
+                    <input type="checkbox" value="read_file" checked />
+                    <span><strong>read_file</strong><small>Read text, images (.png/.jpg/.gif/.webp), or PDF files</small></span>
+                  </label>
+                  <label class="check-label tool-choice" title="Search for text patterns across your project files. Like grep — the model uses this to find where functions are defined, where variables are used, etc.">
+                    <input type="checkbox" value="search_text" checked />
+                    <span><strong>search_text</strong><small>Search project text</small></span>
+                  </label>
+                  <label class="check-label tool-choice" title="Find files matching a name pattern (like *.test.js or src/**/*.html). Useful when the model needs to locate files without listing every directory.">
+                    <input type="checkbox" value="glob" checked />
+                    <span><strong>glob</strong><small>Find files by name pattern</small></span>
+                  </label>
+                  <label class="check-label tool-choice" title="Check which files have been modified, staged, or are untracked in the git repo. Helps the model understand what's changed since the last commit.">
+                    <input type="checkbox" value="git_status" checked />
+                    <span><strong>git_status</strong><small>Inspect Git changes</small></span>
+                  </label>
+                  <label class="check-label tool-choice" id="lspQueryRow" style="display: none" title="Query the Language Server Protocol for go-to-definition, find-references, hover docs, and diagnostics. Requires a running LSP server. Hidden until --enable-lsp is checked.">
+                    <input type="checkbox" value="lsp_query" />
+                    <span><strong>lsp_query</strong><small>LSP definition/references/hover/diagnostics</small></span>
+                  </label>
+                  <div class="capability-group">Session</div>
+                  <label class="check-label tool-choice" title="Let the model create and track a task checklist during the run. Helps the model organize multi-step work and show you progress.">
+                    <input type="checkbox" value="manage_tasks" checked />
+                    <span><strong>manage_tasks</strong><small>In-session task checklist</small></span>
+                  </label>
+                  <label class="check-label tool-choice" title="Let the model ask you a clarifying question in Terminal when it's unsure about something. Important safety net — without this, the model guesses instead of asking.">
+                    <input type="checkbox" value="ask_user_question" checked />
+                    <span><strong>ask_user_question</strong><small>Ask a clarifying question</small></span>
+                  </label>
+                  <div class="capability-group">Orchestration</div>
+                  <label class="check-label tool-choice" title="Let the model delegate a subtask to a child agent that runs independently. The child inherits permissions and tools. Only the top-level model can spawn agents — children cannot spawn further.">
+                    <input type="checkbox" value="spawn_agent" checked />
+                    <span><strong>spawn_agent</strong><small>Delegate to a child agent (top-level only)</small></span>
+                  </label>
+                  <label class="check-label tool-choice" title="Create and enter a git worktree — a separate checkout on its own branch. Edits happen there instead of your main branch, so you can review and merge (or discard) safely.">
+                    <input type="checkbox" value="enter_worktree" checked />
+                    <span><strong>enter_worktree</strong><small>Isolate edits on a git worktree branch</small></span>
+                  </label>
+                  <label class="check-label tool-choice" title="Leave the current worktree and return tools to the main working directory. Can optionally delete the worktree branch, or leave it for you to review and merge later.">
+                    <input type="checkbox" value="exit_worktree" checked />
+                    <span><strong>exit_worktree</strong><small>Leave worktree, optionally clean up</small></span>
+                  </label>
+                  <label class="check-label tool-choice" title="List all active worktree slots and any orphaned worktree directories left behind by previous runs. Useful for cleanup and seeing what branches exist.">
+                    <input type="checkbox" value="list_worktrees" checked />
+                    <span><strong>list_worktrees</strong><small>List active slots and orphan worktree dirs</small></span>
+                  </label>
+                  <label class="check-label tool-choice" title="Load a skill document by name from .bridge-runner/skills/. Skills are structured instructions that teach the model specialized workflows — like how to do a code review or run a migration.">
+                    <input type="checkbox" value="run_skill" checked />
+                    <span><strong>run_skill</strong><small>Load a skill document body by name</small></span>
+                  </label>
+                  <div class="capability-group">Write</div>
+                  <label class="check-label tool-choice" title="Replace an exact piece of text in a file with new text. The safest write tool — it only changes what it explicitly matches, so accidental edits are unlikely. Needs --accept-edits or confirmation.">
+                    <input type="checkbox" value="edit_file" checked />
+                    <span><strong>edit_file</strong><small>Exact text replacement</small></span>
+                  </label>
+                  <label class="check-label tool-choice" title="Create a new file or completely overwrite an existing file. More powerful than edit_file because it replaces the entire file. Needs --accept-edits or confirmation.">
+                    <input type="checkbox" value="write_file" checked />
+                    <span><strong>write_file</strong><small>Create or replace a file</small></span>
+                  </label>
+                  <div class="capability-group">Recovery</div>
+                  <label class="check-label tool-choice" title="Restore a file to its state before the runner modified it. The runner keeps backups of every file it touches, so this is always safe. Your safety net for bad edits.">
+                    <input type="checkbox" value="undo" checked />
+                    <span><strong>undo</strong><small>Restore backup</small></span>
+                  </label>
+                  <label class="check-label tool-choice" title="Undo a specific edit_file operation by its id. More precise than undo — it reverses one particular change instead of restoring the entire file to its pre-run state.">
+                    <input type="checkbox" value="undo_edit" checked />
+                    <span><strong>undo_edit</strong><small>Undo one tool edit</small></span>
+                  </label>
+                  <div class="capability-group">Advanced write</div>
+                  <label class="check-label tool-choice" title="Apply a unified diff patch to a file. More efficient than edit_file for large multi-hunk changes, but harder to review. Opt-in only because patches can be harder for beginners to verify.">
+                    <input type="checkbox" value="apply_patch" />
+                    <span><strong>apply_patch</strong><small>Patch a file; opt-in only</small></span>
+                  </label>
+                  <div class="capability-group">Shell</div>
+                  <label class="check-label tool-choice" id="bashToolRow" style="display: none" title="Run shell commands in your project folder (npm test, git diff, etc.). The most powerful tool — it can do anything your terminal can. Hidden until --allow-shell is enabled.">
+                    <input type="checkbox" value="bash" />
+                    <span><strong>bash</strong><small>Shell commands</small></span>
+                  </label>
+                  <label class="check-label tool-choice" id="manageShellJobsRow" style="display: none" title="Start, list, poll, and kill background shell processes. Lets the model run long commands (like a dev server) in the background while continuing other work. Hidden until --allow-shell is enabled.">
+                    <input type="checkbox" value="manage_shell_jobs" />
+                    <span><strong>manage_shell_jobs</strong><small>Background shell jobs (start/list/poll/kill)</small></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <!-- ── RIGHT ── COMMAND OUTPUT ── -->
+        <div class="cmd-panel">
+          <div class="card">
+            <h2>Generated command</h2>
+            <div class="terminal">
+              <div class="terminal-bar">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                <span class="title">zsh</span>
+              </div>
+              <pre id="cmdOutput"><code></code></pre>
+            </div>
+            <button class="copy-btn" id="copyBtn" onclick="copyCommand()">Copy to clipboard</button>
+            <button class="copy-btn" id="resetBtn" onclick="resetToDefaults()" style="margin-top: 0.4rem; border-color: var(--border); background: transparent; color: var(--muted);">Reset to defaults</button>
+            <p
+              id="copyFeedback"
+              style="text-align: center; font-size: 0.75rem; color: var(--muted); margin-top: 0.35rem"
+            >
+              &nbsp;
+            </p>
+
+            <!-- 3.1: plain-language summary -->
+            <div id="commandSummary" class="command-summary" style="font-size: 0.82rem; color: var(--text); line-height: 1.55; margin-top: 0.8rem; padding: 0.65rem 0.8rem; background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px;">
+              <strong style="color: var(--blue); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;">What this command will do</strong>
+              <span id="summaryText" style="display: block; margin-top: 0.3rem;"></span>
+            </div>
+          </div>
+
+          <!-- 3.4: preflight checklist -->
+          <div class="card" id="preflightCard" style="font-size: 0.82rem;">
+            <h2>Before you run</h2>
+            <ol style="padding-left: 1.2rem; margin: 0.3rem 0 0; color: var(--muted); line-height: 1.7;">
+              <li><strong style="color: var(--text);">Bridge running?</strong> Paste in Terminal: <code style="font-size: 0.75rem;">curl -s http://127.0.0.1:11437/health</code> — expect <code>{"status":"ok"}</code>.</li>
+              <li><strong style="color: var(--text);">In the right folder?</strong> Run the command from the runner repo folder shown above. The target project is separate; set it via <code>--cwd</code> or the Target folder field.</li>
+              <li><strong style="color: var(--text);">First time in this folder?</strong> The runner will ask for <code>--trust-workspace</code> consent the first time you target a new project.</li>
+              <li><strong style="color: var(--text);">New to this?</strong> Start with a <em>read-only</em> preset — it inspects files without changing anything.</li>
+            </ol>
+          </div>
+          <div class="card" style="font-size: 0.8rem; color: var(--muted)">
+            <strong>Tip:</strong> Paste into <strong>Terminal</strong> and press Enter. Bridge:
+            <code style="font-size: 0.75rem">127.0.0.1:11437</code>. Full flag list:
+            <code style="font-size: 0.75rem">node bin/local-bridge-runner.js --help</code> (run from the playground
+            folder). If the bridge says <code style="font-size: 0.75rem">Unauthorized: Missing Bearer token</code>,
+            caller auth is enabled; either disable it in VS Code settings or set Caller auth token here. Use
+            <code style="font-size: 0.75rem">stream-json</code> when another script or agent needs to parse every runner
+            event (including <code>compaction</code> and <code>stopReason</code>). Set a human-readable log path when
+            you want a plain text record of the prompt, tool calls, and final answer.
+          </div>
+          <!-- 3.2: glossary -->
+          <details class="card" id="glossaryCard" style="font-size: 0.82rem; margin-bottom: 0;">
+            <summary style="cursor: pointer; font-weight: 600; color: var(--text); padding: 0.2rem 0;">Glossary — what do these terms mean?</summary>
+            <dl style="margin: 0.5rem 0 0; line-height: 1.6; color: var(--muted);">
+              <dt style="color: var(--text); font-weight: 600; margin-top: 0.35rem;">worktree</dt>
+              <dd>A separate checkout of your repo in a different folder, letting you experiment without disturbing your main branch.</dd>
+              <dt style="color: var(--text); font-weight: 600; margin-top: 0.35rem;">ledger</dt>
+              <dd>A journal of every event in a run (tool calls, results, model messages). Used by replay/repair to reconstruct or fix runs.</dd>
+              <dt style="color: var(--text); font-weight: 600; margin-top: 0.35rem;">compaction</dt>
+              <dd>When the conversation gets too long for the model, the runner summarizes older turns to keep the context window manageable.</dd>
+              <dt style="color: var(--text); font-weight: 600; margin-top: 0.35rem;">fork</dt>
+              <dd>Start a new session that shares a parent's history up to a point, then diverges — like a git branch but for agent sessions.</dd>
+              <dt style="color: var(--text); font-weight: 600; margin-top: 0.35rem;">transcript</dt>
+              <dd>A JSON-lines file recording every model message and tool call in a run. Useful for debugging or resuming.</dd>
+              <dt style="color: var(--text); font-weight: 600; margin-top: 0.35rem;">trace</dt>
+              <dd>A lower-level log of what the runner sent to the bridge, what came back, and internal decisions. Like a flight recorder.</dd>
+              <dt style="color: var(--text); font-weight: 600; margin-top: 0.35rem;">chaos-ok</dt>
+              <dd>Acknowledges a risky flag combination (shell + auto-edits + no prompts) you would otherwise be blocked from using.</dd>
+              <dt style="color: var(--text); font-weight: 600; margin-top: 0.35rem;">LSP</dt>
+              <dd>Language Server Protocol — the technology behind go-to-definition, find-references, and diagnostics in your editor. The <code>lsp_query</code> tool lets the model use it.</dd>
+            </dl>
+          </details>
+          <div class="card" id="recoveryCard">
+            <h2>
+              Recovery
+              <span class="badge-recovery">undo last-run</span>
+            </h2>
+            <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 0.5rem">
+              Every run that edits files records a manifest under
+              <code style="font-size: 0.75rem">.bridge-runner/runs/&lt;run-id&gt;/</code>. Roll a whole run back from
+              its backups with the recovery CLI (run from the playground folder, point <code>--cwd</code> at the project
+              the runner edited):
+            </p>
+            <div class="terminal">
+              <div class="terminal-bar">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                <span class="title">recovery</span>
+              </div>
+              <pre style="margin: 0"><code># list recorded runs (newest first)
+node bin/local-bridge-undo.js list-runs --cwd /path/to/project
+
+# preview reverting the most recent run (changes nothing)
+node bin/local-bridge-undo.js last-run --cwd /path/to/project --dry-run
+
+# revert it (asks to confirm; add --yes in scripts)
+node bin/local-bridge-undo.js last-run --cwd /path/to/project
+
+# revert an older run by run id or session id
+node bin/local-bridge-undo.js run &lt;run-id|session-id&gt; --cwd /path/to/project</code></pre>
+            </div>
+            <p style="font-size: 0.75rem; color: var(--muted); margin-top: 0.5rem">
+              A file changed <em>after</em> the run you are reverting is marked <strong>diverged</strong> and skipped
+              unless you add <code>--force</code>, so a later run's work is never clobbered by surprise. Old manifests
+              are not auto-deleted — prune them by removing the matching
+              <code style="font-size: 0.75rem">.bridge-runner/runs/&lt;run-id&gt;</code> folder.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ── Elements ──
+      const prompt = document.getElementById('prompt');
+      const promptTemplate = document.getElementById('promptTemplate');
+      const customPromptTemplate = document.getElementById('customPromptTemplate');
+      const promptArgs = document.getElementById('promptArgs');
+      const promptTemplateHint = document.getElementById('promptTemplateHint');
+
+      // Shipped snapshot of the built-in prompt registry (src/runner/prompts/*.md
+      // frontmatter). Mirrored here so the builder can suggest permissions/tools
+      // for the selected template without a filesystem read. Keep in sync when a
+      // built-in template's recommended-permissions / recommended-tools change.
+      const PROMPT_REGISTRY = {
+        explore: { permissions: 'look-only', tools: 'list_files, read_file, search_text, glob, git_status', params: '' },
+        review: { permissions: 'look-only', tools: 'read_file, search_text, git_status', params: 'focus?' },
+        cleanup: { permissions: 'edit-ask', tools: 'read_file, search_text, edit_file, write_file', params: '' },
+        verify: { permissions: 'edit-shell', tools: 'read_file, search_text, edit_file, write_file, bash', params: '' },
+        grill: { permissions: 'look-only', tools: 'read_file, search_text, git_status', params: 'focus?' },
+        simplify: { permissions: 'edit-ask', tools: 'read_file, search_text, edit_file, write_file', params: '' },
+      };
+      const attachmentMode = document.getElementById('attachmentMode');
+      const attachedPaths = document.getElementById('attachedPaths');
+      const model = document.getElementById('model');
+      const maxSteps = document.getElementById('maxSteps');
+      const maxTokens = document.getElementById('maxTokens');
+      const temperature = document.getElementById('temperature');
+      const maxContextTokens = document.getElementById('maxContextTokens');
+      const maxToolCalls = document.getElementById('maxToolCalls');
+      const cwd = document.getElementById('cwd');
+      const runnerPath = document.getElementById('runnerPath');
+      const acceptEdits = document.getElementById('acceptEdits');
+      const dontAsk = document.getElementById('dontAsk');
+      const stream = document.getElementById('stream');
+      const verbose = document.getElementById('verbose');
+      const outputFormat = document.getElementById('outputFormat');
+      const allowShell = document.getElementById('allowShell');
+      const shellTimeout = document.getElementById('shellTimeout');
+      const confirmTimeout = document.getElementById('confirmTimeout');
+      const logLevel = document.getElementById('logLevel');
+      const resumePath = document.getElementById('resumePath');
+      const transcript = document.getElementById('transcript');
+      const humanLog = document.getElementById('humanLog');
+      const traceLevel = document.getElementById('traceLevel');
+      const tracePath = document.getElementById('tracePath');
+      const bridgeUrl = document.getElementById('bridgeUrl');
+      const callerToken = document.getElementById('callerToken');
+      const cmdOutput = document.getElementById('cmdOutput');
+      const copyBtn = document.getElementById('copyBtn');
+      const copyFeedback = document.getElementById('copyFeedback');
+      const shellWarn = document.getElementById('shellWarn');
+      const bashToolRow = document.getElementById('bashToolRow');
+      const manageShellJobsRow = document.getElementById('manageShellJobsRow');
+      const lspQueryRow = document.getElementById('lspQueryRow');
+      const enableLsp = document.getElementById('enableLsp');
+      const attachmentNote = document.getElementById('attachmentNote');
+      const plan = document.getElementById('plan');
+      const noNetwork = document.getElementById('noNetwork');
+      const testWatch = document.getElementById('testWatch');
+      const testWatchRow = document.getElementById('testWatchRow');
+      const systemPrompt = document.getElementById('systemPrompt');
+      const systemPromptFile = document.getElementById('systemPromptFile');
+      const appendSystemPrompt = document.getElementById('appendSystemPrompt');
+      const appendSystemPromptFile = document.getElementById('appendSystemPromptFile');
+      const continueFromLatest = document.getElementById('continueFromLatest');
+      const toolChoices = Array.from(document.querySelectorAll('#toolChoices input[type="checkbox"]'));
+      const sessionId = document.getElementById('sessionId');
+      const sessionPath = document.getElementById('sessionPath');
+      const trustedWorkspace = document.getElementById('trustedWorkspace');
+      const trustWorkspace = document.getElementById('trustWorkspace');
+      const chaosOk = document.getElementById('chaosOk');
+      const sessionExtract = document.getElementById('sessionExtract');
+      const reviewMemory = document.getElementById('reviewMemory');
+      const agentProfile = document.getElementById('agentProfile');
+      const customAgent = document.getElementById('customAgent');
+      const toolProfile = document.getElementById('toolProfile');
+      const maxWallClockMs = document.getElementById('maxWallClockMs');
+      const maxCostUsd = document.getElementById('maxCostUsd');
+      const budgetInputTokens = document.getElementById('budgetInputTokens');
+      const budgetOutputTokens = document.getElementById('budgetOutputTokens');
+      const newSession = document.getElementById('newSession');
+      const resumeSession = document.getElementById('resumeSession');
+      const ackResumeRisk = document.getElementById('ackResumeRisk');
+      const forkFrom = document.getElementById('forkFrom');
+      const taskScope = document.getElementById('taskScope');
+      const compactEachTurn = document.getElementById('compactEachTurn');
+      const effort = document.getElementById('effort');
+      const autoMemory = document.getElementById('autoMemory');
+      const bareContext = document.getElementById('bareContext');
+      const includeInstructionDocs = document.getElementById('includeInstructionDocs');
+      const includeRepoContext = document.getElementById('includeRepoContext');
+      const includeClaudeMd = document.getElementById('includeClaudeMd');
+      const includeRepoMap = document.getElementById('includeRepoMap');
+      const includeSkills = document.getElementById('includeSkills');
+      const excludeDynamicSystem = document.getElementById('excludeDynamicSystem');
+      const noSessionPersistence = document.getElementById('noSessionPersistence');
+      const permissionMode = document.getElementById('permissionMode');
+      const noArchive = document.getElementById('noArchive');
+      const replayMode = document.getElementById('replayMode');
+      const repairMode = document.getElementById('repairMode');
+      const chaosConflict = document.getElementById('chaosConflict');
+      const permissionCautions = document.getElementById('permissionCautions');
+      const sessionConflict = document.getElementById('sessionConflict');
+      const traceFullWarn = document.getElementById('traceFullWarn');
+      const ledgerNote = document.getElementById('ledgerNote');
+      const shellTimeoutRow = document.getElementById('shellTimeoutRow');
+      const noNetworkRow = document.getElementById('noNetworkRow');
+      const ackResumeRiskRow = document.getElementById('ackResumeRiskRow');
+      const permissionStyle = document.getElementById('permissionStyle');
+      const permissionStyleHint = document.getElementById('permissionStyleHint');
+
+      const PLAYGROUND = '/Users/alanman/Developer/claude-local-bridge-playground';
+      const READ_TOOL_NAMES = ['list_files', 'read_file', 'search_text', 'glob', 'git_status', 'ask_user_question'];
+      const DEFAULT_TOOL_NAMES = [
+        'list_files',
+        'read_file',
+        'search_text',
+        'glob',
+        'git_status',
+        'manage_tasks',
+        'ask_user_question',
+        'spawn_agent',
+        'enter_worktree',
+        'list_worktrees',
+        'exit_worktree',
+        'run_skill',
+        'edit_file',
+        'write_file',
+        'undo',
+        'undo_edit',
+      ];
+
+      const PERMISSION_STYLE_HINTS = {
+        'look-only': 'Read-only tools only. Safest way to explore a repo.',
+        'plan-first': 'The model describes what it would do without writing files or running shell.',
+        'edit-ask': 'Default — you confirm each file change in Terminal.',
+        'edit-auto': 'Skips write confirmations. Shell stays off.',
+        'edit-shell': 'Auto-edits plus bash. Enables --chaos-ok. Use only when you need tests or npm.',
+      };
+
+      const PERMISSION_STYLES = {
+        'look-only': {
+          plan: true,
+          acceptEdits: false,
+          dontAsk: false,
+          allowShell: false,
+          chaosOk: false,
+          noNetwork: false,
+          agentProfile: 'explore',
+          applyTools: true,
+          tools: READ_TOOL_NAMES,
+        },
+        'plan-first': {
+          plan: true,
+          acceptEdits: false,
+          dontAsk: false,
+          allowShell: false,
+          chaosOk: false,
+          noNetwork: false,
+          agentProfile: 'plan',
+        },
+        'edit-ask': {
+          plan: false,
+          acceptEdits: false,
+          dontAsk: false,
+          allowShell: false,
+          chaosOk: false,
+          noNetwork: false,
+          agentProfile: '',
+        },
+        'edit-auto': {
+          plan: false,
+          acceptEdits: true,
+          dontAsk: false,
+          allowShell: false,
+          chaosOk: false,
+          noNetwork: false,
+          agentProfile: 'implement',
+        },
+        'edit-shell': {
+          plan: false,
+          acceptEdits: true,
+          dontAsk: true,
+          allowShell: true,
+          chaosOk: true,
+          noNetwork: true,
+          agentProfile: 'test',
+        },
+      };
+
+      const DEFAULTS = {
+        maxSteps: 16,
+        maxTokens: 2000,
+        model: 'claude-sonnet-4-6',
+        shellTimeout: 30000,
+        outputFormat: 'text',
+        traceLevel: 'off',
+      };
+
+      function applyPermissionStyle(styleKey, options = {}) {
+        const style = PERMISSION_STYLES[styleKey];
+        if (!style) return;
+        if (!options.skipSelect) permissionStyle.value = styleKey;
+        acceptEdits.checked = !!style.acceptEdits;
+        dontAsk.checked = !!style.dontAsk;
+        plan.checked = !!style.plan;
+        allowShell.checked = !!style.allowShell;
+        chaosOk.checked = !!style.chaosOk;
+        noNetwork.checked = !!style.noNetwork;
+        if (Object.prototype.hasOwnProperty.call(style, 'agentProfile') && !options.keepAgent)
+          agentProfile.value = style.agentProfile || '';
+        if (style.applyTools && style.tools) {
+          toolChoices.forEach((choice) => {
+            choice.checked = style.tools.includes(choice.value);
+          });
+        } else if (!options.keepTools && styleKey !== 'look-only') {
+          toolChoices.forEach((choice) => {
+            choice.checked = DEFAULT_TOOL_NAMES.includes(choice.value);
+          });
+        }
+        if (permissionStyleHint) {
+          permissionStyleHint.textContent = PERMISSION_STYLE_HINTS[styleKey] || '';
+        }
+      }
+
+      function getAttachedPaths() {
+        return attachedPaths.value
+          .split('\n')
+          .map((line) => line.trim())
+          .filter(Boolean);
+      }
+
+      function buildPromptText() {
+        const paths = getAttachedPaths();
+        let promptText = prompt.value.trim();
+        if (paths.length > 0 && attachmentMode.value === 'read') {
+          promptText +=
+            '\n\nAttached project paths:\n' +
+            paths.map((filePath) => '- ' + filePath).join('\n') +
+            '\n\nPlease use read_file on these paths before answering.';
+        }
+        return promptText.trim();
+      }
+
+      function buildCommandParts() {
+        const parts = ['node bin/local-bridge-runner.js'];
+
+        if (cwd.value.trim()) parts.push('--cwd ' + shellQuote(cwd.value.trim()));
+        if (sessionId.value.trim()) parts.push('--session-id ' + shellQuote(sessionId.value.trim()));
+        if (sessionPath.value.trim()) parts.push('--session-path ' + shellQuote(sessionPath.value.trim()));
+        if (trustedWorkspace.checked) parts.push('--trusted-workspace');
+        if (trustWorkspace.checked) parts.push('--trust-workspace');
+        if (chaosOk.checked) parts.push('--chaos-ok');
+        if (sessionExtract.checked) parts.push('--session-extract');
+        if (reviewMemory.checked) {
+          parts.push('--review-memory');
+          return parts;
+        }
+        if (replayMode.checked) {
+          parts.push('--replay');
+          return parts;
+        }
+        if (repairMode.checked) {
+          parts.push('--repair');
+          return parts;
+        }
+        const agentName = customAgent.value.trim() || agentProfile.value;
+        if (agentName) parts.push('--agent ' + shellQuote(agentName));
+        if (toolProfile.value.trim()) parts.push('--profile ' + shellQuote(toolProfile.value.trim()));
+        if (maxWallClockMs.value.trim()) parts.push('--max-wall-clock-ms ' + maxWallClockMs.value.trim());
+        if (maxCostUsd.value.trim()) parts.push('--max-cost-usd ' + maxCostUsd.value.trim());
+        if (budgetInputTokens.value.trim()) parts.push('--budget-input-tokens ' + budgetInputTokens.value.trim());
+        if (budgetOutputTokens.value.trim()) parts.push('--budget-output-tokens ' + budgetOutputTokens.value.trim());
+
+        if (attachmentMode.value === 'include') {
+          for (const filePath of getAttachedPaths()) {
+            parts.push('--include-file ' + shellQuote(filePath));
+          }
+        }
+        for (const templateName of getPromptTemplates()) {
+          parts.push('--prompt-template ' + shellQuote(templateName));
+        }
+        if (getPromptTemplates().length) {
+          for (const arg of getPromptArgs()) {
+            parts.push('--prompt-arg ' + shellQuote(arg));
+          }
+        }
+        if (model.value !== DEFAULTS.model) parts.push('--model ' + model.value);
+        if (+maxTokens.value !== DEFAULTS.maxTokens) parts.push('--max-tokens ' + maxTokens.value);
+        if (+maxSteps.value !== DEFAULTS.maxSteps) parts.push('--max-steps ' + maxSteps.value);
+        if (temperature.value.trim()) parts.push('--temperature ' + temperature.value.trim());
+        if (maxContextTokens.value.trim()) parts.push('--max-context-tokens ' + maxContextTokens.value.trim());
+        if (maxToolCalls.value.trim()) parts.push('--max-tool-calls-per-turn ' + maxToolCalls.value.trim());
+        if (newSession.checked) parts.push('--new-session');
+        if (resumeSession.checked) parts.push('--resume-session');
+        if (ackResumeRisk.checked) parts.push('--ack-resume-risk');
+        if (forkFrom.value.trim()) parts.push('--fork-from ' + shellQuote(forkFrom.value.trim()));
+        if (taskScope.checked) parts.push('--task-scope');
+        if (compactEachTurn.checked) parts.push('--compact-each-turn');
+        if (effort.value) parts.push('--effort ' + effort.value);
+        if (autoMemory.checked) parts.push('--auto-memory');
+        if (noArchive.checked) parts.push('--no-archive');
+        if (bareContext.checked) parts.push('--bare');
+        if (includeInstructionDocs.checked) parts.push('--include-instruction-docs');
+        if (includeRepoContext.checked) parts.push('--include-repo-context');
+        if (includeClaudeMd.checked) parts.push('--include-claude-md');
+        if (includeRepoMap.checked) parts.push('--include-repo-map');
+        if (includeSkills.checked) parts.push('--include-skills');
+        if (excludeDynamicSystem.checked) parts.push('--exclude-dynamic-system-prompt-sections');
+        if (noSessionPersistence.checked) parts.push('--no-session-persistence');
+        if (permissionMode.value) parts.push('--permission-mode ' + permissionMode.value);
+        if (resumePath.value.trim()) parts.push('--resume ' + shellQuote(resumePath.value.trim()));
+        if (transcript.value.trim() && !resumePath.value.trim() && !resumeSession.checked)
+          parts.push('--transcript ' + shellQuote(transcript.value.trim()));
+        if (humanLog.value.trim()) parts.push('--human-log ' + shellQuote(humanLog.value.trim()));
+        if (traceLevel.value !== DEFAULTS.traceLevel) parts.push('--trace-level ' + traceLevel.value);
+        if (tracePath.value.trim()) parts.push('--trace-path ' + shellQuote(tracePath.value.trim()));
+        if (bridgeUrl.value.trim()) parts.push('--bridge-url ' + shellQuote(bridgeUrl.value.trim()));
+        if (callerToken.value.trim()) parts.push('--caller-token ' + shellQuoteOrEnv(callerToken.value.trim()));
+        if (systemPrompt.value.trim()) parts.push('--system-prompt ' + shellQuote(systemPrompt.value.trim()));
+        if (systemPromptFile.value.trim())
+          parts.push('--system-prompt-file ' + shellQuote(systemPromptFile.value.trim()));
+        if (appendSystemPrompt.value.trim())
+          parts.push('--append-system-prompt ' + shellQuote(appendSystemPrompt.value.trim()));
+        if (appendSystemPromptFile.value.trim())
+          parts.push('--append-system-prompt-file ' + shellQuote(appendSystemPromptFile.value.trim()));
+        if (continueFromLatest.checked) parts.push('--continue');
+        if (acceptEdits.checked) parts.push('--accept-edits');
+        if (dontAsk.checked) parts.push('--dont-ask');
+        if (plan.checked) parts.push('--plan');
+        if (noNetwork.checked) parts.push('--no-network');
+        if (testWatch.checked) parts.push('--test-watch');
+        if (outputFormat.value !== DEFAULTS.outputFormat) parts.push('--output-format ' + outputFormat.value);
+        if (allowShell.checked) {
+          parts.push('--allow-shell');
+          if (+shellTimeout.value !== DEFAULTS.shellTimeout) parts.push('--shell-timeout ' + shellTimeout.value);
+        }
+        if (enableLsp.checked) parts.push('--enable-lsp');
+        if (confirmTimeout.value.trim()) parts.push('--confirm-timeout ' + confirmTimeout.value.trim());
+        if (logLevel.value) parts.push('--log-level ' + logLevel.value);
+        const selectedTools = getSelectedTools();
+        const exposedDefaults = allowShell.checked
+          ? enableLsp.checked
+            ? [...DEFAULT_TOOL_NAMES, 'bash', 'manage_shell_jobs', 'lsp_query']
+            : [...DEFAULT_TOOL_NAMES, 'bash', 'manage_shell_jobs']
+          : enableLsp.checked
+            ? [...DEFAULT_TOOL_NAMES, 'lsp_query']
+            : DEFAULT_TOOL_NAMES;
+        if (!sameTools(selectedTools, exposedDefaults)) {
+          parts.push('--tools ' + shellQuote(selectedTools.join(',') || 'none'));
+        }
+        if (stream.checked) parts.push('--stream');
+        if (verbose.checked) parts.push('--verbose');
+
+        const promptText = buildPromptText();
+        if (promptText) parts.push(shellQuote(promptText));
+
+        return parts;
+      }
+
+      function getSelectedTools() {
+        return toolChoices
+          .filter(
+            (choice) =>
+              choice.checked &&
+              ((choice.value !== 'bash' && choice.value !== 'manage_shell_jobs') || allowShell.checked) &&
+              (choice.value !== 'lsp_query' || enableLsp.checked),
+          )
+          .map((choice) => choice.value);
+      }
+
+      function getPromptTemplates() {
+        const names = [];
+        if (promptTemplate.value) names.push(promptTemplate.value);
+        customPromptTemplate.value
+          .split(',')
+          .map((name) => name.trim())
+          .filter(Boolean)
+          .forEach((name) => names.push(name));
+        return names;
+      }
+
+      // Space-separated key=value pairs → ['key=value', ...] for --prompt-arg.
+      function getPromptArgs() {
+        return promptArgs.value
+          .split(/\s+/)
+          .map((pair) => pair.trim())
+          .filter((pair) => pair.includes('='));
+      }
+
+      // Show the selected built-in template's recommended permissions/tools and
+      // parameters, so the form auto-suggests a safe setup for that template.
+      function renderPromptHint() {
+        const meta = PROMPT_REGISTRY[promptTemplate.value];
+        if (!meta) {
+          promptTemplateHint.style.display = 'none';
+          promptTemplateHint.textContent = '';
+          return;
+        }
+        const bits = ['Recommended: permissions ' + meta.permissions + ' · tools ' + meta.tools];
+        if (meta.params) bits.push('Parameters: ' + meta.params + ' — fill with --prompt-arg');
+        promptTemplateHint.textContent = bits.join('  •  ');
+        promptTemplateHint.style.display = '';
+      }
+
+      function sameTools(left, right) {
+        return left.length === right.length && left.every((name, index) => name === right[index]);
+      }
+
+      function buildCommandString(groupedForPipe = false) {
+        const command = buildCommandParts().join(' ');
+        if (!runnerPath.value.trim()) return command;
+        const cdCommand = 'cd ' + shellQuote(runnerPath.value.trim()) + ' && ' + command;
+        return groupedForPipe ? '(' + cdCommand + ')' : cdCommand;
+      }
+
+      function buildRawCommand() {
+        const paths = getAttachedPaths();
+        const command = buildCommandString(paths.length > 0 && attachmentMode.value === 'stdin');
+        if (paths.length > 0 && attachmentMode.value === 'stdin') {
+          const targetPrefix = cwd.value.trim() ? cwd.value.trim().replace(/\/+$/, '') + '/' : '';
+          return 'cat ' + paths.map((filePath) => shellQuote(targetPrefix + filePath)).join(' ') + ' | ' + command;
+        }
+        return command;
+      }
+
+      function hasChaosConflict() {
+        return allowShell.checked && acceptEdits.checked && dontAsk.checked && !chaosOk.checked;
+      }
+
+      function countResumeModes() {
+        let n = 0;
+        if (newSession.checked) n++;
+        if (resumeSession.checked) n++;
+        if (continueFromLatest.checked) n++;
+        if (resumePath.value.trim()) n++;
+        return n;
+      }
+
+      function updateUiState() {
+        renderPromptHint();
+        const shellOn = allowShell.checked;
+        const lspOn = enableLsp.checked;
+        bashToolRow.style.display = shellOn ? '' : 'none';
+        if (manageShellJobsRow) manageShellJobsRow.style.display = shellOn ? '' : 'none';
+        if (lspQueryRow) lspQueryRow.style.display = lspOn ? '' : 'none';
+        shellWarn.classList.toggle('show', shellOn);
+        shellTimeoutRow.classList.toggle('is-muted-control', !shellOn);
+        noNetworkRow.classList.toggle('is-muted-control', !shellOn);
+        testWatchRow.classList.toggle('is-muted-control', !shellOn);
+        if (!shellOn) {
+          noNetwork.checked = false;
+          testWatch.checked = false;
+        }
+
+        const bashChoice = toolChoices.find((c) => c.value === 'bash');
+        const manageShellChoice = toolChoices.find((c) => c.value === 'manage_shell_jobs');
+        if (bashChoice) {
+          const bashLabel = bashChoice.closest('.tool-choice');
+          if (bashLabel) bashLabel.classList.toggle('is-muted-control', !shellOn);
+          if (shellOn && !bashChoice.dataset.shellWasShown) {
+            bashChoice.checked = true;
+            bashChoice.dataset.shellWasShown = '1';
+          }
+          if (!shellOn) {
+            bashChoice.checked = false;
+            delete bashChoice.dataset.shellWasShown;
+          }
+        }
+        if (manageShellChoice) {
+          const manageLabel = manageShellChoice.closest('.tool-choice');
+          if (manageLabel) manageLabel.classList.toggle('is-muted-control', !shellOn);
+          if (shellOn && !manageShellChoice.dataset.shellWasShown) {
+            manageShellChoice.checked = true;
+            manageShellChoice.dataset.shellWasShown = '1';
+          }
+          if (!shellOn) {
+            manageShellChoice.checked = false;
+            delete manageShellChoice.dataset.shellWasShown;
+          }
+        }
+        const lspChoice = toolChoices.find((c) => c.value === 'lsp_query');
+        if (lspChoice) {
+          const lspLabel = lspChoice.closest('.tool-choice');
+          if (lspLabel) lspLabel.classList.toggle('is-muted-control', !lspOn);
+          if (lspOn && !lspChoice.dataset.lspWasShown) {
+            lspChoice.checked = true;
+            lspChoice.dataset.lspWasShown = '1';
+          }
+          if (!lspOn) {
+            lspChoice.checked = false;
+            delete lspChoice.dataset.lspWasShown;
+          }
+        }
+
+        const chaosBlocked = hasChaosConflict();
+        chaosConflict.classList.toggle('show', chaosBlocked);
+
+        const resumeModes = countResumeModes();
+        sessionConflict.classList.toggle('show', resumeModes > 1);
+
+        const ledgerUtility = replayMode.checked || repairMode.checked;
+        ledgerNote.classList.toggle('show', ledgerUtility);
+        replayMode.closest('.check-label').classList.toggle('is-muted-control', repairMode.checked);
+        repairMode.closest('.check-label').classList.toggle('is-muted-control', replayMode.checked);
+
+        ackResumeRiskRow.classList.toggle('is-muted-control', !resumeSession.checked);
+
+        const cautions = [];
+        if (acceptEdits.checked && !plan.checked) cautions.push('--accept-edits skips write confirmations.');
+        if (dontAsk.checked && !allowShell.checked)
+          cautions.push('--dont-ask does not enable bash; add --allow-shell only when you need shell.');
+        if (dontAsk.checked && allowShell.checked && !chaosOk.checked && !(acceptEdits.checked && chaosBlocked))
+          cautions.push(
+            'With shell on, --dont-ask still asks unless writes are auto-approved or chaos is acknowledged.',
+          );
+        if (plan.checked && (acceptEdits.checked || allowShell.checked))
+          cautions.push('--plan dry-runs tools; accept-edits/shell flags still shape what the model sees.');
+        if (trustedWorkspace.checked)
+          cautions.push('--trusted-workspace runs hooks from .bridge-runner/hooks.json in cwd.');
+        if (autoMemory.checked)
+          cautions.push('--auto-memory injects opt-in runner memory into context (default off in runner).');
+        if (getPromptTemplates().length)
+          cautions.push('Prompt templates prepend reusable instructions before the user request.');
+        if (systemPromptFile.value.trim())
+          cautions.push('--system-prompt-file replaces the built-in default prompt for this run.');
+        if (appendSystemPrompt.value.trim() || appendSystemPromptFile.value.trim())
+          cautions.push('Append-system prompt options add rules after the default or replacement prompt.');
+        if (bridgeUrl.value.trim())
+          cautions.push('--bridge-url changes where model requests are sent; use it for local bridge routing.');
+        if (toolChoices.find((c) => c.value === 'apply_patch')?.checked)
+          cautions.push('apply_patch is opt-in patch mode; leave it off for the minimal write surface.');
+        if (ackResumeRisk.checked)
+          cautions.push(
+            '--ack-resume-risk overrides degraded-session gate — use only when you accept poisoned context.',
+          );
+        if (repairMode.checked) cautions.push('--repair may mutate session ledger; runner shows a plan first.');
+        if (cautions.length) {
+          permissionCautions.innerHTML = cautions.map((c) => '&#9888; ' + esc(c)).join('<br>');
+          permissionCautions.classList.add('show');
+        } else {
+          permissionCautions.classList.remove('show');
+          permissionCautions.innerHTML = '';
+        }
+
+        traceFullWarn.classList.toggle('show', traceLevel.value === 'full');
+
+        const planNote = document.getElementById('planNote');
+        if (planNote) planNote.style.display = plan.checked ? 'flex' : 'none';
+
+        copyBtn.disabled = chaosBlocked;
+        copyBtn.title = chaosBlocked ? 'Fix chaos combo before copying' : '';
+
+        // ── 3.3: Input validation ──
+        const promptText = buildPromptText();
+        const targetFolder = cwd.value.trim();
+        const validationWarnings = [];
+
+        if (!promptText && !reviewMemory.checked && !replayMode.checked && !repairMode.checked)
+          validationWarnings.push('No prompt entered — the runner will start but won\'t know what to do.');
+
+        if (targetFolder && !targetFolder.startsWith('/') && !targetFolder.startsWith('~'))
+          validationWarnings.push('Target folder should be an absolute path (start with / or ~).');
+
+        if (testWatch.checked && !allowShell.checked)
+          validationWarnings.push('--test-watch needs --allow-shell (shell runs the test watcher).');
+
+        if ((replayMode.checked || repairMode.checked) && !sessionId.value.trim() && !sessionPath.value.trim())
+          validationWarnings.push('Replay / repair needs --session-id or --session-path to find the ledger.');
+
+        const validationEl = document.getElementById('validationWarnings');
+        if (!validationEl) {
+          // Create the validation panel if it doesn't exist yet
+          const copyBtnEl = document.getElementById('copyBtn');
+          const existing = document.getElementById('validationWarnings');
+          if (!existing && copyBtnEl && validationWarnings.length) {
+            const panel = document.createElement('div');
+            panel.id = 'validationWarnings';
+            panel.className = 'warn-panel caution show';
+            panel.style.marginBottom = '0.5rem';
+            copyBtnEl.parentNode.insertBefore(panel, copyBtnEl);
+          }
+        }
+        if (validationEl) {
+          if (validationWarnings.length) {
+            validationEl.innerHTML = '⚠️ ' + validationWarnings.map((w) => esc(w)).join('<br>⚠️ ');
+            validationEl.classList.add('show');
+          } else {
+            validationEl.classList.remove('show');
+            validationEl.innerHTML = '';
+          }
+        }
+
+        // 3.3: soften the copy button when there are warnings
+        if (validationWarnings.length > 0 && !chaosBlocked) {
+          copyBtn.disabled = false; // still copyable, just warn
+          copyBtn.style.opacity = '0.7';
+        } else if (!chaosBlocked) {
+          copyBtn.style.opacity = '';
+        }
+      }
+
+      // ── Render command ──
+      function render() {
+        updateUiState();
+
+        const raw = buildRawCommand();
+        cmdOutput.innerHTML = '<span class="dim">$</span> ' + esc(raw);
+
+        updateAttachmentNote();
+        buildSummary();
+
+        copyBtn.textContent = 'Copy to clipboard';
+        copyBtn.classList.remove('copied');
+        copyFeedback.innerHTML = '&nbsp;';
+      }
+
+      function esc(s) {
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+
+      // ── 3.1: Plain-language summary ──
+      function buildSummary() {
+        const summaryEl = document.getElementById('summaryText');
+        if (!summaryEl) return;
+
+        const cwdText = cwd.value.trim() || 'the current folder';
+        const steps = +maxSteps.value || DEFAULTS.maxSteps;
+        const shellOn = allowShell.checked;
+        const planOn = plan.checked;
+        const editAuto = acceptEdits.checked && !dontAsk.checked;
+        const editAsk = !acceptEdits.checked && !planOn;
+        const fullAuto = acceptEdits.checked && dontAsk.checked;
+
+        let permissionText;
+        if (planOn) permissionText = 'will <strong>describe</strong> what it would change without writing files or running commands';
+        else if (shellOn && fullAuto) permissionText = 'may <strong>read, write files, and run shell commands</strong> without asking';
+        else if (shellOn && editAuto) permissionText = 'may <strong>read, write files, and run shell commands</strong> (writes are auto-approved)';
+        else if (shellOn && editAsk) permissionText = 'may <strong>read and write files, and run shell commands</strong> — asks before each write';
+        else if (editAuto) permissionText = 'may <strong>read and edit files</strong> without asking (shell is off)';
+        else if (editAsk) permissionText = 'may <strong>read and edit files</strong> — asks in Terminal before each change';
+        else permissionText = 'may <strong>only read files</strong> — no writes, no shell';
+
+        const transcriptText = transcript.value.trim()
+          ? 'saves a transcript to <code>' + esc(transcript.value.trim()) + '</code>'
+          : 'saves a transcript to <code>~/.bridge-runner/logs/</code>';
+
+        summaryEl.innerHTML =
+          'The runner will work in <code>' + esc(cwdText) + '</code>, ' +
+          permissionText + ', ' +
+          'will stop after ' + steps + ' steps, and ' +
+          transcriptText + '.';
+      }
+
+      function shellQuote(s) {
+        // POSIX-safe single quoting: nothing inside single quotes is expanded
+        // by the shell. Embedded single quotes become the '"'"' pattern.
+        return "'" + s.replace(/'/g, "'\"'\"'") + "'";
+      }
+
+      function shellQuoteOrEnv(s) {
+        if (/^\$[A-Z_][A-Z0-9_]*$/.test(s)) return '"' + s + '"';
+        return shellQuote(s);
+      }
+
+      function updateAttachmentNote() {
+        const mode = attachmentMode.value;
+        if (mode === 'read') {
+          attachmentNote.textContent =
+            'The command adds file paths to the prompt. The model must call read_file, so this tests tool behavior.';
+        } else if (mode === 'include') {
+          attachmentNote.textContent =
+            'The command uses --include-file. The runner reads those files before the model call, with path checks and redaction.';
+        } else {
+          attachmentNote.textContent =
+            'The command uses cat. With a target project folder set, relative paths are read from that folder before piping into the runner.';
+        }
+        attachmentNote.classList.add('show');
+      }
+
+      // ── Event listeners ──
+      [
+        prompt,
+        promptTemplate,
+        customPromptTemplate,
+        promptArgs,
+        attachmentMode,
+        attachedPaths,
+        model,
+        maxSteps,
+        maxTokens,
+        temperature,
+        maxContextTokens,
+        maxToolCalls,
+        cwd,
+        runnerPath,
+        acceptEdits,
+        dontAsk,
+        stream,
+        verbose,
+        outputFormat,
+        allowShell,
+        shellTimeout,
+        confirmTimeout,
+        logLevel,
+        resumePath,
+        transcript,
+        humanLog,
+        traceLevel,
+        tracePath,
+        bridgeUrl,
+        callerToken,
+        plan,
+        noNetwork,
+        testWatch,
+        systemPrompt,
+        systemPromptFile,
+        appendSystemPrompt,
+        appendSystemPromptFile,
+        continueFromLatest,
+        sessionId,
+        sessionPath,
+        trustedWorkspace,
+        trustWorkspace,
+        chaosOk,
+        sessionExtract,
+        reviewMemory,
+        agentProfile,
+        customAgent,
+        toolProfile,
+        maxWallClockMs,
+        maxCostUsd,
+        budgetInputTokens,
+        budgetOutputTokens,
+        newSession,
+        resumeSession,
+        ackResumeRisk,
+        forkFrom,
+        taskScope,
+        compactEachTurn,
+        effort,
+        autoMemory,
+        noArchive,
+        replayMode,
+        repairMode,
+        bareContext,
+        includeInstructionDocs,
+        includeRepoContext,
+        includeClaudeMd,
+        includeRepoMap,
+        includeSkills,
+        excludeDynamicSystem,
+        noSessionPersistence,
+        permissionMode,
+        permissionStyle,
+        ...toolChoices,
+      ].forEach((el) => {
+        el.addEventListener('input', render);
+        el.addEventListener('change', render);
+      });
+
+      permissionStyle.addEventListener('change', () => {
+        applyPermissionStyle(permissionStyle.value);
+        render();
+      });
+
+      // ── Copy ──
+      function copyCommand() {
+        const raw = buildRawCommand();
+        navigator.clipboard
+          .writeText(raw)
+          .then(() => {
+            copyBtn.textContent = 'Copied!';
+            copyBtn.classList.add('copied');
+            copyFeedback.textContent = 'Ready to paste in your terminal.';
+          })
+          .catch(() => {
+            copyFeedback.textContent = 'Could not copy — select and copy manually.';
+          });
+      }
+
+      // ── 4.3b: localStorage persistence ──
+
+      const STORAGE_KEY = 'command-builder-state';
+
+      /** Collect all mutable form values into a plain object for storage. */
+      function collectFormState() {
+        return {
+          prompt: prompt.value,
+          promptTemplate: promptTemplate.value,
+          customPromptTemplate: customPromptTemplate.value,
+          promptArgs: promptArgs.value,
+          attachmentMode: attachmentMode.value,
+          attachedPaths: attachedPaths.value,
+          model: model.value,
+          maxSteps: maxSteps.value,
+          maxTokens: maxTokens.value,
+          temperature: temperature.value,
+          maxContextTokens: maxContextTokens.value,
+          maxToolCalls: maxToolCalls.value,
+          cwd: cwd.value,
+          runnerPath: runnerPath.value,
+          permissionStyle: permissionStyle.value,
+          stream: stream.checked,
+          verbose: verbose.checked,
+          outputFormat: outputFormat.value,
+          shellTimeout: shellTimeout.value,
+          confirmTimeout: confirmTimeout.value,
+          logLevel: logLevel.value,
+          resumePath: resumePath.value,
+          transcript: transcript.value,
+          humanLog: humanLog.value,
+          traceLevel: traceLevel.value,
+          tracePath: tracePath.value,
+          bridgeUrl: bridgeUrl.value,
+          callerToken: callerToken.value,
+          systemPrompt: systemPrompt.value,
+          systemPromptFile: systemPromptFile.value,
+          appendSystemPrompt: appendSystemPrompt.value,
+          appendSystemPromptFile: appendSystemPromptFile.value,
+          continueFromLatest: continueFromLatest.checked,
+          sessionId: sessionId.value,
+          sessionPath: sessionPath.value,
+          forkFrom: forkFrom.value,
+          agentProfile: agentProfile.value,
+          customAgent: customAgent.value,
+          toolProfile: toolProfile.value,
+          maxWallClockMs: maxWallClockMs.value,
+          maxCostUsd: maxCostUsd.value,
+          budgetInputTokens: budgetInputTokens.value,
+          budgetOutputTokens: budgetOutputTokens.value,
+          newSession: newSession.checked,
+          resumeSession: resumeSession.checked,
+          ackResumeRisk: ackResumeRisk.checked,
+          taskScope: taskScope.checked,
+          compactEachTurn: compactEachTurn.checked,
+          effort: effort.value,
+          autoMemory: autoMemory.checked,
+          noArchive: noArchive.checked,
+          replayMode: replayMode.checked,
+          repairMode: repairMode.checked,
+          bareContext: bareContext.checked,
+          includeInstructionDocs: includeInstructionDocs.checked,
+          includeRepoContext: includeRepoContext.checked,
+          includeClaudeMd: includeClaudeMd.checked,
+          includeRepoMap: includeRepoMap.checked,
+          includeSkills: includeSkills.checked,
+          excludeDynamicSystem: excludeDynamicSystem.checked,
+          noSessionPersistence: noSessionPersistence.checked,
+          permissionMode: permissionMode.value,
+          trustedWorkspace: trustedWorkspace.checked,
+          trustWorkspace: trustWorkspace.checked,
+          chaosOk: chaosOk.checked,
+          sessionExtract: sessionExtract.checked,
+          reviewMemory: reviewMemory.checked,
+          allowShell: allowShell.checked,
+          enableLsp: enableLsp.checked,
+          plan: plan.checked,
+          noNetwork: noNetwork.checked,
+          testWatch: testWatch.checked,
+          acceptEdits: acceptEdits.checked,
+          dontAsk: dontAsk.checked,
+          toolChoices: toolChoices.reduce((map, c) => { map[c.value] = c.checked; return map; }, {}),
+        };
+      }
+
+      /** Apply a saved state object back to the form. */
+      function applyFormState(state) {
+        // Text/select fields
+        const textKeys = [
+          'prompt', 'promptTemplate', 'customPromptTemplate', 'promptArgs',
+          'attachmentMode', 'attachedPaths', 'model', 'maxSteps', 'maxTokens',
+          'temperature', 'maxContextTokens', 'maxToolCalls', 'cwd', 'runnerPath',
+          'permissionStyle', 'outputFormat', 'shellTimeout', 'confirmTimeout',
+          'logLevel', 'resumePath', 'transcript', 'humanLog', 'traceLevel',
+          'tracePath', 'bridgeUrl', 'callerToken', 'systemPrompt', 'systemPromptFile',
+          'appendSystemPrompt', 'appendSystemPromptFile', 'sessionId', 'sessionPath',
+          'forkFrom', 'agentProfile', 'customAgent', 'toolProfile', 'maxWallClockMs',
+          'maxCostUsd', 'budgetInputTokens', 'budgetOutputTokens', 'effort',
+          'permissionMode',
+        ];
+        const elMap = {
+          prompt, promptTemplate, customPromptTemplate, promptArgs,
+          attachmentMode, attachedPaths, model, maxSteps, maxTokens,
+          temperature, maxContextTokens, maxToolCalls, cwd, runnerPath,
+          permissionStyle, outputFormat, shellTimeout, confirmTimeout,
+          logLevel, resumePath, transcript, humanLog, traceLevel,
+          tracePath, bridgeUrl, callerToken, systemPrompt, systemPromptFile,
+          appendSystemPrompt, appendSystemPromptFile, sessionId, sessionPath,
+          forkFrom, agentProfile, customAgent, toolProfile, maxWallClockMs,
+          maxCostUsd, budgetInputTokens, budgetOutputTokens, effort,
+          permissionMode,
+        };
+        for (const key of textKeys) {
+          if (state[key] !== undefined && elMap[key]) elMap[key].value = state[key];
+        }
+        // Bool keys
+        const boolMap = {
+          stream, verbose, continueFromLatest, newSession, resumeSession,
+          ackResumeRisk, taskScope, compactEachTurn, autoMemory, noArchive,
+          replayMode, repairMode, bareContext, includeInstructionDocs,
+          includeRepoContext, includeClaudeMd, includeRepoMap, includeSkills,
+          excludeDynamicSystem, noSessionPersistence, trustedWorkspace,
+          trustWorkspace, chaosOk, sessionExtract, reviewMemory,
+          allowShell, enableLsp, plan, noNetwork, testWatch, acceptEdits, dontAsk,
+        };
+        for (const [key, el] of Object.entries(boolMap)) {
+          if (state[key] !== undefined) el.checked = !!state[key];
+        }
+        // Tool choices
+        if (state.toolChoices) {
+          toolChoices.forEach((c) => {
+            if (state.toolChoices[c.value] !== undefined) c.checked = !!state.toolChoices[c.value];
+          });
+        }
+      }
+
+      function saveFormState() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(collectFormState()));
+        } catch (_) {
+          // localStorage may be full or unavailable — silently ignore.
+        }
+      }
+
+      function restoreFormState() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return false;
+          const state = JSON.parse(raw);
+          if (!state || typeof state !== 'object') return false;
+          applyFormState(state);
+          return true;
+        } catch (_) {
+          return false;
+        }
+      }
+
+      function resetToDefaults() {
+        localStorage.removeItem(STORAGE_KEY);
+        window.location.reload();
+      }
+
+      // Auto-save on every render (debounced writes aren't needed; render is
+      // already on user action).
+      const _origRender = render;
+      render = function () {
+        _origRender();
+        saveFormState();
+      };
+
+      // ── Presets ──
+      const PRESETS = {
+        minimal: {
+          prompt:
+            'List top-level files in this repo and summarize what it does. Use read-only tools only; do not edit files.',
+          promptTemplate: 'explore',
+          permissionStyle: 'look-only',
+          maxSteps: 8,
+          bareContext: true,
+          runnerPath: PLAYGROUND,
+          cwd: PLAYGROUND,
+        },
+        readonly: {
+          prompt:
+            'Read README.md and src/runner/run.js (first 60 lines). Explain the runner loop in plain language. Do not edit files.',
+          promptTemplate: 'explore',
+          permissionStyle: 'look-only',
+          maxSteps: 10,
+          verbose: true,
+          runnerPath: PLAYGROUND,
+          cwd: PLAYGROUND,
+        },
+        plan: {
+          prompt:
+            'Dry-run: propose one small improvement to docs/command-builder.html. List files and intended edits — do not write files.',
+          promptTemplate: 'review',
+          permissionStyle: 'plan-first',
+          maxSteps: 10,
+          runnerPath: PLAYGROUND,
+          cwd: PLAYGROUND,
+        },
+        confirm: {
+          prompt:
+            'Add one beginner-friendly sentence to the command-builder tip box. Show the exact change first, then apply only if confirmation still fires.',
+          promptTemplate: 'cleanup',
+          permissionStyle: 'edit-ask',
+          maxSteps: 12,
+          runnerPath: PLAYGROUND,
+          cwd: PLAYGROUND,
+        },
+        auto: {
+          prompt:
+            'Fix a small typo or wording issue you find in docs/command-builder.html. Run relevant checks if you change runner code.',
+          promptTemplate: 'cleanup',
+          permissionStyle: 'edit-auto',
+          maxSteps: 16,
+          maxTokens: 4096,
+          runnerPath: PLAYGROUND,
+          cwd: PLAYGROUND,
+        },
+        verify: {
+          prompt:
+            'Make a small, safe improvement in docs/runner-expansion-roadmap.md. After editing, let --test-watch surface test results and fix any failures before finishing.',
+          promptTemplate: 'verify',
+          permissionStyle: 'edit-auto',
+          allowShell: true,
+          testWatch: true,
+          maxSteps: 20,
+          runnerPath: PLAYGROUND,
+          cwd: PLAYGROUND,
+        },
+        delegate: {
+          prompt:
+            'Use spawn_agent with the code-reviewer file agent to review src/runner/tools/spawn-agent.js read-only. Summarize findings before making any edits yourself.',
+          permissionStyle: 'edit-ask',
+          agentProfile: '',
+          customAgent: '',
+          maxSteps: 12,
+          runnerPath: PLAYGROUND,
+          cwd: PLAYGROUND,
+        },
+        worktree: {
+          prompt:
+            'Enter a worktree with enter_worktree, make a small safe edit to README.md, then exit_worktree with cleanup=false so the work is preserved for review. Summarize the branch name and path.',
+          permissionStyle: 'edit-ask',
+          agentProfile: 'implement',
+          tools: [
+            'list_files',
+            'read_file',
+            'search_text',
+            'glob',
+            'git_status',
+            'manage_tasks',
+            'ask_user_question',
+            'spawn_agent',
+            'enter_worktree',
+            'exit_worktree',
+            'edit_file',
+            'write_file',
+            'undo',
+            'undo_edit',
+          ],
+          maxSteps: 16,
+          runnerPath: PLAYGROUND,
+          cwd: PLAYGROUND,
+        },
+        full: {
+          prompt:
+            'Run targeted runner tests (permissions, safety), then fix any failure. Use npm test filtered to those files.',
+          permissionStyle: 'edit-shell',
+          maxSteps: 24,
+          maxTokens: 4096,
+          stream: true,
+          verbose: true,
+          runnerPath: PLAYGROUND,
+          cwd: PLAYGROUND,
+        },
+      };
+
+      function applyPresetValue(target, key, preset) {
+        if (!Object.prototype.hasOwnProperty.call(preset, key)) return;
+        const value = preset[key];
+        if (target.type === 'checkbox') target.checked = !!value;
+        else target.value = value == null ? '' : value;
+      }
+
+      function applyPreset(name, p) {
+        document.querySelectorAll('.preset-btn').forEach((b) => b.classList.remove('active'));
+        const btn = document.querySelector('[data-preset="' + name + '"]');
+        if (btn) btn.classList.add('active');
+
+        if (p.prompt !== undefined) prompt.value = p.prompt;
+        if (p.permissionStyle) applyPermissionStyle(p.permissionStyle);
+        if (Array.isArray(p.tools)) {
+          toolChoices.forEach((choice) => {
+            choice.checked = p.tools.includes(choice.value);
+          });
+        }
+        if (!p.permissionsOnly) {
+          applyPresetValue(sessionId, 'sessionId', p);
+          applyPresetValue(sessionPath, 'sessionPath', p);
+          if (!p.permissionStyle) applyPresetValue(agentProfile, 'agentProfile', p);
+          applyPresetValue(customAgent, 'customAgent', p);
+          applyPresetValue(resumePath, 'resumePath', p);
+          applyPresetValue(forkFrom, 'forkFrom', p);
+          applyPresetValue(tracePath, 'tracePath', p);
+          applyPresetValue(bridgeUrl, 'bridgeUrl', p);
+          applyPresetValue(callerToken, 'callerToken', p);
+          promptTemplate.value = p.promptTemplate || '';
+          customPromptTemplate.value = p.customPromptTemplate || '';
+          systemPrompt.value = p.systemPrompt || '';
+          systemPromptFile.value = p.systemPromptFile || '';
+          appendSystemPrompt.value = p.appendSystemPrompt || '';
+          appendSystemPromptFile.value = p.appendSystemPromptFile || '';
+          applyPresetValue(permissionMode, 'permissionMode', p);
+          applyPresetValue(temperature, 'temperature', p);
+          applyPresetValue(maxContextTokens, 'maxContextTokens', p);
+          applyPresetValue(maxToolCalls, 'maxToolCalls', p);
+          applyPresetValue(confirmTimeout, 'confirmTimeout', p);
+          applyPresetValue(logLevel, 'logLevel', p);
+          if (Object.prototype.hasOwnProperty.call(p, 'runnerPath')) runnerPath.value = p.runnerPath;
+          if (Object.prototype.hasOwnProperty.call(p, 'cwd')) cwd.value = p.cwd;
+          if (p.maxStepsDefault) maxSteps.value = DEFAULTS.maxSteps;
+          else if (p.maxSteps !== undefined) maxSteps.value = p.maxSteps;
+          if (p.maxTokensDefault) maxTokens.value = DEFAULTS.maxTokens;
+          else if (p.maxTokens !== undefined) maxTokens.value = p.maxTokens;
+          if (p.outputFormat !== undefined) outputFormat.value = p.outputFormat;
+          if (p.traceLevel !== undefined) traceLevel.value = p.traceLevel;
+          if (p.effort !== undefined) effort.value = p.effort;
+        }
+
+        const boolKeys = [
+          'acceptEdits',
+          'dontAsk',
+          'allowShell',
+          'enableLsp',
+          'stream',
+          'verbose',
+          'plan',
+          'noNetwork',
+          'testWatch',
+          'chaosOk',
+          'trustedWorkspace',
+          'trustWorkspace',
+          'sessionExtract',
+          'reviewMemory',
+          'continueFromLatest',
+          'newSession',
+          'resumeSession',
+          'ackResumeRisk',
+          'taskScope',
+          'compactEachTurn',
+          'autoMemory',
+          'noArchive',
+          'replayMode',
+          'repairMode',
+          'bareContext',
+          'includeInstructionDocs',
+          'includeRepoContext',
+          'includeClaudeMd',
+          'includeRepoMap',
+          'includeSkills',
+          'excludeDynamicSystem',
+          'noSessionPersistence',
+        ];
+        const boolMap = {
+          acceptEdits,
+          dontAsk,
+          allowShell,
+          enableLsp,
+          stream,
+          verbose,
+          plan,
+          noNetwork,
+          testWatch,
+          chaosOk,
+          trustedWorkspace,
+          trustWorkspace,
+          sessionExtract,
+          reviewMemory,
+          continueFromLatest,
+          newSession,
+          resumeSession,
+          ackResumeRisk,
+          taskScope,
+          compactEachTurn,
+          autoMemory,
+          noArchive,
+          replayMode,
+          repairMode,
+          bareContext,
+          includeInstructionDocs,
+          includeRepoContext,
+          includeClaudeMd,
+          includeRepoMap,
+          includeSkills,
+          excludeDynamicSystem,
+          noSessionPersistence,
+        };
+        if (!p.permissionStyle) {
+          boolKeys.forEach((key) => {
+            if (Object.prototype.hasOwnProperty.call(p, key)) boolMap[key].checked = !!p[key];
+          });
+        } else {
+          // Post-style overrides — a preset can set a permissionStyle *and*
+          // toggle shell/test-watch/LSP on top. This is the whitelist of flags
+          // the style is allowed to override (1.2 fix).
+          ['stream', 'verbose', 'bareContext', 'taskScope', 'newSession', 'resumeSession',
+           'allowShell', 'testWatch', 'enableLsp'].forEach((key) => {
+            if (Object.prototype.hasOwnProperty.call(p, key)) boolMap[key].checked = !!p[key];
+          });
+        }
+
+        if (!p.permissionStyle && p.applyTools && p.tools) {
+          toolChoices.forEach((choice) => {
+            choice.checked = p.tools.includes(choice.value);
+          });
+        }
+
+        render();
+      }
+
+      document.getElementById('presets').addEventListener('click', (e) => {
+        const btn = e.target.closest('.preset-btn');
+        if (!btn) return;
+        const name = btn.dataset.preset;
+        const p = PRESETS[name];
+        if (!p) return;
+        applyPreset(name, p);
+      });
+
+      runnerPath.value = PLAYGROUND;
+      cwd.value = PLAYGROUND;
+      applyPermissionStyle('edit-ask');
+      // ── 4.3b: Restore saved form state on load ──
+      restoreFormState();
+      render();
+    </script>
+  </body>
+</html>

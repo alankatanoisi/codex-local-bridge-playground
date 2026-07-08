@@ -1,0 +1,250 @@
+'use strict';
+
+const path = require('path');
+
+/**
+ * Built-in runner personalities — tools, limits, context defaults, and prompt addons.
+ */
+
+const { applyPermissionMode } = require('../permission-mode');
+const { loadAgentProfile, discoverFileAgentSummaries } = require('./agent-loader');
+
+const PROFILES = Object.freeze({
+  explore: {
+    id: 'explore',
+    description: 'Read-only codebase exploration (minimal context)',
+    allowedTools: ['list_files', 'read_file', 'search_text', 'glob', 'git_status', 'manage_tasks'],
+    maxSteps: 8,
+    trustMode: 'inherit',
+    spawnMode: 'worker',
+    forkAllowed: false,
+    outputSchema: 'findings',
+    context: { minimal: true },
+    systemPromptAddon: 'Explore the codebase read-only. Summarize structure and answer the user question.',
+  },
+  plan: {
+    id: 'plan',
+    description: 'Plan mode — describe actions without executing writes',
+    allowedTools: ['list_files', 'read_file', 'search_text', 'glob', 'git_status', 'manage_tasks'],
+    maxSteps: 10,
+    trustMode: 'inherit',
+    spawnMode: 'kernel',
+    forkAllowed: false,
+    plan: true,
+    permissionMode: 'plan',
+    outputSchema: 'findings',
+    context: { minimal: true },
+    systemPromptAddon: 'Inspect first. Propose a plan; do not execute writes or shell unless the user asks.',
+  },
+  implement: {
+    id: 'implement',
+    description: 'Write-capable implementation agent',
+    allowedTools: [
+      'list_files',
+      'read_file',
+      'search_text',
+      'git_status',
+      'edit_file',
+      'write_file',
+      'undo',
+      'undo_edit',
+      'enter_worktree',
+      'exit_worktree',
+    ],
+    maxSteps: 16,
+    trustMode: 'inherit',
+    spawnMode: 'kernel',
+    forkAllowed: false,
+    permissionMode: 'accept-edits',
+    outputSchema: 'findings',
+    context: { minimal: true },
+    systemPromptAddon: 'Implement the requested change with small, verifiable edits.',
+  },
+  verify: {
+    id: 'verify',
+    description: 'Read-only verification of repo state',
+    allowedTools: ['list_files', 'read_file', 'search_text', 'glob', 'git_status', 'manage_tasks'],
+    maxSteps: 6,
+    trustMode: 'inherit',
+    spawnMode: 'worker',
+    forkAllowed: false,
+    outputSchema: 'findings',
+    context: { minimal: true },
+    systemPromptAddon: 'Verify claims against the repository; cite files and commands where possible.',
+  },
+  test: {
+    id: 'test',
+    description: 'Test-running specialist (shell optional)',
+    allowedTools: ['list_files', 'read_file', 'search_text', 'glob', 'git_status', 'manage_tasks', 'bash'],
+    maxSteps: 8,
+    trustMode: 'inherit',
+    spawnMode: 'worker',
+    forkAllowed: false,
+    allowShell: true,
+    outputSchema: 'findings',
+    context: { minimal: true },
+    systemPromptAddon: 'Run tests or validation commands and report failures clearly.',
+  },
+  bench: {
+    id: 'bench',
+    description: 'Benchmark mode — realistic dev tasks with explicit shell/edit opt-ins',
+    allowedTools: [
+      'list_files',
+      'read_file',
+      'search_text',
+      'git_status',
+      'edit_file',
+      'write_file',
+      'undo',
+      'undo_edit',
+      'bash',
+      'apply_patch',
+      'enter_worktree',
+      'exit_worktree',
+    ],
+    maxSteps: 40,
+    trustMode: 'trusted_required',
+    spawnMode: 'kernel',
+    forkAllowed: false,
+    outputSchema: 'findings',
+    context: { minimal: true },
+    systemPromptAddon:
+      'You are running in a benchmark task workspace. Work like a practical coding agent: inspect first, edit only what is needed, run the task tests when available, and stop with a concise summary of changes and validation.',
+  },
+  replay: {
+    id: 'replay',
+    description: 'Ledger debugger — read-only session analysis',
+    allowedTools: ['list_files', 'read_file', 'search_text', 'glob'],
+    maxSteps: 4,
+    trustMode: 'inherit',
+    spawnMode: 'worker',
+    forkAllowed: false,
+    outputSchema: 'findings',
+    context: { minimal: true },
+  },
+  extractor: {
+    id: 'extractor',
+    description: 'Background session learning — proposes memory entries',
+    allowedTools: ['list_files', 'read_file', 'search_text', 'glob'],
+    maxSteps: 6,
+    trustMode: 'trusted_required',
+    spawnMode: 'worker',
+    forkAllowed: false,
+    outputSchema: 'findings',
+    context: { minimal: true },
+  },
+  project: {
+    id: 'project',
+    description: 'Richer context — instruction docs, repo fingerprint, repo map (legacy-style)',
+    allowedTools: null,
+    maxSteps: 16,
+    trustMode: 'inherit',
+    spawnMode: 'kernel',
+    forkAllowed: false,
+    context: {
+      minimal: false,
+      includeInstructionDocs: true,
+      includeRepoContext: true,
+      includeClaudeMdInRepoContext: false,
+      includeRepoMap: true,
+      includeSkills: true,
+    },
+    systemPromptAddon: 'Use project instruction files and repository context when they help.',
+  },
+});
+
+function getProfile(id, options = {}) {
+  if (!id) return null;
+  if (PROFILES[id]) return PROFILES[id];
+
+  const cwd = options.cwd;
+  if (!cwd && !looksLikeAgentPath(id)) return null;
+
+  return loadAgentProfile(id, {
+    cwd: cwd || process.cwd(),
+    allowShell: !!options.allowShell,
+  });
+}
+
+function looksLikeAgentPath(id) {
+  const key = String(id || '').trim();
+  return key.includes('/') || key.includes(path.sep) || key.endsWith('.md');
+}
+
+function listProfiles() {
+  return Object.values(PROFILES);
+}
+
+function formatAgentList(cwd) {
+  const lines = ['Built-in runner personalities (--agent <name|path>):\n'];
+  for (const p of listProfiles()) {
+    lines.push('  ' + p.id.padEnd(16) + p.description);
+  }
+
+  const fileAgents = discoverFileAgentSummaries(cwd || process.cwd());
+  if (fileAgents.length) {
+    lines.push('\nFile agents (.bridge-runner/agents/ or --agent <path>):\n');
+    for (const a of fileAgents) {
+      lines.push('  ' + a.id.padEnd(16) + a.description + ' [' + a.scope + ']');
+    }
+  }
+
+  lines.push('\nLoad any Markdown+frontmatter agent with --agent <name> or --agent path/to/agent.md.');
+  lines.push('Default startup context is minimal. Use --agent project or context flags for richer injection.');
+  return lines.join('\n');
+}
+
+function applyProfileToRunOptions(profileId, baseOptions = {}) {
+  const profile = getProfile(profileId, {
+    cwd: baseOptions.cwd,
+    allowShell: baseOptions.allowShell,
+  });
+  if (!profile) throw new Error('Unknown agent profile: ' + profileId);
+  const explicitOptions = baseOptions.explicitOptions || {};
+
+  let merged = {
+    ...baseOptions,
+    agentProfile: profile.id,
+    maxSteps: explicitOptions.maxSteps ? baseOptions.maxSteps : (profile.maxSteps ?? baseOptions.maxSteps),
+    plan: profile.plan ?? baseOptions.plan,
+    allowShell: profile.allowShell ?? baseOptions.allowShell,
+  };
+
+  if (profile.allowedTools) {
+    merged.exposedTools = profile.allowedTools;
+    merged.allowedTools = profile.allowedTools;
+  }
+  if (profile.model && !baseOptions.model) merged.model = profile.model;
+  if (profile.effort && !baseOptions.effort) merged.effort = profile.effort;
+
+  if (profile.permissionMode) {
+    merged = applyPermissionMode(merged, profile.permissionMode);
+  }
+
+  if (profile.context) {
+    merged.profileContext = { ...(baseOptions.profileContext || {}), ...profile.context };
+  }
+
+  if (profile.systemPromptAddon) {
+    const prior = baseOptions.appendSystemPrompt || '';
+    merged.appendSystemPrompt = prior ? prior + '\n\n' + profile.systemPromptAddon : profile.systemPromptAddon;
+  }
+
+  return merged;
+}
+
+/** Enforce single-level fork boundary. */
+function assertForkAllowed(spawnDepth) {
+  if (spawnDepth > 0) {
+    throw new Error('Child agents cannot spawn further children (fork depth exceeded).');
+  }
+}
+
+module.exports = {
+  PROFILES,
+  getProfile,
+  listProfiles,
+  formatAgentList,
+  applyProfileToRunOptions,
+  assertForkAllowed,
+};
