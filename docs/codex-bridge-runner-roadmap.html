@@ -233,7 +233,7 @@
         drives OpenAI's Codex models through the same local agent loop? Short answer: yes — this document reviews the
         current runtime capabilities, measures the provider coupling, and lays out a phased build plan.
       </p>
-      <div class="meta">docs/codex-bridge-runner-roadmap.html · updated 2026-07-08 · fork copy (authoritative) · status: Phases 0–1 complete, Phase 2 next</div>
+      <div class="meta">docs/codex-bridge-runner-roadmap.html · updated 2026-07-09 · fork copy (authoritative) · status: Phases 0–2 complete, Phase 3 next</div>
     </header>
 
     <main>
@@ -574,7 +574,7 @@
             <li>Write down what OpenAI documents the token as permitted for, so remaining policy risk is recorded fact rather than guesswork.</li>
             <li>Decide the Codex model list and pricing rows for <code>model-pricing.js</code>.</li>
           </ul>
-          <p><strong>Exit criteria:</strong> every row of the Part 3 table above is confirmed or corrected with citations; a scratch script completes a live streamed Responses call using the env-var token; go/no-go checkpoint with Alan. <strong>Status: met</strong> — see the Part 3 findings callout and <code>docs/lab-notes/codex-protocol-notes.md</code>. One mechanical step remains: importing the redacted SSE fixture from the capture machine (with extra scrubbing of <code>safety_identifier</code> and <code>prompt_cache_key</code>).</p>
+          <p><strong>Exit criteria:</strong> every row of the Part 3 table above is confirmed or corrected with citations; a scratch script completes a live streamed Responses call using the env-var token; go/no-go checkpoint with Alan. <strong>Status: met</strong> — see the Part 3 findings callout and <code>docs/lab-notes/codex-protocol-notes.md</code>. The redacted SSE fixture has since been imported as <code>test/runner/fixtures/codex/responses-stream-pong.sse</code> (with <code>safety_identifier</code> and <code>prompt_cache_key</code> scrubbed) and is now exercised by the Phase 2 transport tests.</p>
         </div>
 
         <div class="phase">
@@ -590,14 +590,14 @@
         </div>
 
         <div class="phase">
-          <h3>Phase 2 — Transport: direct token client (daemon optional later) <span class="badge blue">1–2 sessions</span></h3>
+          <h3>Phase 2 — Transport: direct token client (daemon optional later) <span class="badge green">Done 2026-07-09</span></h3>
           <div class="phase-meta">fork repo · new: transport module · touches: safety.js redaction patterns</div>
           <ul>
             <li>With a dashboard-managed static token there is no keychain to read, no interception, and no refresh flow — a separate credential daemon adds little for a PoC. <strong>Start direct:</strong> the forked runner's model client calls the OpenAI endpoint itself, reading the token from one env var (e.g. <code>CODEX_ACCESS_TOKEN</code>). Keep “split transport into a small local daemon on its own port” as a later refinement if multi-client use or request interception ever matters.</li>
             <li>Before the first live call from runner code: extend secret redaction to <code>at-…</code> token shapes, verify the deny matrix blocks any file the token could live in (<code>.env</code> is already covered), and confirm subprocess environment scrubbing strips the token from child shells.</li>
             <li>Port the flight-recorder trace pattern so request boundaries stay auditable with header <em>names</em>, never header values.</li>
           </ul>
-          <p><strong>Exit criteria:</strong> transport unit tests with fixture tokens prove redaction and env scrubbing; a live smoke script round-trips one-shot and streamed calls through the new transport module.</p>
+          <p><strong>Exit criteria:</strong> transport unit tests with fixture tokens prove redaction and env scrubbing; a live smoke script round-trips one-shot and streamed calls through the new transport module. <strong>Status: met</strong> — <code>src/runner/codex-transport.js</code> (streaming-only wire per the Phase 0 contract; <code>requestBuffered</code> is the one-shot wrapper), safety hardening landed first (<code>at-…</code> redaction with a hyphenated-prose guard, <code>CODEX_*</code> env scrubbing in <code>buildSafeEnv</code>, <code>~/.codex/</code> in the deny matrix), request boundaries traced with header names only. Tests: <code>test/runner/codex-transport.test.js</code> (18 cases, offline, replays the Phase 0 fixture through a local mock server). Live: <code>npm run smoke:codex</code>.</p>
         </div>
 
         <div class="phase">

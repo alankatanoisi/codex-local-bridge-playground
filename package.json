@@ -22,7 +22,8 @@
     "lint:fix": "eslint --config eslint.config.cjs src/ test/ --fix",
     "format": "prettier --write \"src/**/*.js\" \"test/**/*.js\" \"*.json\" \"*.md\"",
     "format:check": "prettier --check \"src/**/*.js\" \"test/**/*.js\" \"*.json\" \"*.md\"",
-    "runner:eval": "node bin/local-bridge-runner.js runner eval"
+    "runner:eval": "node bin/local-bridge-runner.js runner eval",
+    "smoke:codex": "node scripts/codex-transport-smoke.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

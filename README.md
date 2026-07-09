@@ -56,13 +56,18 @@ The living plan is [docs/codex-bridge-runner-roadmap.html](./docs/codex-bridge-r
 - **Phase 0 — protocol & token spike:** done (2026-07-08, verified against a live streamed 200 response). Endpoint:
   `POST https://chatgpt.com/backend-api/codex/responses`, auth `Bearer $CODEX_ACCESS_TOKEN`, streaming-only backend,
   automatic caching, model `gpt-5.5`. Full contract in
-  [docs/lab-notes/codex-protocol-notes.md](./docs/lab-notes/codex-protocol-notes.md); one mechanical step remains —
-  importing the redacted SSE fixture from the capture machine.
+  [docs/lab-notes/codex-protocol-notes.md](./docs/lab-notes/codex-protocol-notes.md); the redacted SSE fixture now
+  lives at `test/runner/fixtures/codex/responses-stream-pong.sse`.
 - **Phase 1 — create and seed the fork:** done (this repo). Seed commit records the source commit; prune removed the
   VS Code extension, Claude bridge transport, and Claude-specific lanes.
-- **Phase 2 — transport (direct token client):** next up.
-- **Phase 3 — rewrite the coupled modules (Responses API client):** not started. Until this lands, `src/runner/` still
-  targets the old local Claude bridge and live runs are not possible here.
+- **Phase 2 — transport (direct token client):** done (2026-07-09). `src/runner/codex-transport.js` is a direct
+  streaming client for the Codex backend (token from `CODEX_ACCESS_TOKEN` only). Safety hardening landed first:
+  `at-…` shapes redact everywhere, `CODEX_*` env vars are scrubbed from child shells, `~/.codex/` joined the deny
+  matrix, and request boundaries hit the flight recorder with header names only. Offline: `npm test`
+  (`test/runner/codex-transport.test.js`). Live: `npm run smoke:codex`.
+- **Phase 3 — rewrite the coupled modules (Responses API client):** next up. Until this lands, `src/runner/` still
+  targets the old local Claude bridge and live agent runs are not possible here (the Phase 2 transport works, but
+  nothing wires it into the agent loop yet).
 - **Phases 4–6:** not started.
 
 ## What's in the box (inherited from the Claude playground)

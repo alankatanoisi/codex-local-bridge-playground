@@ -98,6 +98,8 @@ const DENY_MATRIX_PATTERNS = [
   (p) => p.includes('/.ssh/') || p.endsWith('/.ssh'),
   (p) => p.includes('/.aws/') || p.endsWith('/.aws'),
   (p) => p.includes('/.claude/') || p.endsWith('/.claude'),
+  // Official Codex CLI credential store (~/.codex/auth.json holds the at-… token).
+  (p) => p.includes('/.codex/') || p.endsWith('/.codex'),
   (p) => p.includes('/.gnupg/') || p.endsWith('/.gnupg'),
   (p) => p.includes('/node_modules/') || p.endsWith('/node_modules'),
   (p) => p.includes('/actions-runner/') || p.endsWith('/actions-runner'),
@@ -160,6 +162,14 @@ const SECRET_PATTERNS = [
   { pattern: /sk-ant-[a-zA-Z0-9_-]{20,}/g, replacement: '[REDACTED:anthropic_key]' },
   // Generic sk-style API keys from third-party tools.
   { pattern: /sk-[a-zA-Z0-9]{20,}/g, replacement: '[REDACTED:generic_api_key]' },
+  // ChatGPT Business programmatic access tokens (`at-…`) — the upstream
+  // credential for this Codex lane. The guard keeps hyphenated prose like
+  // "at-the-end-of-the-day" intact: real tokens are high-entropy, so we
+  // require at least one digit, uppercase letter, or underscore in the body.
+  {
+    pattern: /\bat-[A-Za-z0-9_-]{20,}/g,
+    replacement: (match) => (/[0-9A-Z_]/.test(match.slice(3)) ? '[REDACTED:openai_access_token]' : match),
+  },
   // GitHub personal access tokens
   { pattern: /ghp_[A-Za-z0-9]{36}/g, replacement: '[REDACTED:github_token]' },
   // GitHub classic tokens
@@ -196,6 +206,7 @@ const SCRUBBED_ENV_VARS = [
   'ANTHROPIC_BASE_URL',
   'CLAUDE_CODE_OAUTH_TOKEN',
   'CLAUDE_CONFIG_DIR',
+  'CODEX_ACCESS_TOKEN',
   'GH_TOKEN',
   'GITHUB_TOKEN',
   'NPM_TOKEN',
@@ -430,7 +441,13 @@ function buildSafeEnv() {
   for (const [k, v] of Object.entries(process.env)) {
     if (SCRUBBED_ENV_VARS.includes(k)) continue;
     // Also scrub any var starting with these prefixes
-    if (k.startsWith('AWS_') || k.startsWith('ANTHROPIC_') || k.startsWith('CLAUDE_') || k.startsWith('OPENAI_')) {
+    if (
+      k.startsWith('AWS_') ||
+      k.startsWith('ANTHROPIC_') ||
+      k.startsWith('CLAUDE_') ||
+      k.startsWith('CODEX_') ||
+      k.startsWith('OPENAI_')
+    ) {
       continue;
     }
     env[k] = v;
