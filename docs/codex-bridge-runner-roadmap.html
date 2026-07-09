@@ -233,7 +233,7 @@
         drives OpenAI's Codex models through the same local agent loop? Short answer: yes — this document reviews the
         current runtime capabilities, measures the provider coupling, and lays out a phased build plan.
       </p>
-      <div class="meta">docs/codex-bridge-runner-roadmap.html · updated 2026-07-08 · playground repo · status: decided — Option C fork into codex-local-bridge-playground</div>
+      <div class="meta">docs/codex-bridge-runner-roadmap.html · updated 2026-07-08 · fork copy (authoritative) · status: Phases 0–1 complete, Phase 2 next</div>
     </header>
 
     <main>
@@ -457,12 +457,25 @@
             <dd>The streaming format both providers use: a long-lived HTTP response that emits small JSON frames as the model generates.</dd>
           </dl>
         </div>
-        <div class="callout warn">
-          <strong>⚠️ Verify before building.</strong>
+        <div class="callout success">
+          <strong>✅ Phase 0 verified (2026-07-08, live 200 capture).</strong>
           <p>
-            Everything in the table below is knowledge as of early 2026 and drifts with Codex releases. Phase 0 pins
-            each row against the actual open-source Codex CLI source and a captured live request before any code
-            depends on it.
+            The table below was checked against a real streamed response; where the table and this box disagree, this
+            box wins. Confirmed and corrected facts: endpoint is
+            <code>POST https://chatgpt.com/backend-api/codex/responses</code> (the ChatGPT backend —
+            <code>api.openai.com/v1/responses</code> returns 401 for an <code>at-…</code> token, which is not a
+            platform API key); auth is <code>Authorization: Bearer $CODEX_ACCESS_TOKEN</code> (the Codex CLI's on-disk
+            source is <code>~/.codex/auth.json → personal_access_token</code>, but this runner reads the env var
+            only); the backend is <strong>streaming-only</strong> (<code>stream:false</code> rejected) and rejects
+            <code>max_output_tokens</code>; caching is automatic (<code>prompt_cache_key</code> + 24h retention in
+            the response, no request-side markers); usage fields are <code>input_tokens</code>,
+            <code>input_tokens_details.cached_tokens</code>, <code>output_tokens</code>,
+            <code>output_tokens_details.reasoning_tokens</code>, <code>total_tokens</code> (no cache-write counter);
+            text deltas arrive in <code>response.output_text.delta</code> carrying an <code>obfuscation</code> field
+            the mapper must tolerate and ignore; model confirmed as <code>gpt-5.5</code>. Full write-up:
+            <code>docs/lab-notes/codex-protocol-notes.md</code>. Redacted SSE fixture:
+            <code>test/runner/fixtures/codex/responses-stream-pong.sse</code> (import from the capture machine
+            pending).
           </p>
         </div>
         <div class="table-scroll">
@@ -553,7 +566,7 @@
         </p>
 
         <div class="phase">
-          <h3>Phase 0 — Protocol &amp; token spike <span class="badge blue">1–2 sessions</span></h3>
+          <h3>Phase 0 — Protocol &amp; token spike <span class="badge green">Done 2026-07-08</span></h3>
           <div class="phase-meta">runs anywhere · new: lab-notes doc · touches: no src/ in either repo</div>
           <ul>
             <li>Verify what the <code>at-…</code> Business access token can call: exact endpoint URL(s), required headers (Bearer plus any workspace/account id), and whether it speaks the standard Responses API shape. Pin this from OpenAI's access-token docs and the open-source Codex CLI source, then prove it with one <em>redacted</em> <code>curl</code> capture (one-shot and streamed) kept as the reference fixture.</li>
@@ -561,11 +574,11 @@
             <li>Write down what OpenAI documents the token as permitted for, so remaining policy risk is recorded fact rather than guesswork.</li>
             <li>Decide the Codex model list and pricing rows for <code>model-pricing.js</code>.</li>
           </ul>
-          <p><strong>Exit criteria:</strong> every row of the Part 3 table above is confirmed or corrected with citations; a scratch script completes a live streamed Responses call using the env-var token; go/no-go checkpoint with Alan.</p>
+          <p><strong>Exit criteria:</strong> every row of the Part 3 table above is confirmed or corrected with citations; a scratch script completes a live streamed Responses call using the env-var token; go/no-go checkpoint with Alan. <strong>Status: met</strong> — see the Part 3 findings callout and <code>docs/lab-notes/codex-protocol-notes.md</code>. One mechanical step remains: importing the redacted SSE fixture from the capture machine (with extra scrubbing of <code>safety_identifier</code> and <code>prompt_cache_key</code>).</p>
         </div>
 
         <div class="phase">
-          <h3>Phase 1 — Create and seed the fork <span class="badge blue">1–2 sessions</span></h3>
+          <h3>Phase 1 — Create and seed the fork <span class="badge green">Done 2026-07-08</span></h3>
           <div class="phase-meta">new repo: alankatanoisi/codex-local-bridge-playground · this repo: untouched</div>
           <ul>
             <li>Create the empty GitHub repo (private recommended for a PoC that handles credential-adjacent code), copy this playground's files in, and make one “seed” commit that records provenance (source repo + commit hash) so future diffs against the Claude runner stay possible.</li>
@@ -573,7 +586,7 @@
             <li><strong>Keep:</strong> <code>bin/</code>, <code>src/runner/**</code>, <code>test/runner/**</code>, <code>scripts/</code>, lint/format configs, docs skeleton.</li>
             <li><strong>Rewrite:</strong> README, CLAUDE.md/AGENTS.md (a new lane table so agents never confuse the two repos, plus the fork's transport invariants: upstream auth is the <code>at-…</code> token from one env var only; never commit, print, or log it; redact <code>at-</code>/<code>sk-</code>/<code>eyJ</code> patterns everywhere; native Responses route only; no Anthropic credentials or routes in that repo), and <code>package.json</code> name/metadata.</li>
           </ul>
-          <p><strong>Exit criteria:</strong> fork pushed; after pruning, <code>npm test</code> and lint are green in the fork (runner tests only — the model client is still the Claude one at this point, which is fine because golden evals use a fake client).</p>
+          <p><strong>Exit criteria:</strong> fork pushed; after pruning, <code>npm test</code> and lint are green in the fork (runner tests only — the model client is still the Claude one at this point, which is fine because golden evals use a fake client). <strong>Status: met</strong> — seed <code>3a0335a</code>, prune <code>aac1ee5</code>, identity <code>f597cf6</code>; 535/536 tests green (the one failure is a known sandbox-only signal quirk that passes locally).</p>
         </div>
 
         <div class="phase">
@@ -705,11 +718,11 @@
       <section id="next">
         <h2>Next steps checklist</h2>
         <ol>
-          <li><strong>Done:</strong> shape chosen (Option C fork), repo name fixed (<code>codex-local-bridge-playground</code>), credential chosen (Business-plan <code>at-…</code> access token via env var).</li>
-          <li><strong>Alan, in a browser:</strong> create the empty repo — github.com → “+” (top right) → New repository → owner <code>alankatanoisi</code> → name <code>codex-local-bridge-playground</code> → Private → skip “Add a README” → Create.</li>
-          <li><strong>Alan, in a Claude Code session:</strong> say “add alankatanoisi/codex-local-bridge-playground to this session” so an agent with access to both repos can seed the fork from this playground (Phase 1).</li>
-          <li>Run Phase 0 (protocol &amp; token spike) — one redacted curl capture de-risks everything else.</li>
-          <li>Then Phases 1–5 in order; re-check this document's Part 3 table against reality at each phase boundary, and treat the fork's copy of this roadmap as the living version from Phase 1 onward.</li>
+          <li><strong>Done:</strong> Option C chosen; fork created, seeded, pruned, and pushed (Phase 1); protocol and token verified against a live capture (Phase 0); protocol notes committed.</li>
+          <li><strong>Alan, on the capture machine:</strong> import the redacted SSE fixture to <code>test/runner/fixtures/codex/responses-stream-pong.sse</code> with extra scrubbing of <code>safety_identifier</code> and the <code>prompt_cache_key</code> UUID; verify the leak-grep prints 0; commit and push. (<code>git pull --ff-only origin main</code> first — the protocol notes are already on <code>main</code>.)</li>
+          <li><strong>Alan, housekeeping:</strong> rotate the <code>at-…</code> token in the ChatGPT dashboard (its full value appeared in a terminal transcript), revoke the older unused token, delete the throwaway probe script, and <code>unset CODEX_ACCESS_TOKEN</code> in that terminal.</li>
+          <li>Phase 2: Codex transport path in <code>model-client.js</code> — env token, pinned endpoint, streaming-only — with <code>at-…</code> redaction added to <code>safety.js</code> before the first in-runner live call.</li>
+          <li>Phase 3: translate internal blocks ⇄ Responses input items at the client boundary, map the pinned SSE grammar onto the existing stream state machine, delete <code>cache_control</code> budgeting, map usage fields, add <code>gpt-5.5</code> to the pricing table.</li>
         </ol>
         <div class="callout">
           <strong>Where this document lives.</strong>

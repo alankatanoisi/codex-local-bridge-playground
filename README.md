@@ -53,11 +53,14 @@ Transport invariants for this repo:
 
 The living plan is [docs/codex-bridge-runner-roadmap.html](./docs/codex-bridge-runner-roadmap.html) (Part 5):
 
-- **Phase 0 — protocol & token spike:** in progress. Policy quote captured (above); endpoint/header verification and a
-  redacted curl fixture still to do.
+- **Phase 0 — protocol & token spike:** done (2026-07-08, verified against a live streamed 200 response). Endpoint:
+  `POST https://chatgpt.com/backend-api/codex/responses`, auth `Bearer $CODEX_ACCESS_TOKEN`, streaming-only backend,
+  automatic caching, model `gpt-5.5`. Full contract in
+  [docs/lab-notes/codex-protocol-notes.md](./docs/lab-notes/codex-protocol-notes.md); one mechanical step remains —
+  importing the redacted SSE fixture from the capture machine.
 - **Phase 1 — create and seed the fork:** done (this repo). Seed commit records the source commit; prune removed the
   VS Code extension, Claude bridge transport, and Claude-specific lanes.
-- **Phase 2 — transport (direct token client):** not started.
+- **Phase 2 — transport (direct token client):** next up.
 - **Phase 3 — rewrite the coupled modules (Responses API client):** not started. Until this lands, `src/runner/` still
   targets the old local Claude bridge and live runs are not possible here.
 - **Phases 4–6:** not started.
