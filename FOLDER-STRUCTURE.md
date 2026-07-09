@@ -1,4 +1,6 @@
-```
+# Folder Structure
+
+```text
 └── 📁codex-local-bridge-playground
     └── 📁.bridge-runner
         └── 📁backups
