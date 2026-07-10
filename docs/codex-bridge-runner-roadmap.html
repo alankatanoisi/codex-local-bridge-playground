@@ -233,7 +233,7 @@
         drives OpenAI's Codex models through the same local agent loop? Short answer: yes — this document reviews the
         current runtime capabilities, measures the provider coupling, and lays out a phased build plan.
       </p>
-      <div class="meta">docs/codex-bridge-runner-roadmap.html · updated 2026-07-09 · fork copy (authoritative) · status: Phases 0–2 complete, Phase 3 next</div>
+      <div class="meta">docs/codex-bridge-runner-roadmap.html · updated 2026-07-10 · fork copy (authoritative) · status: Phases 0–2 complete, Phase 3 (native DNA) next</div>
     </header>
 
     <main>
@@ -242,7 +242,7 @@
         <ol>
           <li><a href="#verdict">TL;DR verdict</a></li>
           <li><a href="#capabilities">Part 1 — What the runner can do today</a></li>
-          <li><a href="#coupling">Part 2 — Where the Anthropic-specific code lives</a></li>
+          <li><a href="#coupling">Part 2 — Inherited Anthropic dialect &amp; native rewrite scope</a></li>
           <li><a href="#codex-side">Part 3 — What Codex looks like on the wire</a></li>
           <li><a href="#architecture">Part 4 — Architecture decision: three ways to build it</a></li>
           <li><a href="#roadmap">Part 5 — Phased build roadmap</a></li>
@@ -270,9 +270,13 @@
             <code>codex-local-bridge-playground</code> repository and rewrite the model-facing modules in place there.
             Auth uses an official ChatGPT Business <strong>programmatic access token</strong> (<code>at-…</code>,
             scoped to Codex / Workspace Agents) supplied via an environment variable, which removes both the OAuth
-            phone-verification blocker and the token-refresh machinery. The roadmap in Part 5 is written for this
-            fork-and-prune path: <strong>6 phases</strong>, with a usable proof-of-concept Codex runner at the end of
-            Phase 4.
+            phone-verification blocker and the token-refresh machinery.
+            <strong>Decision (2026-07-10): native Responses items as internal state</strong> — this fork's conversation
+            history becomes native OpenAI Responses <code>input</code> items (<code>message</code>,
+            <code>function_call</code>, <code>function_call_output</code>, <code>reasoning</code>), not Anthropic
+            content blocks with a translation layer. Behavioral layers (tools, permissions, safety, budgets, CLI) stay
+            provider-neutral; wire shapes do not. The roadmap in Part 5 is written for this fork-and-prune path:
+            <strong>6 phases</strong>, with a usable proof-of-concept Codex runner at the end of Phase 4.
           </p>
         </div>
         <div class="callout warn">
@@ -384,58 +388,76 @@
 
       <!-- ============================================================ -->
       <section id="coupling">
-        <h2>Part 2 — Where the Anthropic-specific code lives</h2>
+        <h2>Part 2 — Inherited Anthropic dialect &amp; native rewrite scope</h2>
         <p>
-          A grep for Anthropic message-shape vocabulary (<code>tool_use</code>, <code>tool_result</code>,
-          <code>content_block</code>, <code>input_schema</code>, <code>cache_control</code>, <code>thinking</code>)
-          finds 121 hits across 39 runner files — but the distribution is very lopsided. Most files have exactly one
-          hit: the <code>input_schema</code> key in their tool definition, which is a mechanical one-line concern.
-          The real coupling is concentrated in four modules:
+          The fork was seeded from the Claude playground, which speaks the Anthropic Messages dialect internally
+          (<code>tool_use</code>, <code>tool_result</code>, content blocks, <code>input_schema</code>,
+          <code>cache_control</code>, thinking signatures). A pre-build architecture review (2026-07-10) found
+          <strong>~19 runner files</strong> still reference that dialect — not just the four modules originally
+          assumed. The original “translate only at <code>model-client.js</code>” plan underestimated persistence,
+          recovery, replay, eval, and archive coupling.
         </p>
         <div class="table-scroll">
         <table>
-          <tr><th>Module</th><th>Anthropic-specific behavior</th><th>Codex-side equivalent</th><th>Port difficulty</th></tr>
+          <tr><th>Module group</th><th>Current Anthropic-specific behavior</th><th>Phase 3 native target</th><th>Port difficulty</th></tr>
           <tr>
-            <td><code>src/runner/model-client.js</code> (262 lines)</td>
-            <td>Messages API request/response; SSE event grammar (<code>message_start</code>, <code>content_block_delta</code>, <code>thinking_delta</code>/<code>signature_delta</code>, <code>input_json_delta</code>)</td>
-            <td>Responses API request/response; SSE grammar (<code>response.output_text.delta</code>, <code>response.function_call_arguments.delta</code>, <code>response.completed</code>)</td>
-            <td><span class="badge amber">Medium</span> — write a sibling client, same size</td>
+            <td><code>model-client.js</code> + <code>codex-transport.js</code></td>
+            <td>Client still targets Claude bridge <code>/v1/messages</code>; transport module exists but is unwired</td>
+            <td>Responses API client over <code>codex-transport</code>; SSE assembly from item events (not empty terminal <code>response.output</code>)</td>
+            <td><span class="badge amber">Medium</span></td>
           </tr>
           <tr>
-            <td><code>src/runner/run.js</code> (1,370 lines)</td>
-            <td>Content-block extraction; <code>cache_control</code> breakpoint budgeting (4-marker budget with bridge reserve); thinking-block + signature preservation across turns; usage field names</td>
-            <td>No manual cache markers (OpenAI caching is automatic); reasoning items with <code>encrypted_content</code> must be replayed — structurally the same “preserve opaque block” problem the runner already solves for thinking signatures</td>
-            <td><span class="badge amber">Medium</span> — mostly <em>skipping</em> logic per provider, not adding it</td>
+            <td><code>run.js</code></td>
+            <td>Content-block extraction; <code>cache_control</code> budgeting; thinking/signature preservation; usage field names</td>
+            <td>History as Responses item list; delete <code>cache_control</code>; native reasoning item replay; usage mapping including <code>reasoning_tokens</code></td>
+            <td><span class="badge red">High</span></td>
           </tr>
           <tr>
-            <td><code>src/runner/tool-pipeline.js</code> (532 lines)</td>
-            <td>Assembles <code>tool_use</code> / <code>tool_result</code> message pairs and ids</td>
-            <td>Assembles <code>function_call</code> / <code>function_call_output</code> items keyed by <code>call_id</code></td>
-            <td><span class="badge green">Low</span> — if the adapter translates at the client boundary, this file does not change at all</td>
+            <td><code>tool-pipeline.js</code>, <code>context-compactor.js</code></td>
+            <td>Assembles <code>tool_use</code>/<code>tool_result</code> pairs; compactor walks content-block arrays</td>
+            <td>Emit/consume <code>function_call</code>/<code>function_call_output</code>; compaction respects reasoning adjacency</td>
+            <td><span class="badge amber">Medium</span></td>
           </tr>
           <tr>
-            <td><code>src/runner/context-compactor.js</code> (337 lines)</td>
-            <td>Compaction ladder walks Anthropic message/content-block shapes</td>
-            <td>Same, if translation happens at the boundary</td>
-            <td><span class="badge green">Low</span> — unchanged under the boundary-adapter design</td>
+            <td>Persistence &amp; observability (~10 files)</td>
+            <td>Transcript, session store, archive, human-log, recovery/replay/ledger assume Anthropic shapes</td>
+            <td>Native items + <code>provider: codex</code>; <code>schemaVersion: 2</code> clean break (reject old sessions)</td>
+            <td><span class="badge amber">Medium</span></td>
           </tr>
           <tr>
-            <td>Tool definitions (24 files under <code>src/runner/tools/</code>)</td>
-            <td><code>input_schema</code> key (Anthropic name for the JSON Schema)</td>
-            <td><code>parameters</code> key (OpenAI name for the same JSON Schema), optional <code>strict: true</code></td>
-            <td><span class="badge green">Low</span> — one shared mapping function in the adapter; tool files untouched</td>
+            <td><code>golden-eval.js</code> + cases</td>
+            <td>Assertions encode Anthropic message shapes</td>
+            <td>Rewrite scripts/expects for native output items</td>
+            <td><span class="badge amber">Medium</span></td>
+          </tr>
+          <tr>
+            <td>Tool definitions (24 files)</td>
+            <td><code>input_schema</code> key (Anthropic JSON Schema name)</td>
+            <td>Map <code>input_schema</code> → <code>parameters</code> at request build; tool files unchanged in Phase 3</td>
+            <td><span class="badge green">Low</span></td>
           </tr>
         </table>
         </div>
         <div class="callout success">
-          <strong>Key architectural insight.</strong>
+          <strong>Key architectural decision (2026-07-10): native DNA, thin client.</strong>
           <p>
-            Because <code>tool-pipeline.js</code>, <code>context-compactor.js</code>, transcripts, the archive, and
-            the golden-eval harness all speak the <em>internal</em> Anthropic-block dialect, the cheapest correct
-            design is to keep that dialect as the runner's internal lingua franca and translate
-            <strong>only at the model-client boundary</strong>: Codex <code>function_call</code> items become internal
-            <code>tool_use</code> blocks on the way in, and internal <code>tool_result</code> blocks become
-            <code>function_call_output</code> items on the way out. One adapter file, everything downstream unchanged.
+            This fork is its own species: internal conversation state is a list of Responses <strong>input items</strong>
+            (<code>message</code>, <code>function_call</code>, <code>function_call_output</code>, <code>reasoning</code>).
+            System prompt → <code>instructions</code>; tool defs → native <code>{ type: "function", …, parameters }</code>
+            at request time. What converges with the Claude runner is <em>behavior</em> (stop reasons, permissions,
+            safety, budgets, CLI) — not shared wire schemas. A local bridge on <code>:11438</code> and a
+            <code>ModelRuntime</code> abstraction are deferred until after the first green Codex agent loop (Phase 5+ /
+            cross-runner work).
+          </p>
+        </div>
+        <div class="callout warn">
+          <strong>Superseded design (2026-07-09 draft).</strong>
+          <p>
+            The earlier Part 2 insight — keep Anthropic blocks as internal lingua franca and translate only at
+            <code>model-client.js</code> — was the cheapest starting hypothesis but fights Option C's purpose. Reasoning
+            items must round-trip losslessly under <code>store: false</code>; squeezing them through Anthropic thinking
+            blocks is a permanent lossy adapter. See archived proposals in
+            <code>docs/lab-notes/proposals/</code> and the Phase 3 pre-build review.
           </p>
         </div>
       </section>
@@ -601,22 +623,61 @@
         </div>
 
         <div class="phase">
-          <h3>Phase 3 — Rewrite the coupled modules in place <span class="badge blue">3–4 sessions</span></h3>
-          <div class="phase-meta">fork repo · touches: model-client.js, run.js, model-pricing.js · unchanged: tool-pipeline.js, context-compactor.js, all 24 tools</div>
+          <h3>Phase 3 — Native Responses rewrite <span class="badge blue">~10–14 sessions</span></h3>
+          <div class="phase-meta">fork repo · feature branch <code>codex/phase-3-responses-native</code> · touches: ~19 runner files · explicit non-goals: :11438 bridge, ModelRuntime, Claude convergence</div>
+          <p><strong>Name:</strong> Native DNA, thin client — internal state is Responses items; transport stays direct over <code>codex-transport.js</code>.</p>
+          <h4>Stage 0 — Record decision + hygiene</h4>
           <ul>
-            <li><code>model-client.js</code> becomes a Responses API client: system prompt → <code>instructions</code>; tool definitions → <code>{ type: "function", …, parameters }</code> via one shared <code>input_schema</code> → <code>parameters</code> mapping (tool files untouched); internal messages → <code>input</code> items; <code>--effort</code> → <code>reasoning.effort</code>; <code>store: false</code> plus reasoning include for stateless multi-turn.</li>
-            <li>Keep the internal Anthropic-block dialect as the fork's internal representation — the Part 2 insight applies inside the fork too. <code>function_call</code> items translate to internal <code>tool_use</code> blocks at the client boundary, so the tool pipeline, compactor, transcripts, archive, and golden evals stay byte-compatible.</li>
-            <li>SSE mapper: Responses event grammar → the existing streamed-block assembly (the partial tool-argument buffering in <code>postStream</code> carries over almost verbatim); <code>reasoning</code> items ride the opaque-preserved-block path built for thinking signatures.</li>
-            <li><code>run.js</code>: delete <code>cache_control</code> budgeting entirely (OpenAI caching is automatic); usage normalizer maps <code>cached_tokens</code> → <code>cache_read_input_tokens</code> with cache-write fixed at 0; add Codex rows to the pricing table.</li>
+            <li>Formal decision recorded (like Option C): native Responses items = internal conversation state for this fork only.</li>
+            <li>Delete junk files: <code>verify-done</code>, <code>verify-*.log</code>, <code>FOLDER-STRUCTURE.md</code>.</li>
+            <li>Branch <code>codex/phase-3-responses-native</code>; draft PR when stages complete.</li>
           </ul>
-          <p><strong>Exit criteria:</strong> unit tests translate the Phase 0 captured fixtures in both directions; at least one golden-eval case drives the full loop against a scripted fake Codex client.</p>
+          <h4>Stage 1 — Capture tooling + fixture gate (Alan, capture machine)</h4>
+          <ul>
+            <li>Add <code>scripts/capture-codex-fixture.js</code> (reuses <code>codex-transport.js</code>; auto-redacts <code>safety_identifier</code>, <code>prompt_cache_key</code>, token shapes; built-in leak-grep).</li>
+            <li>Capture live SSE fixtures before rewriting <code>run.js</code>: <code>function_call</code> turn (tools + <code>include: ["reasoning.encrypted_content"]</code>), post-<code>function_call_output</code> final answer, reasoning items if emitted.</li>
+            <li>Settle open protocol questions: <code>reasoning.effort</code> accepted values (<code>max</code> mapping); whether <code>temperature</code> is accepted.</li>
+            <li>Extend <code>docs/lab-notes/codex-protocol-notes.md</code> with observed function_call/reasoning grammar.</li>
+          </ul>
+          <h4>Stage 2 — Item schema contract</h4>
+          <ul>
+            <li>New <code>src/runner/items.js</code>: constructors, extractors, type guards — unit-tested first.</li>
+            <li><code>schemaVersion: 2</code> clean break: reject pre-native session resume with a clear error; leave old files untouched.</li>
+          </ul>
+          <h4>Stage 3 — Thin vertical spike</h4>
+          <ul>
+            <li>Rewrite <code>model-client.js</code> over <code>codex-transport</code> (streaming-only; tolerate <code>obfuscation</code>; fail-closed malformed function arguments; assemble from SSE item events).</li>
+            <li>Prove one offline mock loop and one live read-only tool turn <em>before</em> bulk <code>run.js</code> surgery.</li>
+          </ul>
+          <h4>Stage 4 — Loop + pipeline + compactor</h4>
+          <ul>
+            <li><code>run.js</code>: history as item list; delete <code>cache_control</code> budgeting; usage mapping; <code>DEFAULT_MODEL</code> → <code>gpt-5.5</code>.</li>
+            <li><code>tool-pipeline.js</code>: emit <code>function_call_output</code> (error-prefix convention — no fake <code>is_error</code>).</li>
+            <li><code>context-compactor.js</code>: walk item lists; never orphan reasoning from its message/<code>function_call</code>.</li>
+          </ul>
+          <h4>Stage 5 — Persistence / observability (minimal but complete)</h4>
+          <ul>
+            <li>Update transcript/session, human-log, archive, recovery/replay/ledger for native items + <code>provider: codex</code>.</li>
+            <li>Record <code>reasoning_tokens</code> in usage; prefer native items over grand event rename.</li>
+          </ul>
+          <h4>Stage 6 — Goldens + offline e2e</h4>
+          <ul>
+            <li>Rewrite golden scripts/expects; fixture-driven client tests + mock e2e loop (runner → mock SSE → real local tool → final answer).</li>
+            <li>Late fence test: no <code>/v1/messages</code>, <code>cache_control</code>, or Anthropic request shapes on the active Codex path.</li>
+          </ul>
+          <h4>Stage 7 — Pricing + docs + PR</h4>
+          <ul>
+            <li><code>gpt-5.5</code> reference rates (cache-write 0; labeled reference-only, not subscription billing).</li>
+            <li>Align AGENTS.md, CLAUDE.md, README.md; archive superseded proposal docs.</li>
+          </ul>
+          <p><strong>Exit criteria:</strong> <code>function_call</code> SSE fixtures committed; offline client + e2e green; <code>npm test</code> / lint / format green; one live read-only agent run; docs no longer claim boundary translation.</p>
         </div>
 
         <div class="phase">
           <h3>Phase 4 — Live proof-of-concept runs <span class="badge blue">1–2 sessions</span></h3>
           <div class="phase-meta">fork repo · throwaway labs only · docs: fork quickstart + command builder</div>
           <ul>
-            <li>Climb the capability ladder in a throwaway lab, in this order: read-only run → <code>--plan</code> → write tools with confirmation → <code>--accept-edits</code> → <code>--allow-shell</code> → <code>spawn_agent</code> → worktrees → <code>--stream</code>.</li>
+            <li>Climb the capability ladder in a throwaway lab, in this order: read-only run → <code>--plan</code> → write tools with confirmation → <code>--accept-edits</code> → <code>--allow-shell</code> → session resume → compaction → <code>spawn_agent</code> → worktrees → <code>--stream</code>.</li>
             <li>Confirm budgets, the cost summary line, transcripts, archive, human log, undo manifests, and traces all behave with Codex usage numbers.</li>
             <li>Tune the default system prompt if Codex models respond differently to it — data-driven, using the archive to compare runs.</li>
           </ul>
@@ -629,6 +690,7 @@
           <ul>
             <li>Golden-eval cases for permission denials, budget stops, repeat-tool detection, and compaction under the Codex client.</li>
             <li>Close the gaps found live in Phase 4: multimodal (<code>input_image</code>; if PDF is unsupported, degrade to text extraction with a clear tool note), retry/backoff tuning, token-count preflight differences.</li>
+            <li>Optional local bridge on <code>localhost:11438</code> if multi-client use or stricter credential isolation becomes a real need (deferred from Phase 3).</li>
             <li>Fork threat-model doc: the <code>at-…</code> token class, env-var handling, redaction coverage, and the Phase 0 policy findings.</li>
             <li>Start a <code>PORTING.md</code> log in the fork: every safety or runner fix cherry-picked from the Claude playground gets one line, so divergence stays visible instead of silent.</li>
           </ul>
@@ -638,7 +700,7 @@
         <div class="phase">
           <h3>Phase 6 — Optional: cross-runner experiments <span class="badge amber">exploratory</span></h3>
           <ul>
-            <li>Run the same task on both runners and compare archives: cost, steps, stop reasons, tool-call patterns.</li>
+            <li>Run the same task on both runners and compare <strong>rollup metrics</strong> (cost, steps, stop reasons, tool-call patterns) — not byte-identical transcripts, since the two lanes now have different wire schemas.</li>
             <li>Cross-runner A/B on the Harbor smoke tasks with identical prompts.</li>
             <li>Longer term: if the two-repo split proves annoying, this is where a shared-core monorepo restructure (Part 4's Option A shape) gets reconsidered with real evidence in hand.</li>
           </ul>
@@ -650,9 +712,9 @@
       <section id="carryover">
         <h2>Part 6 — What carries over unchanged</h2>
         <p>
-          These parameters and subsystems travel into the fork and need <strong>zero Codex-specific rework</strong> —
-          they are the payoff for translating at the model-client boundary and keeping everything downstream on the
-          internal block dialect:
+          These parameters and subsystems travel into the fork with <strong>minimal or no Codex-specific rework</strong>
+          — the behavioral harness (permissions, safety, CLI, customization) stays provider-neutral even as conversation
+          state becomes native Responses items in Phase 3:
         </p>
         <div class="table-scroll">
         <table>
@@ -660,17 +722,17 @@
           <tr><td>CLI surface</td><td><code>--cwd</code>, <code>--bare</code>, all <code>--include-*</code> flags, <code>--agent</code>, <code>--permission-mode</code>, <code>--tools</code>/<code>--allowed-tools</code>, <code>--profile</code>, <code>--prompt-template</code>/<code>--prompt-arg</code>, <code>--plan</code>, <code>--accept-edits</code>, <code>--allow-shell</code>, <code>--dont-ask</code>, <code>--continue</code>, <code>--max-steps</code>, budget flags, <code>--human-log</code>, <code>--trace-level</code>, output formats</td></tr>
           <tr><td>Safety</td><td>Path confinement, deny matrix, shell policy, env scrubbing, secret redaction (extended with OpenAI token patterns, not replaced), workspace trust</td></tr>
           <tr><td>Permissions</td><td>Allow/ask/deny policy, modes, decision cache, tool profiles, confirmation flow</td></tr>
-          <tr><td>All 24 tools</td><td>Every tool module untouched — the adapter renames <code>input_schema</code> → <code>parameters</code> in one shared function</td></tr>
-          <tr><td>Sessions &amp; observability</td><td>Transcripts, session store/ledger, resume, archive + CLI, human log, run manifests + undo CLI, loop autopsy, session health</td></tr>
+          <tr><td>All 24 tools</td><td>Tool modules unchanged — request builder maps <code>input_schema</code> → <code>parameters</code> at the transport boundary</td></tr>
           <tr><td>Customization</td><td><code>.bridge-runner/</code> prompts, templates, agents, profiles, hooks, skills — all text-level, provider-agnostic</td></tr>
-          <tr><td>Eval &amp; bench</td><td>Golden-eval harness (the fake client swaps in for the Codex client the same way), Harbor adapter, bench scripts</td></tr>
+          <tr><td>Loop health</td><td>Repeat-tool detection, semantic cycle detection, failure escalation, loop autopsy, session health — provider-neutral</td></tr>
         </table>
         </div>
+        <p><strong>Phase 3 rewrites (not carryover):</strong> conversation state, model client, tool pipeline output shape, compactor, transcripts/sessions/archives (schema v2), golden evals, and recovery/replay paths that currently assume Anthropic blocks.</p>
         <p>
-          The honest deltas: prompt-cache budgeting is simply deleted in the fork (Codex caching is automatic), the pricing table
-          grows OpenAI rows with a cache-write column of zero, multimodal PDF support needs a Phase 5 decision, and
-          the default system prompt may want light Codex-model tuning (models respond differently to the same
-          instructions — treat prompt tuning as data-driven follow-up, not a blocker).
+          The honest deltas: prompt-cache budgeting is deleted (Codex caching is automatic), the pricing table
+          grows OpenAI rows with a cache-write column of zero, pre-native sessions cannot resume (clean break),
+          multimodal PDF support needs a Phase 5 decision, and the default system prompt may want light Codex-model
+          tuning.
         </p>
       </section>
 
@@ -701,9 +763,9 @@
             <td>The seed commit records the source hash so diffs stay possible; <code>PORTING.md</code> in the fork logs every cherry-picked fix; if porting becomes painful, revisit the shared-core monorepo shape with real evidence (Phase 6).</td>
           </tr>
           <tr>
-            <td><strong>Rewrite regression risk in the fork.</strong> run.js is 1,370 lines and load-bearing, and Phase 3 edits it directly.</td>
+            <td><strong>Rewrite regression risk in the fork.</strong> Phase 3 touches ~19 files including load-bearing <code>run.js</code>; fixtures and staged green gates mitigate mid-rewrite surprises.</td>
             <td><span class="badge amber">Medium</span></td>
-            <td>The golden-eval harness travels with the fork: expect-block diffs make every behavior change explicit and reviewable, and the internal block dialect confines the edit surface to the client boundary plus the cache/reasoning paths.</td>
+            <td>Fixtures-first gate (function_call SSE before <code>run.js</code>); thin vertical spike; golden-eval expect diffs; stage-by-stage <code>npm test</code> green; feature branch + draft PR.</td>
           </tr>
           <tr>
             <td><strong>Behavioral differences.</strong> Codex models may call tools more/less aggressively, changing loop dynamics (repeat detection thresholds, failure escalation).</td>
@@ -718,11 +780,13 @@
       <section id="next">
         <h2>Next steps checklist</h2>
         <ol>
-          <li><strong>Done:</strong> Option C chosen; fork created, seeded, pruned, and pushed (Phase 1); protocol and token verified against a live capture (Phase 0); protocol notes committed.</li>
-          <li><strong>Alan, on the capture machine:</strong> import the redacted SSE fixture to <code>test/runner/fixtures/codex/responses-stream-pong.sse</code> with extra scrubbing of <code>safety_identifier</code> and the <code>prompt_cache_key</code> UUID; verify the leak-grep prints 0; commit and push. (<code>git pull --ff-only origin main</code> first — the protocol notes are already on <code>main</code>.)</li>
-          <li><strong>Alan, housekeeping:</strong> rotate the <code>at-…</code> token in the ChatGPT dashboard (its full value appeared in a terminal transcript), revoke the older unused token, delete the throwaway probe script, and <code>unset CODEX_ACCESS_TOKEN</code> in that terminal.</li>
-          <li>Phase 2: Codex transport path in <code>model-client.js</code> — env token, pinned endpoint, streaming-only — with <code>at-…</code> redaction added to <code>safety.js</code> before the first in-runner live call.</li>
-          <li>Phase 3: translate internal blocks ⇄ Responses input items at the client boundary, map the pinned SSE grammar onto the existing stream state machine, delete <code>cache_control</code> budgeting, map usage fields, add <code>gpt-5.5</code> to the pricing table.</li>
+          <li><strong>Done:</strong> Option C chosen; fork created, seeded, pruned, and pushed (Phase 1); protocol and token verified against a live capture (Phase 0); Phase 2 transport module shipped.</li>
+          <li><strong>Done (2026-07-10):</strong> Phase 3 direction recorded — native Responses items as internal state (supersedes boundary-translation draft). See Part 2 decision callout and archived proposals in <code>docs/lab-notes/proposals/</code>.</li>
+          <li><strong>Done (2026-07-10):</strong> Phase 3 Stage 1 live fixtures captured — <code>responses-stream-function-call.sse</code> and <code>responses-stream-final-answer.sse</code> (leak-grep 0); protocol notes extended with observed grammar.</li>
+          <li><strong>Phase 3 Stage 0:</strong> hygiene cleanup (done with docs); branch <code>codex/phase-3-responses-native</code> when code rewrite starts.</li>
+          <li><strong>Phase 3 Stages 2–7:</strong> <code>items.js</code> contract → vertical spike → loop/pipeline/compactor → persistence → goldens/e2e → pricing/docs/PR. Fixtures gate is met — <code>run.js</code> rewrite may proceed after Stage 2–3.</li>
+          <li><strong>Housekeeping:</strong> rotate the <code>at-…</code> token in the ChatGPT dashboard if it appeared in a terminal, then <code>unset CODEX_ACCESS_TOKEN</code>.</li>
+          <li><strong>Phase 4:</strong> live capability ladder including session resume and compaction checks.</li>
         </ol>
         <div class="callout">
           <strong>Where this document lives.</strong>

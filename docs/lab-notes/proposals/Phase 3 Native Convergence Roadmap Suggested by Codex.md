@@ -1,3 +1,7 @@
+> **Status:** Archived proposal (superseded 2026-07-10). Ideas retained in the roadmap (compaction invariants, fail-closed
+> args, behavioral convergence framing). **Discarded for Phase 3:** `:11438` local bridge, `ModelRuntime` injection,
+> Claude-repo convergence in this phase. See [`docs/codex-bridge-runner-roadmap.html`](../../codex-bridge-runner-roadmap.html).
+
 # Native Convergence Roadmap — Codex-First Architecture Reset
 
 ## Summary

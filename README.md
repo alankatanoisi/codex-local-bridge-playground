@@ -2,9 +2,9 @@
 
 > **Fork status:** experimental proof of concept, seeded from
 > [claude-local-bridge-playground](https://github.com/alankatanoisi/claude-local-bridge-playground) (Option C of the
-> [Codex bridge runner roadmap](./docs/codex-bridge-runner-roadmap.html)). The runner code here still speaks the
-> Anthropic Messages dialect internally — the Codex transport rewrite (roadmap Phases 2–3) has **not** landed yet, so
-> live model calls do not work in this repo yet. Offline tests and golden evals do.
+> [Codex bridge runner roadmap](./docs/codex-bridge-runner-roadmap.html)). Phase 3 will rewrite internals to native
+> Responses items; until that lands, `src/runner/model-client.js` still speaks the old Claude-bridge dialect and live
+> model calls do not work in this repo yet. Offline tests and golden evals do.
 
 This repo is the lab for a **Codex local bridge runner**: the same small local coding-agent loop developed in the
 Claude playground (prompts, capability-grouped tools, permissions, safety, sessions, transcripts, archives, undo),
@@ -65,9 +65,11 @@ The living plan is [docs/codex-bridge-runner-roadmap.html](./docs/codex-bridge-r
   `at-…` shapes redact everywhere, `CODEX_*` env vars are scrubbed from child shells, `~/.codex/` joined the deny
   matrix, and request boundaries hit the flight recorder with header names only. Offline: `npm test`
   (`test/runner/codex-transport.test.js`). Live: `npm run smoke:codex`.
-- **Phase 3 — rewrite the coupled modules (Responses API client):** next up. Until this lands, `src/runner/` still
-  targets the old local Claude bridge and live agent runs are not possible here (the Phase 2 transport works, but
-  nothing wires it into the agent loop yet).
+- **Phase 3 — native Responses rewrite:** next up (~10–14 sessions). **Decision (2026-07-10):** internal conversation
+  state becomes native Responses items (`message`, `function_call`, `function_call_output`, `reasoning`) — not
+  Anthropic blocks with a translation layer. Staged plan: fixtures gate → `items.js` → vertical spike → loop rewrite →
+  persistence → goldens/e2e. Explicit non-goals for Phase 3: local bridge on `:11438`, `ModelRuntime`, Claude-repo
+  convergence. Until this lands, `src/runner/` still targets the old local Claude bridge.
 - **Phases 4–6:** not started.
 
 ## What's in the box (inherited from the Claude playground)

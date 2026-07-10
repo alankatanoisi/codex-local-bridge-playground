@@ -1,8 +1,9 @@
 # Codex protocol notes (Phase 0)
 
 Pinned 2026-07-08 against a **live 200 streamed response** captured with a throwaway curl probe on the capture
-machine. This is the contract Phase 2 (transport) and Phase 3 (adapter) build against. If any of this drifts, update
-this file and the findings callout in `docs/codex-bridge-runner-roadmap.html` together.
+machine. Updated 2026-07-10 for Phase 3 native rewrite (function-call fixtures + capture helper). This is the contract
+Phase 2 (transport) and Phase 3 (native client) build against. If any of this drifts, update this file and the
+findings callout in `docs/codex-bridge-runner-roadmap.html` together.
 
 Reference fixture (redacted): `test/runner/fixtures/codex/responses-stream-pong.sse`.
 
@@ -48,9 +49,48 @@ response.completed
 
 - Text tokens arrive in `response.output_text.delta` → field `delta` (the analog of Anthropic's `text_delta`).
 - Each delta event also carries an `obfuscation` field. The mapper must **tolerate and ignore** it.
-- Function-call and reasoning item streaming were not exercised by the pong probe; extend this section when the
-  Phase 3 adapter first observes them (expected: `response.function_call_arguments.delta` / `.done` per the
-  Responses API family).
+- **`response.output` is empty `[]` on `response.completed`** in every live capture so far (pong, function-call,
+  final-answer). Phase 3 must assemble output items from `response.output_item.*` / argument / text events — do not
+  rely on the terminal `response.output` array.
+
+### Function-call SSE (live capture 2026-07-10)
+
+Reference fixture (redacted, live): `test/runner/fixtures/codex/responses-stream-function-call.sse`.
+Captured with `npm run capture:codex -- --preset function-call` (model `gpt-5.5`, `reasoning.effort: medium`,
+`include: ["reasoning.encrypted_content"]`). Leak-grep: 0 hits.
+
+Observed event order for a single `list_files` tool call:
+
+```text
+response.created
+response.in_progress
+response.output_item.added          (item.type: function_call; call_id + name; arguments: "")
+response.function_call_arguments.delta   (repeats; JSON string fragments; obfuscation present)
+response.function_call_arguments.done    (full arguments JSON string)
+response.output_item.done           (completed function_call item)
+response.completed                  (response.output: []; reasoning_tokens: 0)
+```
+
+- Each `function_call_arguments.delta` carries an `obfuscation` field — tolerate and ignore (same as text deltas).
+- Arguments arrive as a JSON **string** on the completed item (`{"path":"."}`), not a parsed object.
+- Fail-closed: malformed argument JSON must never become an executable empty `{}`.
+- No separate `reasoning` output item was emitted on this medium-effort tool turn (`reasoning_tokens: 0`).
+  Treat reasoning-item replay as required when present; do not assume every turn emits one.
+
+### Final-answer SSE after function_call_output (live capture 2026-07-10)
+
+Reference fixture (redacted, live): `test/runner/fixtures/codex/responses-stream-final-answer.sse`.
+Captured with `npm run capture:codex -- --preset final-answer`. Leak-grep: 0 hits.
+
+Uses the same text delta grammar as the pong probe:
+
+```text
+response.created → … → response.output_item.added (message / final_answer)
+→ content_part.added → output_text.delta* → output_text.done
+→ content_part.done → output_item.done → response.completed
+```
+
+Assistant message items include `phase: "final_answer"`. Again `response.output: []` on completed.
 
 ## Prompt caching
 
@@ -60,22 +100,27 @@ response.completed
 
 ## Reasoning
 
-- The response includes `reasoning: { effort: "medium", … }`.
+- Request/response metadata includes `reasoning: { effort: "medium", context, mode, summary }`.
 - CLI `--effort` maps to `reasoning.effort`.
-- The reasoning object is treated as a replayable/opaque block — reuse the runner's thinking-signature preservation
-  path.
+- Live function-call / final-answer captures at `medium` did **not** emit a `reasoning` output item or encrypted
+  content, even with `include: ["reasoning.encrypted_content"]`. When a reasoning item *does* appear, preserve it
+  verbatim across turns under `store: false` (same opaque round-trip pattern as Anthropic thinking signatures).
+- `temperature` was accepted/echoed as `1` on these captures (not rejected). Effort value `max` is still untested —
+  map runner `max` to the nearest accepted value when first observed.
 
 ## Usage field names (exact)
 
-| Responses API field                      | Runner-internal field        |
-| ---------------------------------------- | ---------------------------- |
-| `input_tokens`                           | `input_tokens`               |
-| `input_tokens_details.cached_tokens`     | `cache_read_input_tokens`    |
-| `output_tokens`                          | `output_tokens`              |
-| `output_tokens_details.reasoning_tokens` | (new; record in transcripts) |
-| `total_tokens`                           | (derived; ignore)            |
+| Responses API field                         | Runner-internal field        |
+| ------------------------------------------- | ---------------------------- |
+| `input_tokens`                              | `input_tokens`               |
+| `input_tokens_details.cached_tokens`        | `cache_read_input_tokens`    |
+| `input_tokens_details.cache_write_tokens`   | ignore / treat as 0          |
+| `output_tokens`                             | `output_tokens`              |
+| `output_tokens_details.reasoning_tokens`    | (new; record in transcripts) |
+| `total_tokens`                              | (derived; ignore)            |
 
-There is **no cache-write counter** — fix `cache_creation_input_tokens` at 0.
+Live captures include `cache_write_tokens: 0` under `input_tokens_details`. There is still no meaningful cache-write
+billing signal for this lane — keep runner `cache_creation_input_tokens` fixed at 0.
 
 ## Redaction requirements for fixtures and logs
 

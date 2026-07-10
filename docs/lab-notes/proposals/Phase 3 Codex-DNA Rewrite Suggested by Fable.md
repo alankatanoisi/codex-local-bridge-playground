@@ -1,3 +1,7 @@
+> **Status:** Archived proposal (superseded 2026-07-10). The recorded Phase 3 plan is **Native DNA, thin client** in
+> [`docs/codex-bridge-runner-roadmap.html`](../../codex-bridge-runner-roadmap.html) Part 2/5. This document retains
+> Fable's original staging ideas; the architecture review expanded the blast radius and added fixture-first gates.
+
 # Phase 3 (Native-First) — Codex-DNA Rewrite Plan
 
 ## Context

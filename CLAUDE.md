@@ -26,13 +26,13 @@ prompt -> Responses API (OpenAI) -> model response -> function_call -> local too
 
 Plan of record: `docs/codex-bridge-runner-roadmap.html` (Part 5). Current state is tracked in README.md — until
 roadmap Phase 3 lands, `src/runner/model-client.js` still speaks the old local Claude-bridge dialect and live model
-calls do not work from this repo.
+calls do not work from this repo. Phase 3 rewrites internals to native Responses items (see Part 2 decision, 2026-07-10).
 
 ## Working Notes for Claude Agents
 
-- This repo is about OpenAI transport, but the **internal** message representation deliberately stays on the
-  Anthropic-block dialect (`tool_use` / `tool_result` content blocks). Translate only inside the model client.
-  Resist "cleanup" refactors that push Responses-API shapes into the tool pipeline, compactor, transcripts, or archive.
+- This repo is about OpenAI transport with **native Responses items** as internal conversation state (not Anthropic
+  blocks). Phase 3 rewrites model-client, run loop, tool-pipeline, compactor, and persistence paths accordingly.
+  Resist refactors that reintroduce Anthropic wire shapes into the active Codex path.
 - The golden-eval harness (`npm run runner:eval`) and the full test suite run offline with a fake client — use them
   freely; no credentials are ever needed for tests.
 - The Anthropic-invariant rules from the Claude playground (no OpenAI routes there, OAuth-only there) apply to **that**
@@ -47,8 +47,9 @@ calls do not work from this repo.
 - `PORTING.md`: cross-repo fix log.
 - `docs/codex-bridge-runner-roadmap.html`: the living build plan (feasibility, wire-format table, phases, risks).
 - `bin/local-bridge-runner.js`: runner CLI entrypoint.
-- `src/runner/run.js`: main runner loop (Phase 3 edits the cache/reasoning paths here).
-- `src/runner/model-client.js`: model transport client (Phase 3 rewrites this to the Responses API).
+- `src/runner/run.js`: main runner loop (Phase 3 rewrites history to native Responses items).
+- `src/runner/model-client.js`: model transport client (Phase 3 rewrites over `codex-transport.js`).
+- `src/runner/items.js`: native item constructors/extractors (Phase 3 Stage 2 — planned).
 - `src/runner/tool-registry.js` / `src/runner/tool-catalog.js`: tool dispatch and definitions.
 - `src/runner/permissions.js` / `src/runner/safety.js`: allow/ask/deny policy; confinement and redaction.
 - `src/trace-utils.js`: shared trace/redaction utilities.

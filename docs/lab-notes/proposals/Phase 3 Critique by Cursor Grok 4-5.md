@@ -1,3 +1,7 @@
+> **Status:** Archived critique (2026-07-10). Recommendation adopted: **Native DNA, thin client**. Superseded by the
+> amended roadmap in [`docs/codex-bridge-runner-roadmap.html`](../../codex-bridge-runner-roadmap.html) and
+> [`docs/reports/phase-3-pre-build-architecture-review.html`](../../reports/phase-3-pre-build-architecture-review.html).
+
 ---
 name: Phase 3 Critique
 overview: "Critique of the Fable and Codex Phase 3 proposals against the shipped roadmap: keep native Responses internals (Fable’s core), discard the Phase 3 local bridge and ModelRuntime ceremony (Codex overreach), and amend the roadmap’s boundary-translation Phase 3 into a staged native rewrite."

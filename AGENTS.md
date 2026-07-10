@@ -62,9 +62,10 @@ philosophy inherited from the Claude playground:
 - Small default system prompt, minimal startup context, explicit opt-ins.
 - Tools as capability groups, not a flat feature list.
 - Customization through `.bridge-runner/` files, prompt templates, profiles, and hooks.
-- Keep the internal Anthropic-block message dialect as the runner's internal representation; translate to/from
-  Responses API shapes **only at the model-client boundary** (roadmap Part 2/Phase 3). Do not spread Responses-API
-  shapes through the tool pipeline, compactor, transcripts, or archive.
+- Keep the internal conversation state as native OpenAI Responses **input items**
+  (`message`, `function_call`, `function_call_output`, `reasoning`) — not Anthropic content blocks with a
+  translation layer (recorded 2026-07-10; supersedes the earlier boundary-translation draft). Map tool
+  `input_schema` → `parameters` at request build time only; do not spread wire details through safety or permissions.
 
 ## Transport & Credential Invariants
 
