@@ -130,7 +130,7 @@ async function runBootstrap(input) {
     result.ledger = ledger;
     const replay = replayFromLedger(sessionPath);
     result.replay = replay;
-    if (input.resume && store.data().messages.length === 0 && !replay.ok) {
+    if (input.resume && store.data().items.length === 0 && !replay.ok) {
       result.blocked = true;
       result.blockReason = 'Could not resume: no valid ledger or session checkpoint.';
       result.stopReason = 'resume_failed';

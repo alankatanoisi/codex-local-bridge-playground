@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
+const nativeItems = require('../../src/runner/items');
 const { STOP_REASONS, normalizeKernelResult, isStopReason } = require('../../src/runner/kernel/contract');
 
 describe('kernel contract', () => {
@@ -34,16 +35,16 @@ describe('session store', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'session-'));
   const { SessionStore, defaultSession } = require('../../src/runner/session-store');
 
-  it('creates and persists messages', () => {
+  it('creates and persists native items', () => {
     const p = path.join(tmp, 'a.state.json');
     const store = new SessionStore(p);
     store.load();
-    store.setMessages([{ role: 'user', content: 'hi' }]);
+    store.setItems([nativeItems.userMessage('hi')]);
     store.updateRunner({ undoLog: [{ path: 'x' }] });
     store.save();
     const store2 = new SessionStore(p);
     store2.load();
-    assert.equal(store2.messages.length, 1);
+    assert.equal(store2.items.length, 1);
     assert.equal(store2.data().runner.undoLog.length, 1);
   });
 
@@ -60,7 +61,8 @@ describe('session store', () => {
   });
 
   it('defaultSession has schema version', () => {
-    assert.equal(defaultSession('x').schemaVersion, 1);
+    assert.equal(defaultSession('x').schemaVersion, 2);
+    assert.equal(defaultSession('x').provider, 'codex');
   });
 });
 

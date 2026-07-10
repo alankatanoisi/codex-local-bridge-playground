@@ -33,6 +33,7 @@ function eventsToCollector(runId, events, meta = {}) {
     model: meta.model || 'unknown',
     prompt: meta.prompt || '',
     source: 'legacy-ingest',
+    provider: 'legacy',
     startedAt: meta.startedAt || new Date().toISOString(),
   });
 

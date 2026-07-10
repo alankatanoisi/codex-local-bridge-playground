@@ -3,11 +3,20 @@
 const fs = require('fs');
 const path = require('path');
 const safety = require('./safety');
+const nativeItems = require('./items');
 const { formatHint } = require('./beginner-hints');
 
 function textFromContent(content) {
   if (typeof content === 'string') return content;
   if (!Array.isArray(content)) return '';
+
+  // A native response is a list of typed items. Its text lives one level
+  // deeper, inside each message item's content parts.
+  if (content.some((item) => nativeItems.isInputItem(item))) {
+    return nativeItems.extractText(content);
+  }
+
+  // Keep this small compatibility branch for archived/legacy test fixtures.
   return content
     .filter((block) => block.type === 'text')
     .map((block) => block.text)
@@ -16,6 +25,9 @@ function textFromContent(content) {
 
 function toolUsesFromContent(content) {
   if (!Array.isArray(content)) return [];
+  if (content.some((item) => nativeItems.isFunctionCallItem(item))) {
+    return nativeItems.functionCallsToPipelineToolUses(nativeItems.extractFunctionCalls(content));
+  }
   return content.filter((block) => block.type === 'tool_use');
 }
 
@@ -24,8 +36,9 @@ class HumanLog {
     this.filePath = filePath;
     this.verbose = !!options.verbose;
     this.quiet = !!options.quiet;
+    this.provider = options.provider || nativeItems.PROVIDER;
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    fs.writeFileSync(filePath, '# Local Bridge Runner Log\n\n');
+    fs.writeFileSync(filePath, '# Local Bridge Runner Log\n\nprovider: ' + this.provider + '\n\n');
   }
 
   appendSection(title, body) {
@@ -51,10 +64,11 @@ class HumanLog {
 
   writeAssistant(step, response) {
     const lines = [];
-    const text = textFromContent(response.content);
+    const content = Array.isArray(response?.output) ? response.output : response?.content;
+    const text = textFromContent(content);
     if (text) lines.push(text);
 
-    const toolUses = toolUsesFromContent(response.content);
+    const toolUses = toolUsesFromContent(content);
     if (toolUses.length > 0) {
       lines.push(
         'Tool requests:\n' +
@@ -95,6 +109,7 @@ class HumanLog {
       'model: ' + (summary.model || 'unknown'),
       'input tokens: ' + summary.inputTokens,
       'output tokens: ' + summary.outputTokens,
+      'reasoning tokens: ' + (summary.reasoningTokens || 0),
       'cache read tokens: ' + summary.cacheReadTokens,
       'cache creation tokens: ' + summary.cacheCreationTokens,
       'cache read share: ' + Math.round((summary.cacheReadShare || 0) * 100) + '%',

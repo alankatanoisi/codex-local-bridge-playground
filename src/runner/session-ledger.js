@@ -11,6 +11,8 @@
 
 const fs = require('fs');
 const path = require('path');
+const { PROVIDER } = require('./items');
+const safety = require('./safety');
 
 const LEDGER_VERSION = 1;
 
@@ -72,6 +74,7 @@ class SessionLedger {
     if (!this.cursorPath) return;
     const cursor = {
       v: LEDGER_VERSION,
+      provider: PROVIDER,
       seq: this.lastSeq,
       offset: this._offset,
       ts: new Date().toISOString(),
@@ -128,13 +131,16 @@ class SessionLedger {
   append(type, payload = {}) {
     if (!this.filePath) return null;
     const seq = ++this.lastSeq;
-    const event = {
+    // The ledger is an observability file, so native items receive the same
+    // secret scrubbing as transcripts and traces before touching disk.
+    const event = safety.scrubObject({
       v: LEDGER_VERSION,
+      provider: PROVIDER,
       seq,
       ts: new Date().toISOString(),
       type,
       ...payload,
-    };
+    });
     const line = JSON.stringify(event) + '\n';
     this._ensureFd();
     fs.writeSync(this._fd, line);

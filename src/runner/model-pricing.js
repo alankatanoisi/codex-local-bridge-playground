@@ -62,6 +62,7 @@ function summarizeUsage(model, usage) {
   const u = usage || {};
   const inputTokens = u.input_tokens || 0;
   const outputTokens = u.output_tokens || 0;
+  const reasoningTokens = u.reasoning_tokens || 0;
   const cacheReadTokens = u.cache_read_input_tokens || 0;
   const cacheCreationTokens = u.cache_creation_input_tokens || 0;
   const totalInputTokens = inputTokens + cacheReadTokens + cacheCreationTokens;
@@ -69,6 +70,7 @@ function summarizeUsage(model, usage) {
   const cacheReadShare = totalInputTokens > 0 ? cacheReadTokens / totalInputTokens : 0;
 
   const parts = ['in=' + inputTokens, 'out=' + outputTokens];
+  if (reasoningTokens) parts.push('reasoning=' + reasoningTokens);
   if (cacheReadTokens) parts.push('cache_read=' + cacheReadTokens);
   if (cacheCreationTokens) parts.push('cache_write=' + cacheCreationTokens);
   parts.push('(reuse ' + Math.round(cacheReadShare * 100) + '%)');
@@ -79,6 +81,7 @@ function summarizeUsage(model, usage) {
     model: model || null,
     inputTokens,
     outputTokens,
+    reasoningTokens,
     cacheReadTokens,
     cacheCreationTokens,
     totalInputTokens,

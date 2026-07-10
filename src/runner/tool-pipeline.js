@@ -185,7 +185,7 @@ function createToolPipeline(deps = {}) {
     if (!ledger) return null;
     const ev = ledger.append(type, payload);
     if (hooks && ev) {
-      bestEffort('hooks', () => hooks.noteLedgerEvent({ type, seq: ev.seq, ts: ev.ts, ...payload }));
+      bestEffort('hooks', () => hooks.noteLedgerEvent(ev));
     }
     return ev;
   }

@@ -75,6 +75,25 @@ describe('transcript', () => {
     assert.ok(fs.existsSync(nestedDir));
   });
 
+  it('labels live events as Codex and preserves native response items', () => {
+    const filePath = path.join(tmpDir, 'native-items.jsonl');
+    const t = new Transcript(filePath);
+    const output = [
+      {
+        type: 'function_call',
+        call_id: 'call_1',
+        name: 'list_files',
+        arguments: '{"path":"."}',
+      },
+    ];
+    t.append({ type: 'assistant', step: 1, content: output });
+    t.flush();
+
+    const event = JSON.parse(fs.readFileSync(filePath, 'utf8').trim());
+    assert.equal(event.provider, 'codex');
+    assert.deepEqual(event.content, output);
+  });
+
   it('records a usage event with raw counts and derived fields', () => {
     const filePath = path.join(tmpDir, 'usage.jsonl');
     const t = new Transcript(filePath);
@@ -83,6 +102,7 @@ describe('transcript', () => {
       model: 'claude-sonnet-4-6',
       inputTokens: 100,
       outputTokens: 50,
+      reasoningTokens: 12,
       cacheReadTokens: 300,
       cacheCreationTokens: 0,
       totalInputTokens: 400,
@@ -96,6 +116,7 @@ describe('transcript', () => {
     assert.ok(usageEvent, 'usage event present');
     assert.equal(usageEvent.inputTokens, 100);
     assert.equal(usageEvent.cacheReadTokens, 300);
+    assert.equal(usageEvent.reasoningTokens, 12);
     assert.equal(usageEvent.costUsd, 0.0012);
     assert.equal(usageEvent.cacheReadShare, 0.75);
   });

@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const nativeItems = require('../../src/runner/items');
 
 function freshStore(label) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'sessstore-debounce-' + label + '-'));
@@ -28,7 +29,7 @@ describe('SessionStore debouncer', () => {
     };
     try {
       for (let i = 0; i < 10; i++) {
-        store.appendMessage({ role: 'user', content: 'hi-' + i });
+        store.appendItem(nativeItems.userMessage('hi-' + i));
         store.saveSoon();
       }
       assert.equal(writes, 0, 'no write before timer fires');
@@ -43,21 +44,21 @@ describe('SessionStore debouncer', () => {
   it('flushSync() writes immediately and cancels the pending timer', () => {
     const { store, sessionPath } = freshStore('flush');
     store._debounceMs = 5000;
-    store.appendMessage({ role: 'user', content: 'x' });
+    store.appendItem(nativeItems.userMessage('x'));
     store.saveSoon();
     assert.equal(fs.existsSync(sessionPath), false);
     store.flushSync();
     assert.equal(fs.existsSync(sessionPath), true);
     const data = JSON.parse(fs.readFileSync(sessionPath, 'utf8'));
-    assert.equal(data.messages.length, 1);
-    assert.equal(data.messages[0].content, 'x');
+    assert.equal(data.items.length, 1);
+    assert.equal(data.items[0].content[0].text, 'x');
     assert.equal(store._timer, null, 'timer cleared after flushSync');
   });
 
   it('debounceMs=0 makes saveSoon synchronous', () => {
     const { store, sessionPath } = freshStore('zero');
     store._debounceMs = 0;
-    store.appendMessage({ role: 'user', content: 'sync-write' });
+    store.appendItem(nativeItems.userMessage('sync-write'));
     store.saveSoon();
     assert.equal(fs.existsSync(sessionPath), true, 'wrote synchronously');
     store.dispose();
@@ -65,7 +66,7 @@ describe('SessionStore debouncer', () => {
 
   it('flushSync() is a no-op when not dirty', () => {
     const { store, sessionPath } = freshStore('clean');
-    store.appendMessage({ role: 'user', content: 'first' });
+    store.appendItem(nativeItems.userMessage('first'));
     store.save();
     const mtime1 = fs.statSync(sessionPath).mtimeMs;
     store.flushSync();

@@ -24,6 +24,7 @@ function buildTurnEnvelope(fields) {
     runId: fields.runId,
     sessionId: fields.sessionId ?? null,
     source: fields.source || 'live',
+    provider: fields.provider || 'codex',
     legacyEra: fields.legacyEra || null,
     step: fields.step ?? null,
     ts: fields.ts || new Date().toISOString(),

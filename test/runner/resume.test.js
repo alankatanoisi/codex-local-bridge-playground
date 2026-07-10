@@ -15,6 +15,48 @@ describe('loadMessagesFromTranscript', () => {
     assert.equal(result, null);
   });
 
+  it('reconstructs native response items from a Codex transcript', () => {
+    const filePath = path.join(tmpDir, 'native.jsonl');
+    const lines = [
+      JSON.stringify({
+        provider: 'codex',
+        type: 'user_prompt',
+        text: 'What files are here?',
+      }),
+      JSON.stringify({
+        provider: 'codex',
+        type: 'assistant',
+        step: 1,
+        content: [
+          {
+            type: 'function_call',
+            call_id: 'call_1',
+            name: 'list_files',
+            arguments: '{"path":"."}',
+          },
+        ],
+      }),
+      JSON.stringify({
+        provider: 'codex',
+        type: 'tool_result',
+        step: 1,
+        tool: 'list_files',
+        ok: true,
+        text: 'README.md',
+        toolUseId: 'call_1',
+      }),
+    ];
+    fs.writeFileSync(filePath, lines.join('\n'));
+
+    const history = loadMessagesFromTranscript(filePath);
+    assert.deepEqual(
+      history.map((item) => item.type),
+      ['message', 'function_call', 'function_call_output'],
+    );
+    assert.equal(history[2].call_id, 'call_1');
+    assert.equal(history[2].output, 'README.md');
+  });
+
   it('loads a simple user-prompt + assistant transcript', () => {
     const filePath = path.join(tmpDir, 'simple.jsonl');
     const lines = [

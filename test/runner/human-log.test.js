@@ -47,6 +47,33 @@ describe('human-readable runner log', () => {
     assert.ok(!text.includes(key));
   });
 
+  it('renders native response messages and function calls', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'human-log-native-'));
+    const logPath = path.join(tmpDir, 'run.md');
+    const log = new HumanLog(logPath);
+
+    log.writeAssistant(1, {
+      output: [
+        {
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'output_text', text: 'I will inspect the folder.' }],
+        },
+        {
+          type: 'function_call',
+          call_id: 'call_1',
+          name: 'list_files',
+          arguments: '{"path":"."}',
+        },
+      ],
+    });
+
+    const text = fs.readFileSync(logPath, 'utf8');
+    assert.ok(text.includes('I will inspect the folder.'));
+    assert.ok(text.includes('list_files'));
+    assert.ok(text.includes('{"path":"."}'));
+  });
+
   it('writes a Usage & Cost section', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'human-log-usage-'));
     const logPath = path.join(tmpDir, 'run.md');

@@ -288,18 +288,51 @@ function loadMessagesFromTranscript(filePath, options = {}) {
   const cursorSeq = cursor && typeof cursor.seq === 'number' && cursor.seq > 0 ? cursor.seq : null;
   const lineCap = cursorSeq ? cursorSeq * 4 : Infinity;
 
+  // Parse once so we can identify the transcript's provider before rebuilding
+  // history. Native Codex transcripts are never translated back into the old
+  // role/content-block message format.
+  const events = [];
+  for (const line of lines.slice(0, lineCap)) {
+    try {
+      events.push(JSON.parse(line));
+    } catch {
+      // A damaged JSONL line does not make the remaining audit log unreadable.
+    }
+  }
+  const isNativeTranscript = events.some(
+    (ev) =>
+      ev.provider === items.PROVIDER ||
+      (ev.type === 'assistant' && Array.isArray(ev.content) && ev.content.some((item) => items.isInputItem(item))),
+  );
+  if (isNativeTranscript) {
+    const historyItems = [];
+    for (const ev of events) {
+      if (ev.type === 'user_prompt') {
+        historyItems.push(items.isInputItem(ev.item) ? items.cloneItem(ev.item) : items.userMessage(ev.text || ''));
+        continue;
+      }
+      if (ev.type === 'assistant' && Array.isArray(ev.content)) {
+        for (const item of ev.content) {
+          if (items.isInputItem(item)) historyItems.push(items.cloneItem(item));
+        }
+        continue;
+      }
+      if (ev.type === 'tool_result' && ev.toolUseId) {
+        historyItems.push(
+          items.functionCallOutput({
+            callId: ev.toolUseId,
+            output: ev.text || (ev.ok ? '' : 'unknown tool error'),
+            isError: ev.ok === false,
+          }),
+        );
+      }
+    }
+    return historyItems;
+  }
+
   const messages = [];
   let isFirstUser = true;
-  let processed = 0;
-  for (const line of lines) {
-    if (processed >= lineCap) break;
-    processed++;
-    let ev;
-    try {
-      ev = JSON.parse(line);
-    } catch {
-      continue;
-    }
+  for (const ev of events) {
     if (ev.type === 'user_prompt' && isFirstUser) {
       messages.push({ role: 'user', content: ev.text });
       isFirstUser = false;
@@ -328,14 +361,14 @@ function loadMessagesFromTranscript(filePath, options = {}) {
   return messages;
 }
 
-function persistSession(sessionStore, messages, ctx, noSessionPersistence) {
+function persistSession(sessionStore, historyItems, ctx, noSessionPersistence) {
   // Drop a per-run recovery manifest regardless of session persistence. The
   // manifest lives under cwd/.bridge-runner/runs/ and powers `undo last-run`;
   // it must exist even when --no-session-persistence is set, because the user
   // still wants to be able to roll back the files this run touched.
   syncRunManifest(ctx);
   if (!sessionStore || noSessionPersistence) return;
-  sessionStore.setMessages(messages);
+  sessionStore.setItems(historyItems);
   const tasks = Array.isArray(ctx.tasks) ? ctx.tasks : [];
   sessionStore.updateRunner({
     undoLog: ctx.undoLog || [],
@@ -372,7 +405,7 @@ function hydrateRunnerStateFromSession(ctx, sessionStore) {
 function appendLedger(ledger, hooks, type, payload) {
   if (!ledger) return null;
   const ev = ledger.append(type, payload);
-  if (hooks && ev) hooks.noteLedgerEvent({ type, seq: ev.seq, ts: ev.ts, ...payload });
+  if (hooks && ev) hooks.noteLedgerEvent(ev);
   return ev;
 }
 
@@ -539,7 +572,13 @@ async function run(options) {
         finalText: boot.blockReason,
         steps: 0,
         duration_ms: 0,
-        usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
+        usage: {
+          input_tokens: 0,
+          output_tokens: 0,
+          cache_read_input_tokens: 0,
+          cache_creation_input_tokens: 0,
+          reasoning_tokens: 0,
+        },
         events: [],
       };
     }
@@ -573,7 +612,13 @@ async function run(options) {
       finalText: err.message,
       steps: 0,
       duration_ms: 0,
-      usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
+      usage: {
+        input_tokens: 0,
+        output_tokens: 0,
+        cache_read_input_tokens: 0,
+        cache_creation_input_tokens: 0,
+        reasoning_tokens: 0,
+      },
       events: [],
     };
   }
@@ -636,6 +681,7 @@ async function run(options) {
   ctx.runManifestMeta = {
     runId,
     sessionId: sessionId || null,
+    provider: items.PROVIDER,
     model,
     startedAt: new Date(startedAt).toISOString(),
   };
@@ -814,11 +860,17 @@ async function run(options) {
         finalText: resumeCheck.message,
         steps: 0,
         duration_ms: 0,
-        usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
+        usage: {
+          input_tokens: 0,
+          output_tokens: 0,
+          cache_read_input_tokens: 0,
+          cache_creation_input_tokens: 0,
+          reasoning_tokens: 0,
+        },
         events: [],
       });
     }
-    messages = sessionStore.messages.length ? [...sessionStore.messages] : null;
+    messages = sessionStore.items.length ? [...sessionStore.items] : null;
     if (!messages || messages.length === 0) {
       emitHint('Could not resume: no valid ledger or session checkpoint.', {
         quiet,
@@ -831,14 +883,20 @@ async function run(options) {
         finalText: 'Could not resume: no valid ledger or session checkpoint.',
         steps: 0,
         duration_ms: 0,
-        usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
+        usage: {
+          input_tokens: 0,
+          output_tokens: 0,
+          cache_read_input_tokens: 0,
+          cache_creation_input_tokens: 0,
+          reasoning_tokens: 0,
+        },
         events: [],
       });
     }
     messages.push(toUserInputItem(buildUserMessage(prompt, stdinText)));
     if (!quiet) console.error('[runner] resumed ' + messages.length + ' messages from session ' + resolvedSessionPath);
     if (sessionStore && !noSessionPersistence) {
-      sessionStore.setMessages(messages);
+      sessionStore.setItems(messages);
       sessionStore.saveSoon();
     }
   } else if (resume && transcriptPath) {
@@ -853,7 +911,13 @@ async function run(options) {
       finalText: 'Transcript resume is deprecated. Use session store.',
       steps: 0,
       duration_ms: 0,
-      usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
+      usage: {
+        input_tokens: 0,
+        output_tokens: 0,
+        cache_read_input_tokens: 0,
+        cache_creation_input_tokens: 0,
+        reasoning_tokens: 0,
+      },
       events: [],
     });
   } else {
@@ -870,7 +934,7 @@ async function run(options) {
       if (newSession) {
         sessionStore.updateRunner({ health: null, compactionGeneration: 0, consecutiveToolFailures: 0 });
       }
-      sessionStore.setMessages(messages);
+      sessionStore.setItems(messages);
       sessionStore.updateMetadata({ cwd: ctx.cwdRealpath, model });
       sessionStore.save();
     }
@@ -889,7 +953,13 @@ async function run(options) {
   });
   const repoContextBlock = buildRepoContextBlock(ctx, contextPolicy);
   const steps = maxSteps || DEFAULT_MAX_STEPS;
-  let totalUsage = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 };
+  let totalUsage = {
+    input_tokens: 0,
+    output_tokens: 0,
+    cache_read_input_tokens: 0,
+    cache_creation_input_tokens: 0,
+    reasoning_tokens: 0,
+  };
   const toolHistory = [];
   const effortLevel = normalizeEffort(effort);
 
@@ -897,7 +967,14 @@ async function run(options) {
     console.error('[runner] tip: --task-scope runs work best with --plan for the first pass.');
   }
 
-  if (ledger) appendLedger(ledger, hooks, 'user_prompt', { runId, prompt: prompt.slice(0, 500) });
+  if (ledger) {
+    appendLedger(ledger, hooks, 'user_prompt', {
+      runId,
+      prompt: prompt.slice(0, 500),
+      // `item` is the replayable form; `prompt` stays a short human breadcrumb.
+      item: items.cloneItem(messages[messages.length - 1]),
+    });
+  }
 
   output.emit('system', { subtype: 'init', cwd: ctx.cwdRealpath, model, max_steps: steps });
   if (trace) {
@@ -916,13 +993,13 @@ async function run(options) {
       },
       artifacts: {
         runner_trace: trace.filePath,
-        bridge_trace: 'bridge writes ~/.claude-local-bridge/traces/' + runId + '.bridge.jsonl',
+        transport_trace: trace.filePath,
       },
       visibility_notes: {
         runner_only: ['cwd validation', 'permission decisions', 'local file and shell effects'],
-        bridge_only: ['credential source', 'auth header injection', 'upstream host and forwarded header names'],
+        transport_only: ['credential source', 'auth header injection', 'upstream host and forwarded header names'],
         upstream_bound: [
-          'Anthropic Messages body after bridge transformation',
+          'OpenAI Responses request body after request construction',
           'upstream auth and fingerprint headers',
         ],
       },
@@ -966,8 +1043,9 @@ async function run(options) {
       if (transcript) transcript.append({ type: 'instruction_delta', step, kind: 'large_rewrite' });
     }
 
-    // Stage 5 ports the compactor to item lists. Until then, skip Anthropic-shaped
-    // compaction when history is already native Responses items.
+    // Native compaction is a deliberately separate follow-up. Until that
+    // focused rewrite lands, never feed Responses items into the older
+    // Anthropic content-block compactor.
     let compaction;
     if (historyLooksNative(messages)) {
       compaction = { changed: false, messages, generation: compactionGeneration, stagesApplied: [], system };
@@ -1059,7 +1137,7 @@ async function run(options) {
     }
     if (transcript) transcript.append({ type: 'request', step, model });
     output.emit('model_request', { step, model });
-    if (verbose) console.error('[runner] step ' + step + ': sending request to bridge');
+    if (verbose) console.error('[runner] step ' + step + ': sending request to Codex');
 
     let response;
     try {
@@ -1214,6 +1292,9 @@ async function run(options) {
     // Append native output items (message / function_call / reasoning) to history.
     const outputItems = Array.isArray(response.output) ? response.output.map((item) => items.cloneItem(item)) : [];
     for (const item of outputItems) messages.push(item);
+    if (ledger && outputItems.length) {
+      appendLedger(ledger, hooks, 'assistant_items', { runId, step, items: outputItems });
+    }
     persistSession(
       sessionStore,
       messages,
@@ -1390,6 +1471,9 @@ async function run(options) {
     const allToolResults = [...syntheticParseErrors, ...(turn.toolResults || [])];
     const outputResultItems = items.pipelineResultsToOutputItems(allToolResults);
     for (const item of outputResultItems) messages.push(item);
+    if (ledger && outputResultItems.length) {
+      appendLedger(ledger, hooks, 'function_call_outputs', { runId, step, items: outputResultItems });
+    }
     persistSession(
       sessionStore,
       messages,

@@ -3,14 +3,18 @@
 /**
  * Canonical session store — flat JSON source of truth for resume.
  *
- * Transcript JSONL remains an audit log; session file holds API messages + runner metadata.
+ * Transcript JSONL remains an audit log; the session file holds native OpenAI
+ * Responses input items plus runner metadata.
  */
 
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const nativeItems = require('./items');
 
-const SCHEMA_VERSION = 1;
+// Keep one source of truth for the session version. If the native item contract
+// changes later, SessionStore cannot accidentally continue writing an old number.
+const SCHEMA_VERSION = nativeItems.SCHEMA_VERSION;
 const DEFAULT_DEBOUNCE_MS = 75;
 
 const _trackedStores = new Set();
@@ -41,29 +45,7 @@ function makeSessionId() {
 }
 
 function defaultSession(sessionId, overrides = {}) {
-  return {
-    schemaVersion: SCHEMA_VERSION,
-    sessionId: sessionId || makeSessionId(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    messages: [],
-    runner: {
-      undoLog: [],
-      consecutiveToolFailures: 0,
-      activeTaskIds: [],
-      tasks: [],
-      compactionGeneration: 0,
-      flags: {},
-    },
-    metadata: {
-      cwd: null,
-      model: null,
-      familyId: null,
-      forkedFrom: null,
-      forkTurn: null,
-    },
-    ...overrides,
-  };
+  return nativeItems.createNativeSession(sessionId || makeSessionId(), overrides);
 }
 
 function sessionPathFor(baseDir, sessionId) {
@@ -103,7 +85,9 @@ class SessionStore {
     }
     const raw = fs.readFileSync(this.filePath, 'utf8');
     const parsed = JSON.parse(raw);
-    if (!parsed.schemaVersion) parsed.schemaVersion = SCHEMA_VERSION;
+    // Resume is intentionally a clean break. Validation happens before any
+    // defaults are added, so a v1 file is rejected and left byte-for-byte alone.
+    nativeItems.assertNativeSession(parsed);
     if (!parsed.runner) parsed.runner = defaultSession(parsed.sessionId).runner;
     if (!parsed.metadata) parsed.metadata = defaultSession(parsed.sessionId).metadata;
     this._data = parsed;
@@ -115,17 +99,17 @@ class SessionStore {
     return this._data;
   }
 
-  get messages() {
-    return this.data().messages;
+  get items() {
+    return this.data().items;
   }
 
-  setMessages(messages) {
-    this.data().messages = messages;
+  setItems(items) {
+    this.data().items = items;
     this.touch();
   }
 
-  appendMessage(message) {
-    this.data().messages.push(message);
+  appendItem(item) {
+    this.data().items.push(item);
     this.touch();
   }
 

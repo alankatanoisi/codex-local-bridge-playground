@@ -5,11 +5,12 @@
  */
 
 const { SessionLedger } = require('./session-ledger');
+const nativeItems = require('./items');
 
 /**
- * Replay ledger into messages metadata without calling model or tools.
+ * Replay ledger into native-item metadata without calling model or tools.
  * @param {string} sessionPath
- * @returns {{ ok: boolean, events: object[], issues: object[], messagesEstimate: number }}
+ * @returns {{ ok: boolean, events: object[], issues: object[], itemsEstimate: number, messagesEstimate: number }}
  */
 function replayFromLedger(sessionPath) {
   const ledger = new SessionLedger(sessionPath);
@@ -27,7 +28,25 @@ function replayFromLedger(sessionPath) {
   }
 
   let openToolUses = [];
+  let nativeItemCount = 0;
   for (const ev of events) {
+    if (ev.type === 'assistant_items' && Array.isArray(ev.items)) {
+      nativeItemCount += ev.items.length;
+      for (const item of ev.items) {
+        if (nativeItems.isFunctionCallItem(item)) openToolUses.push(item.call_id);
+      }
+    }
+    if (ev.type === 'function_call_outputs' && Array.isArray(ev.items)) {
+      nativeItemCount += ev.items.length;
+      for (const item of ev.items) {
+        if (nativeItems.isFunctionCallOutputItem(item)) {
+          openToolUses = openToolUses.filter((id) => id !== item.call_id);
+        }
+      }
+    }
+
+    // Old ledgers are still readable for diagnostics, although their paired
+    // v1 session files are intentionally not resumable in the Codex runner.
     if (ev.type === 'assistant_message' && ev.toolUseIds) {
       openToolUses.push(...ev.toolUseIds);
     }
@@ -46,6 +65,7 @@ function replayFromLedger(sessionPath) {
     ok: issues.length === 0,
     events,
     issues,
+    itemsEstimate: userPrompts + nativeItemCount,
     messagesEstimate: userPrompts + assistantTurns,
   };
 }

@@ -763,11 +763,27 @@ function readIncludedFiles(cwd, includeFiles) {
   return sections.join('\n\n');
 }
 
+function formatFatalError(err) {
+  // A rejected v1 session is an expected compatibility boundary, not an
+  // internal crash. The message already tells the beginner exactly what to do.
+  if (err && err.code === 'session_schema_unsupported') {
+    return 'Error: ' + err.message;
+  }
+  return 'Unexpected error: ' + (err && err.message ? err.message : String(err));
+}
+
 if (require.main === module) {
   main().catch((err) => {
-    console.error('Unexpected error: ' + err.message);
+    console.error(formatFatalError(err));
     if (process.exitCode === undefined) process.exitCode = 1;
   });
 }
 
-module.exports = { printRuntimeTips, readIncludedFiles, normalizeBridgeUrl, resolveBridgeUrl, parsePromptArgs };
+module.exports = {
+  printRuntimeTips,
+  readIncludedFiles,
+  normalizeBridgeUrl,
+  resolveBridgeUrl,
+  parsePromptArgs,
+  formatFatalError,
+};

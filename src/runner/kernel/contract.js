@@ -52,6 +52,7 @@ const KERNEL_EVENT_TYPES = Object.freeze([
  * @property {number} output_tokens
  * @property {number} [cache_read_input_tokens]
  * @property {number} [cache_creation_input_tokens]
+ * @property {number} [reasoning_tokens]
  */
 
 /**
@@ -104,6 +105,7 @@ function emptyUsage() {
     output_tokens: 0,
     cache_read_input_tokens: 0,
     cache_creation_input_tokens: 0,
+    reasoning_tokens: 0,
   };
 }
 

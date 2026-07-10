@@ -233,7 +233,7 @@
         drives OpenAI's Codex models through the same local agent loop? Short answer: yes — this document reviews the
         current runtime capabilities, measures the provider coupling, and lays out a phased build plan.
       </p>
-      <div class="meta">docs/codex-bridge-runner-roadmap.html · updated 2026-07-10 · fork copy (authoritative) · status: Phases 0–2 complete, Phase 3 (native DNA) next</div>
+      <div class="meta">docs/codex-bridge-runner-roadmap.html · updated 2026-07-10 · fork copy (authoritative) · status: Phases 0–2 complete, Phase 3 Stage 5 complete, Stage 6 next</div>
     </header>
 
     <main>
@@ -643,7 +643,7 @@
           <ul>
             <li>New <code>src/runner/items.js</code>: constructors, extractors, type guards — unit-tested first.</li>
             <li><code>schemaVersion: 2</code> clean break: reject pre-native session resume with a clear error; leave old files untouched.</li>
-            <li><strong>Status:</strong> landed on <code>codex/phase-3-responses-native</code> — see <code>docs/lab-notes/items-schema-contract.md</code> and <code>test/runner/items.test.js</code>. SessionStore wiring waits for Stage 6.</li>
+            <li><strong>Status:</strong> landed on <code>main</code> — see <code>docs/lab-notes/items-schema-contract.md</code> and <code>test/runner/items.test.js</code>. SessionStore wiring landed in Stage 5.</li>
           </ul>
           <h4>Stage 3 — Thin vertical spike / native model-client <span class="badge green">Done on branch</span></h4>
           <ul>
@@ -655,15 +655,16 @@
           <ul>
             <li><code>run.js</code>: history as item list; no <code>cache_control</code> on the Codex path; usage mapping; <code>DEFAULT_MODEL</code> → <code>gpt-5.5</code>.</li>
             <li><code>tool-pipeline.js</code>: still Anthropic-shaped internally; Stage 4 maps at the boundary via <code>functionCallsToPipelineToolUses</code> / <code>pipelineResultsToOutputItems</code>.</li>
-            <li><code>context-compactor.js</code>: skipped for native item histories (port with Stage 5 persistence work or a small follow-up).</li>
+            <li><code>context-compactor.js</code>: skipped for native item histories; its policy rewrite remains a focused follow-up outside the minimal Stage 5 persistence scope.</li>
             <li><strong>Status:</strong> request/response path wired; goldens pass via script→native converter; full <code>test/runner</code> suite green on this branch.</li>
           </ul>
-          <h4>Stage 5 — Persistence / observability (minimal but complete) <span class="badge blue">Next</span></h4>
+          <h4>Stage 5 — Persistence / observability (minimal but complete) <span class="badge green">Done on main</span></h4>
           <ul>
             <li>Update transcript/session, human-log, archive, recovery/replay/ledger for native items + <code>provider: codex</code>.</li>
             <li>Record <code>reasoning_tokens</code> in usage; prefer native items over grand event rename.</li>
+            <li><strong>Status:</strong> <code>SessionStore</code> now writes schema v2 <code>items[]</code> and rejects v1 resume without modifying the old file; transcript, human log, archive, ledger/replay, and run manifests identify <code>provider: codex</code>; native assistant/function-call items and reasoning-token usage are covered by targeted and end-to-end tests.</li>
           </ul>
-          <h4>Stage 6 — Goldens + offline e2e</h4>
+          <h4>Stage 6 — Goldens + offline e2e <span class="badge blue">Next</span></h4>
           <ul>
             <li>Rewrite golden scripts/expects; fixture-driven client tests + mock e2e loop (runner → mock SSE → real local tool → final answer).</li>
             <li>Late fence test: no <code>/v1/messages</code>, <code>cache_control</code>, or Anthropic request shapes on the active Codex path.</li>
@@ -786,8 +787,8 @@
           <li><strong>Done:</strong> Option C chosen; fork created, seeded, pruned, and pushed (Phase 1); protocol and token verified against a live capture (Phase 0); Phase 2 transport module shipped.</li>
           <li><strong>Done (2026-07-10):</strong> Phase 3 direction recorded — native Responses items as internal state (supersedes boundary-translation draft). See Part 2 decision callout and archived proposals in <code>docs/lab-notes/proposals/</code>.</li>
           <li><strong>Done (2026-07-10):</strong> Phase 3 Stage 1 live fixtures captured — <code>responses-stream-function-call.sse</code> and <code>responses-stream-final-answer.sse</code> (leak-grep 0); protocol notes extended with observed grammar.</li>
-          <li><strong>Phase 3 Stage 0:</strong> hygiene cleanup (done with docs); branch <code>codex/phase-3-responses-native</code> when code rewrite starts.</li>
-          <li><strong>Phase 3 Stages 2–7:</strong> <code>items.js</code> contract → vertical spike → loop/pipeline/compactor → persistence → goldens/e2e → pricing/docs/PR. Fixtures gate is met — <code>run.js</code> rewrite may proceed after Stage 2–3.</li>
+          <li><strong>Done (2026-07-10):</strong> Phase 3 Stages 2–5 — native item contract, model-client vertical spike, run loop/pipeline boundary, and schema-v2 persistence/observability.</li>
+          <li><strong>Next — Phase 3 Stage 6:</strong> rewrite golden scripts/expects and add the fixture-driven mock end-to-end loop; keep native compaction as a focused follow-up.</li>
           <li><strong>Housekeeping:</strong> rotate the <code>at-…</code> token in the ChatGPT dashboard if it appeared in a terminal, then <code>unset CODEX_ACCESS_TOKEN</code>.</li>
           <li><strong>Phase 4:</strong> live capability ladder including session resume and compaction checks.</li>
         </ol>

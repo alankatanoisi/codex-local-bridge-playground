@@ -4,6 +4,8 @@
  * In-memory collector for live runs — flushed by finalizeArchiveExport.
  */
 
+const nativeItems = require('../items');
+
 class RunArchiveCollector {
   constructor(meta) {
     this.meta = {
@@ -21,6 +23,7 @@ class RunArchiveCollector {
       ledgerPath: meta.ledgerPath ?? null,
       startedAt: meta.startedAt || new Date().toISOString(),
       source: meta.source || 'live',
+      provider: meta.provider || nativeItems.PROVIDER,
       coordinator: meta.coordinator || null,
     };
     this.turns = [];
@@ -46,23 +49,37 @@ class RunArchiveCollector {
 
   recordAssistant(step, response) {
     const seq = this.nextSeq();
-    const text = Array.isArray(response?.content)
-      ? response.content
-          .filter((b) => b.type === 'text')
-          .map((b) => b.text)
-          .join('\n')
-      : typeof response?.content === 'string'
-        ? response.content
-        : '';
-    const toolUses = Array.isArray(response?.content)
-      ? response.content.filter((b) => b.type === 'tool_use').map((b) => ({ id: b.id, name: b.name, input: b.input }))
+    const content = Array.isArray(response?.output) ? response.output : response?.content;
+    const isNative = Array.isArray(content) && content.some((item) => nativeItems.isInputItem(item));
+    const text = isNative
+      ? nativeItems.extractText(content)
+      : Array.isArray(content)
+        ? content
+            .filter((b) => b.type === 'text')
+            .map((b) => b.text)
+            .join('\n')
+        : typeof content === 'string'
+          ? content
+          : '';
+    const functionCalls = isNative
+      ? nativeItems.extractFunctionCalls(content).map((call) => ({
+          call_id: call.call_id,
+          name: call.name,
+          arguments: call.arguments,
+        }))
       : [];
+    const toolUses =
+      !isNative && Array.isArray(content)
+        ? content.filter((b) => b.type === 'tool_use').map((b) => ({ id: b.id, name: b.name, input: b.input }))
+        : [];
     this.turns.push({
       seq,
       kind: 'assistant',
       step,
       input: { model: this.meta.model },
-      output: { text, toolUses },
+      // Keep legacy toolUses only for imported old logs. New live turns store
+      // native function-call fields without translating them back to Anthropic.
+      output: isNative ? { text, functionCalls } : { text, toolUses },
     });
   }
 

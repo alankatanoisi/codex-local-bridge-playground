@@ -9,6 +9,7 @@ const modelClient = require('../../src/runner/model-client');
 const { run, normalizeEffort } = require('../../src/runner/run');
 const { SessionStore } = require('../../src/runner/session-store');
 const health = require('../../src/runner/session-health');
+const nativeItems = require('../../src/runner/items');
 
 describe('effort passthrough', () => {
   it('normalizeEffort accepts planned enum values', () => {
@@ -55,7 +56,7 @@ describe('session resume health gate', () => {
     const sessionPath = path.join(tmpDir, 'bad.state.json');
     const store = new SessionStore(sessionPath);
     store.load();
-    store.setMessages([{ role: 'user', content: 'prior' }]);
+    store.setItems([nativeItems.userMessage('prior')]);
     store.updateRunner({
       health: health.buildHealth({ stopReason: 'max_steps' }),
     });

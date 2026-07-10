@@ -314,7 +314,7 @@ function normalizeUsage(usage) {
 // ---------------------------------------------------------------------------
 
 /**
- * Empty native session document (not yet wired into SessionStore — Stage 6).
+ * Empty native session document used by SessionStore (wired in Stage 5).
  * @param {string} [sessionId]
  * @param {object} [overrides]
  */

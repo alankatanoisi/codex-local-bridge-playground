@@ -50,11 +50,13 @@ describe('model-pricing: summarizeUsage', () => {
     const s = summarizeUsage('claude-sonnet-4-6', {
       input_tokens: 100,
       output_tokens: 50,
+      reasoning_tokens: 12,
       cache_read_input_tokens: 300,
       cache_creation_input_tokens: 0,
     });
     assert.equal(s.inputTokens, 100);
     assert.equal(s.outputTokens, 50);
+    assert.equal(s.reasoningTokens, 12);
     assert.equal(s.cacheReadTokens, 300);
     assert.equal(s.cacheCreationTokens, 0);
     assert.equal(s.totalInputTokens, 400);
@@ -87,5 +89,14 @@ describe('model-pricing: summarizeUsage', () => {
     });
     assert.ok(s.oneLine.includes('cache_read=300'));
     assert.ok(s.oneLine.includes('cache_write=200'));
+  });
+
+  it('oneLine reports reasoning tokens when present', () => {
+    const s = summarizeUsage('gpt-5.5', {
+      input_tokens: 100,
+      output_tokens: 50,
+      reasoning_tokens: 12,
+    });
+    assert.ok(s.oneLine.includes('reasoning=12'));
   });
 });

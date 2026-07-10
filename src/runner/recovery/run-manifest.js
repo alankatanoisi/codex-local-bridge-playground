@@ -110,6 +110,7 @@ function writeRunManifest(cwd, meta = {}) {
     manifestVersion: MANIFEST_VERSION,
     runId,
     sessionId: meta.sessionId || null,
+    provider: meta.provider || 'codex',
     model: meta.model || null,
     startedAt: meta.startedAt || null,
     finishedAt: new Date().toISOString(),

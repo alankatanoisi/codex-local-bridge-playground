@@ -37,4 +37,5 @@ const items = require('./items');
 items.assertNativeSession(loaded); // throws SessionSchemaError for v1 / Anthropic shapes
 ```
 
-Stage 6 wires this into `session-store.js`. Until then, helpers are unit-tested here so later stages share one contract.
+Stage 5 wires this into `session-store.js`. New session files use `schemaVersion: 2`, `provider: "codex"`, and
+`items[]`; v1 session files fail closed and remain untouched.

@@ -19,7 +19,7 @@ function promptPreview(text, max = 200) {
 }
 
 function writeTurnFiles(collector) {
-  const { runId, sessionId, source } = collector.meta;
+  const { runId, sessionId, source, provider } = collector.meta;
   const tdir = turnsDir(runId);
   fs.mkdirSync(tdir, { recursive: true });
   const written = [];
@@ -30,6 +30,7 @@ function writeTurnFiles(collector) {
       runId,
       sessionId,
       source,
+      provider,
       step: turn.step,
       input: turn.input,
       output: turn.output,
@@ -74,6 +75,7 @@ function finalizeArchiveExport(collector, resultPatch = {}) {
       sessionId: collector.meta.sessionId,
       cwd: collector.meta.cwd,
       model: collector.meta.model,
+      provider: collector.meta.provider,
       promptPreview: promptPreview(collector.meta.prompt),
       flags: collector.meta.flags,
       agentProfile: collector.meta.agentProfile,

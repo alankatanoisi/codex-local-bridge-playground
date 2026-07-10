@@ -145,6 +145,42 @@ describe('archive export', () => {
     assert.equal(collector.turns[0].output.loopWarning.kind, 'repeat_read_file_range');
   });
 
+  it('archives native assistant items and labels the provider as Codex', () => {
+    const runId = 'native-archive-' + Date.now();
+    const collector = new RunArchiveCollector({
+      runId,
+      cwd: '/tmp/project',
+      model: 'gpt-5.5',
+      prompt: 'inspect files',
+    });
+
+    collector.recordAssistant(1, {
+      output: [
+        {
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'output_text', text: 'I will inspect.' }],
+        },
+        {
+          type: 'function_call',
+          call_id: 'call_native_1',
+          name: 'list_files',
+          arguments: '{"path":"."}',
+        },
+      ],
+    });
+    finalizeArchiveExport(collector, { stopReason: 'success', usage: {} });
+
+    const assistantTurn = JSON.parse(fs.readFileSync(path.join(turnsDir(runId), '001-assistant.json'), 'utf8'));
+    const meta = JSON.parse(fs.readFileSync(path.join(runDir(runId), 'meta.json'), 'utf8'));
+    assert.equal(meta.provider, 'codex');
+    assert.equal(assistantTurn.provider, 'codex');
+    assert.equal(assistantTurn.output.text, 'I will inspect.');
+    assert.deepEqual(assistantTurn.output.functionCalls, [
+      { call_id: 'call_native_1', name: 'list_files', arguments: '{"path":"."}' },
+    ]);
+  });
+
   it('ingestLegacyFile imports jsonl transcript', () => {
     const logDir = legacyLogsDir();
     fs.mkdirSync(logDir, { recursive: true });

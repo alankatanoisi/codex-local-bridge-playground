@@ -30,4 +30,24 @@ describe('session ledger', () => {
     ledger.append('tool_effect_result', { effectId: fx, ok: true });
     assert.equal(ledger.getPendingIntents().length, 0);
   });
+
+  it('redacts secrets inside native items before writing the ledger', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ledger-redaction-'));
+    const sessionPath = path.join(tmp, 'redacted.state.json');
+    const ledger = new SessionLedger(sessionPath);
+    const token = 'at-Fixture0Token1Value2With3Entropy4';
+    ledger.append('assistant_items', {
+      items: [
+        {
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'output_text', text: 'secret=' + token }],
+        },
+      ],
+    });
+
+    const written = fs.readFileSync(ledger.filePath, 'utf8');
+    assert.ok(written.includes('[REDACTED]'));
+    assert.ok(!written.includes(token));
+  });
 });

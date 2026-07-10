@@ -13,6 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 const safety = require('./safety');
+const { PROVIDER } = require('./items');
 
 const SENSITIVE_KEYS = ['authorization', 'x-api-key', 'cookie', 'set-cookie'];
 const STABLE_IDENTIFIER_HEADER_PATTERN =
@@ -55,8 +56,9 @@ function redactEvent(event) {
 }
 
 class Transcript {
-  constructor(filePath) {
+  constructor(filePath, options = {}) {
     this.filePath = filePath;
+    this.provider = options.provider || PROVIDER;
     this._buf = [];
     const dir = path.dirname(filePath);
     if (!fs.existsSync(dir)) {
@@ -65,7 +67,9 @@ class Transcript {
   }
 
   append(event) {
-    const safe = redactEvent(event);
+    // Provider is explicit on every JSONL line. A single line remains useful
+    // even when copied away from the rest of its transcript.
+    const safe = redactEvent({ provider: this.provider, ...event });
     this._buf.push(JSON.stringify(safe));
     if (this._buf.length >= 10) this.flush();
   }
