@@ -639,10 +639,11 @@
             <li>Settle open protocol questions: <code>reasoning.effort</code> accepted values (<code>max</code> mapping); whether <code>temperature</code> is accepted.</li>
             <li>Extend <code>docs/lab-notes/codex-protocol-notes.md</code> with observed function_call/reasoning grammar.</li>
           </ul>
-          <h4>Stage 2 — Item schema contract</h4>
+          <h4>Stage 2 — Item schema contract <span class="badge green">Done on branch</span></h4>
           <ul>
             <li>New <code>src/runner/items.js</code>: constructors, extractors, type guards — unit-tested first.</li>
             <li><code>schemaVersion: 2</code> clean break: reject pre-native session resume with a clear error; leave old files untouched.</li>
+            <li><strong>Status:</strong> landed on <code>codex/phase-3-responses-native</code> — see <code>docs/lab-notes/items-schema-contract.md</code> and <code>test/runner/items.test.js</code>. SessionStore wiring waits for Stage 6.</li>
           </ul>
           <h4>Stage 3 — Thin vertical spike</h4>
           <ul>

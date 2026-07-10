@@ -49,7 +49,7 @@ calls do not work from this repo. Phase 3 rewrites internals to native Responses
 - `bin/local-bridge-runner.js`: runner CLI entrypoint.
 - `src/runner/run.js`: main runner loop (Phase 3 rewrites history to native Responses items).
 - `src/runner/model-client.js`: model transport client (Phase 3 rewrites over `codex-transport.js`).
-- `src/runner/items.js`: native item constructors/extractors (Phase 3 Stage 2 — planned).
+- `src/runner/items.js`: native item constructors/extractors/type guards + schema v2 contract (Phase 3 Stage 2).
 - `src/runner/tool-registry.js` / `src/runner/tool-catalog.js`: tool dispatch and definitions.
 - `src/runner/permissions.js` / `src/runner/safety.js`: allow/ask/deny policy; confinement and redaction.
 - `src/trace-utils.js`: shared trace/redaction utilities.
