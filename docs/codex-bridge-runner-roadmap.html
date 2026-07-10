@@ -645,18 +645,20 @@
             <li><code>schemaVersion: 2</code> clean break: reject pre-native session resume with a clear error; leave old files untouched.</li>
             <li><strong>Status:</strong> landed on <code>codex/phase-3-responses-native</code> — see <code>docs/lab-notes/items-schema-contract.md</code> and <code>test/runner/items.test.js</code>. SessionStore wiring waits for Stage 6.</li>
           </ul>
-          <h4>Stage 3 — Thin vertical spike</h4>
+          <h4>Stage 3 — Thin vertical spike / native model-client <span class="badge green">Done on branch</span></h4>
           <ul>
             <li>Rewrite <code>model-client.js</code> over <code>codex-transport</code> (streaming-only; tolerate <code>obfuscation</code>; fail-closed malformed function arguments; assemble from SSE item events).</li>
-            <li>Prove one offline mock loop and one live read-only tool turn <em>before</em> bulk <code>run.js</code> surgery.</li>
+            <li>Prove offline fixture replay for pong, function-call, and final-answer streams.</li>
+            <li><strong>Status:</strong> landed on <code>codex/phase-3-responses-native</code> — <code>createRequest</code>, stream assembler, <code>test/runner/codex-model-client.test.js</code>.</li>
           </ul>
-          <h4>Stage 4 — Loop + pipeline + compactor</h4>
+          <h4>Stage 4 — Loop + pipeline + compactor <span class="badge green">Done on branch (compactor deferred)</span></h4>
           <ul>
-            <li><code>run.js</code>: history as item list; delete <code>cache_control</code> budgeting; usage mapping; <code>DEFAULT_MODEL</code> → <code>gpt-5.5</code>.</li>
-            <li><code>tool-pipeline.js</code>: emit <code>function_call_output</code> (error-prefix convention — no fake <code>is_error</code>).</li>
-            <li><code>context-compactor.js</code>: walk item lists; never orphan reasoning from its message/<code>function_call</code>.</li>
+            <li><code>run.js</code>: history as item list; no <code>cache_control</code> on the Codex path; usage mapping; <code>DEFAULT_MODEL</code> → <code>gpt-5.5</code>.</li>
+            <li><code>tool-pipeline.js</code>: still Anthropic-shaped internally; Stage 4 maps at the boundary via <code>functionCallsToPipelineToolUses</code> / <code>pipelineResultsToOutputItems</code>.</li>
+            <li><code>context-compactor.js</code>: skipped for native item histories (port with Stage 5 persistence work or a small follow-up).</li>
+            <li><strong>Status:</strong> request/response path wired; goldens pass via script→native converter; full <code>test/runner</code> suite green on this branch.</li>
           </ul>
-          <h4>Stage 5 — Persistence / observability (minimal but complete)</h4>
+          <h4>Stage 5 — Persistence / observability (minimal but complete) <span class="badge blue">Next</span></h4>
           <ul>
             <li>Update transcript/session, human-log, archive, recovery/replay/ledger for native items + <code>provider: codex</code>.</li>
             <li>Record <code>reasoning_tokens</code> in usage; prefer native items over grand event rename.</li>

@@ -1,262 +1,318 @@
 'use strict';
 
 /**
- * model-client.js — Posts requests to the local bridge.
+ * model-client.js — Phase 3 Stage 3: native Responses client over codex-transport.
  *
- * Two modes:
- *   post(body, bridgeUrl)       — buffer full response, return parsed JSON
- *   postStream(body, cb, bridgeUrl) — stream SSE events, call cb(event) per frame
+ * Builds and streams Codex backend requests. Conversation I/O is Responses
+ * *items* (see items.js) — not Anthropic Messages /v1/messages.
  *
- * Endpoint: POST http://127.0.0.1:11437/v1/messages
- * Body: Anthropic Messages API JSON
+ * API:
+ *   createRequest({ model, instructions, input, tools, effort, ... })
+ *   post(body, url?, opts?)           — buffered over the streaming-only wire
+ *   postStream(body, onEvent, url?, opts?)
+ *
+ * Returns { id, output, output_text, usage, stop_reason, streamed, _transport }.
+ * `output` is assembled from SSE item events — live captures leave response.output [].
+ *
+ * Auth: CODEX_ACCESS_TOKEN via codex-transport (env only). callerToken / bridge
+ * auth from the Claude lane are unused here.
  */
 
-const http = require('http');
+const transport = require('./codex-transport');
+const items = require('./items');
 
-const DEFAULT_BRIDGE_URL = 'http://127.0.0.1:11437/v1/messages';
+/** Runner --effort max has no native twin yet; map to high until a live capture settles it. */
+const EFFORT_MAP = Object.freeze({
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+  max: 'high',
+});
 
-// Shared keep-alive agent so repeated requests to localhost reuse the same
-// TCP connection instead of paying a handshake penalty on every turn.
-const keepAliveAgent = new http.Agent({ keepAlive: true, maxSockets: 1 });
-
-function responseMeta(res) {
-  return {
-    status_code: res.statusCode,
-    headers: {
-      'content-type': res.headers['content-type'] || null,
-      'x-request-id': res.headers['x-request-id'] || null,
-      'anthropic-ratelimit-requests-remaining': res.headers['anthropic-ratelimit-requests-remaining'] || null,
-      'anthropic-ratelimit-tokens-remaining': res.headers['anthropic-ratelimit-tokens-remaining'] || null,
-    },
-  };
-}
-
-function withCallerAuth(headers = {}, callerToken) {
-  if (!callerToken) return headers;
-  return { authorization: 'Bearer ' + callerToken, ...headers };
-}
-
-function post(body, bridgeUrl, opts = {}) {
-  const url = bridgeUrl || DEFAULT_BRIDGE_URL;
-  const bodyStr = JSON.stringify(body);
-
-  return new Promise((resolve, reject) => {
-    const reqUrl = new URL(url);
-    const options = {
-      hostname: reqUrl.hostname,
-      port: reqUrl.port || 80,
-      path: reqUrl.pathname + reqUrl.search,
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'content-length': Buffer.byteLength(bodyStr),
-        ...withCallerAuth(opts.headers, opts.callerToken),
-      },
-      timeout: 120000,
-      agent: keepAliveAgent,
-    };
-
-    const req = http.request(options, (res) => {
-      const chunks = [];
-      res.on('data', (c) => chunks.push(c));
-      res.on('end', () => {
-        const raw = Buffer.concat(chunks).toString('utf8');
-        if (res.statusCode !== 200) {
-          reject(new Error('Bridge returned HTTP ' + res.statusCode + ': ' + raw.slice(0, 500)));
-          return;
-        }
-        try {
-          const parsed = JSON.parse(raw);
-          parsed._localBridge = responseMeta(res);
-          resolve(parsed);
-        } catch {
-          reject(new Error('Invalid JSON from bridge: ' + raw.slice(0, 500)));
-        }
-      });
-    });
-
-    req.on('error', (err) => reject(new Error('Request error: ' + err.message)));
-    req.on('timeout', () => {
-      req.destroy();
-      reject(new Error('Request timed out after 120s'));
-    });
-
-    req.write(bodyStr);
-    req.end();
-  });
+/**
+ * Map CLI/runner effort to a Responses reasoning.effort value.
+ * @param {string|null|undefined} effort
+ * @returns {string|null}
+ */
+function mapEffort(effort) {
+  if (effort === undefined || effort === null || effort === '') return null;
+  const key = String(effort).toLowerCase();
+  if (!(key in EFFORT_MAP)) {
+    throw new Error('--effort must be one of: low, medium, high, max (max maps to high on Codex)');
+  }
+  return EFFORT_MAP[key];
 }
 
 /**
- * Stream SSE events from the bridge. Each complete SSE frame is parsed as
- * JSON and passed to cb(event). Text content is also forwarded to stdout
- * live when opts.streamOutput is true.
+ * Build a native Responses request body for the Codex backend.
+ * Omits max_output_tokens (rejected upstream). Forces store:false + stream:true
+ * via transport.normalizeRequestBody when sent.
+ *
+ * @param {object} opts
+ * @param {string} opts.model
+ * @param {string} [opts.instructions]
+ * @param {object[]} [opts.input] — Responses input items
+ * @param {object[]} [opts.tools] — runner tools ({name, description, input_schema}) or native tools
+ * @param {string} [opts.effort]
+ * @param {boolean} [opts.includeEncryptedReasoning=true]
+ * @param {string|object} [opts.toolChoice]
+ * @param {number} [opts.temperature] — omit if undefined (backend may echo a default)
  */
-function postStream(body, cb, bridgeUrl, opts) {
-  const url = bridgeUrl || DEFAULT_BRIDGE_URL;
-  const bodyStr = JSON.stringify(body);
-  const options = { streamOutput: false, ...opts };
+function createRequest(opts = {}) {
+  if (!opts.model || typeof opts.model !== 'string') {
+    throw new Error('createRequest requires opts.model');
+  }
 
-  return new Promise((resolve, reject) => {
-    const reqUrl = new URL(url);
-    const reqOpts = {
-      hostname: reqUrl.hostname,
-      port: reqUrl.port || 80,
-      path: reqUrl.pathname + reqUrl.search,
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'content-length': Buffer.byteLength(bodyStr),
-        accept: 'text/event-stream',
-        ...withCallerAuth(options.headers, options.callerToken),
-      },
-      timeout: 120000,
-      agent: keepAliveAgent,
-    };
+  const body = {
+    model: opts.model,
+    store: false,
+    input: Array.isArray(opts.input) ? opts.input : [],
+  };
 
-    const req = http.request(reqOpts, (res) => {
-      if (res.statusCode !== 200) {
-        const chunks = [];
-        res.on('data', (c) => chunks.push(c));
-        res.on('end', () => {
-          const raw = Buffer.concat(chunks).toString('utf8');
-          reject(new Error('Bridge returned HTTP ' + res.statusCode + ': ' + raw.slice(0, 500)));
-        });
-        return;
-      }
+  if (typeof opts.instructions === 'string' && opts.instructions.length > 0) {
+    body.instructions = opts.instructions;
+  }
 
-      let buffer = '';
-      const fullContent = [];
-      const toolInputBuffers = new Map();
-      let lastText = '';
-      let messageMeta = {};
-      let usage = {};
-
-      res.on('data', (chunk) => {
-        buffer += chunk.toString('utf8');
-
-        // Split on double newline (SSE frame boundary)
-        const parts = buffer.split('\n\n');
-        buffer = parts.pop() || ''; // keep incomplete frame in buffer
-
-        for (const frame of parts) {
-          const lines = frame.split('\n');
-          const dataLines = lines.filter((l) => l.startsWith('data:')).map((l) => l.slice(5).trimStart());
-
-          if (dataLines.length === 0) continue;
-          const data = dataLines.join('\n');
-
-          if (data === '[DONE]') continue;
-
-          try {
-            const event = JSON.parse(data);
-            if (event.type === 'message_start' && event.message) {
-              messageMeta = {
-                id: event.message.id,
-                role: event.message.role,
-                type: event.message.type,
-              };
-              usage = { ...usage, ...(event.message.usage || {}) };
-            }
-            if (event.type === 'message_delta' && event.usage) {
-              usage = { ...usage, ...event.usage };
-            }
-            if (event.type === 'content_block_start' && typeof event.index === 'number' && event.content_block) {
-              fullContent[event.index] = event.content_block;
-              if (event.content_block.type === 'tool_use') {
-                toolInputBuffers.set(event.index, '');
-              }
-            }
-
-            if (event.type === 'content_block_delta' && typeof event.index === 'number' && event.delta) {
-              const block = fullContent[event.index];
-              if (event.delta.type === 'text_delta') {
-                if (!block) fullContent[event.index] = { type: 'text', text: '' };
-                fullContent[event.index].text = (fullContent[event.index].text || '') + event.delta.text;
-                // Stream text deltas to stdout
-                if (options.streamOutput) {
-                  process.stdout.write(event.delta.text);
-                  lastText += event.delta.text;
-                }
-              } else if (event.delta.type === 'thinking_delta') {
-                if (!block) fullContent[event.index] = { type: 'thinking', thinking: '', signature: '' };
-                fullContent[event.index].thinking =
-                  (fullContent[event.index].thinking || '') + (event.delta.thinking || '');
-              } else if (event.delta.type === 'signature_delta') {
-                // Fable/Mythos/Opus adaptive thinking: signature is required for multi-turn tool loops.
-                if (!block) fullContent[event.index] = { type: 'thinking', thinking: '', signature: '' };
-                fullContent[event.index].signature =
-                  (fullContent[event.index].signature || '') + (event.delta.signature || '');
-              } else if (event.delta.type === 'input_json_delta') {
-                const previous = toolInputBuffers.get(event.index) || '';
-                toolInputBuffers.set(event.index, previous + event.delta.partial_json);
-              }
-            }
-
-            if (event.type === 'content_block_stop' && typeof event.index === 'number') {
-              const block = fullContent[event.index];
-              if (block && block.type === 'tool_use') {
-                const rawInput = toolInputBuffers.get(event.index) || '';
-                if (rawInput) {
-                  try {
-                    block.input = JSON.parse(rawInput);
-                  } catch {
-                    block.input = {};
-                  }
-                }
-              }
-            }
-
-            if (cb) cb(event);
-          } catch {
-            // ignore parse errors on partial frames
-          }
-        }
-      });
-
-      res.on('end', () => {
-        // Process any remaining data in buffer
-        if (buffer.trim()) {
-          const dataLines = buffer
-            .split('\n')
-            .filter((l) => l.startsWith('data:'))
-            .map((l) => l.slice(5).trimStart());
-          const data = dataLines.join('\n');
-          if (data && data !== '[DONE]') {
-            try {
-              const event = JSON.parse(data);
-              if (cb) cb(event);
-            } catch {
-              // ignore
-            }
-          }
-        }
-
-        if (options.streamOutput && lastText) {
-          process.stdout.write('\n');
-        }
-        resolve({
-          streamed: true,
-          ...messageMeta,
-          content: fullContent.filter(Boolean),
-          usage,
-          _localBridge: responseMeta(res),
-        });
-      });
-
-      res.on('error', (err) => {
-        reject(new Error('Stream error: ' + err.message));
-      });
+  if (Array.isArray(opts.tools) && opts.tools.length > 0) {
+    body.tools = opts.tools.map((tool) => {
+      if (tool && tool.type === 'function' && tool.parameters) return tool;
+      return items.toNativeToolDefinition(tool);
     });
+    body.tool_choice = opts.toolChoice === undefined ? 'auto' : opts.toolChoice;
+  }
 
-    req.on('error', (err) => reject(new Error('Request error: ' + err.message)));
-    req.on('timeout', () => {
-      req.destroy();
-      reject(new Error('Request timed out after 120s'));
-    });
+  const effort = mapEffort(opts.effort);
+  if (effort) body.reasoning = { effort };
 
-    req.write(bodyStr);
-    req.end();
-  });
+  const includeEncrypted = opts.includeEncryptedReasoning !== false;
+  if (includeEncrypted) body.include = ['reasoning.encrypted_content'];
+
+  if (typeof opts.temperature === 'number' && !Number.isNaN(opts.temperature)) {
+    body.temperature = opts.temperature;
+  }
+
+  return body;
 }
 
-module.exports = { post, postStream, withCallerAuth };
+/**
+ * Assemble native output items from Responses SSE events.
+ * Prefer output_item.done payloads; do not rely on response.output (often []).
+ */
+function createStreamAssembler(options = {}) {
+  const streamOutput = !!options.streamOutput;
+  /** @type {Map<number, object>} */
+  const byIndex = new Map();
+  /** @type {Map<number, string>} */
+  const argBuffers = new Map();
+  /** @type {Map<number, string>} */
+  const textBuffers = new Map();
+  /** @type {object[]} */
+  const completed = [];
+  let responseId = null;
+  let status = null;
+  let rawUsage = {};
+  let outputText = '';
+  let lastStreamed = '';
+
+  function ensureSlot(outputIndex, seed) {
+    if (!byIndex.has(outputIndex)) {
+      byIndex.set(outputIndex, seed && typeof seed === 'object' ? { ...seed } : {});
+    } else if (seed && typeof seed === 'object') {
+      byIndex.set(outputIndex, { ...byIndex.get(outputIndex), ...seed });
+    }
+    return byIndex.get(outputIndex);
+  }
+
+  function handleEvent(event) {
+    if (!event || typeof event !== 'object') return;
+
+    if (event.type === 'response.created' && event.response) {
+      responseId = event.response.id || responseId;
+      status = event.response.status || status;
+    }
+
+    if (event.type === 'response.output_item.added' && event.item) {
+      const idx = typeof event.output_index === 'number' ? event.output_index : byIndex.size;
+      ensureSlot(idx, event.item);
+      if (event.item.type === 'function_call') argBuffers.set(idx, event.item.arguments || '');
+      if (event.item.type === 'message') textBuffers.set(idx, '');
+    }
+
+    if (event.type === 'response.function_call_arguments.delta') {
+      const idx = typeof event.output_index === 'number' ? event.output_index : 0;
+      // obfuscation is tolerated and ignored (protocol notes).
+      const prev = argBuffers.get(idx) || '';
+      argBuffers.set(idx, prev + (typeof event.delta === 'string' ? event.delta : ''));
+      const slot = ensureSlot(idx, { type: 'function_call' });
+      slot.arguments = argBuffers.get(idx);
+    }
+
+    if (event.type === 'response.function_call_arguments.done') {
+      const idx = typeof event.output_index === 'number' ? event.output_index : 0;
+      if (typeof event.arguments === 'string') argBuffers.set(idx, event.arguments);
+      const slot = ensureSlot(idx, { type: 'function_call' });
+      slot.arguments = argBuffers.get(idx) || '';
+    }
+
+    if (event.type === 'response.output_text.delta') {
+      const idx = typeof event.output_index === 'number' ? event.output_index : 0;
+      const delta = typeof event.delta === 'string' ? event.delta : '';
+      textBuffers.set(idx, (textBuffers.get(idx) || '') + delta);
+      outputText += delta;
+      if (streamOutput && delta) {
+        process.stdout.write(delta);
+        lastStreamed += delta;
+      }
+      const slot = ensureSlot(idx, { type: 'message', role: 'assistant', content: [] });
+      slot.content = [{ type: 'output_text', text: textBuffers.get(idx) }];
+    }
+
+    if (event.type === 'response.output_text.done') {
+      const idx = typeof event.output_index === 'number' ? event.output_index : 0;
+      if (typeof event.text === 'string') {
+        textBuffers.set(idx, event.text);
+        // Rebuild outputText from buffers if done carries the full string
+        // (deltas already appended; only replace when buffers were empty).
+      }
+      const slot = ensureSlot(idx, { type: 'message', role: 'assistant' });
+      const text = textBuffers.get(idx) || '';
+      slot.content = [{ type: 'output_text', text }];
+    }
+
+    if (event.type === 'response.output_item.done' && event.item) {
+      const idx = typeof event.output_index === 'number' ? event.output_index : completed.length;
+      // Completed item from the wire is source of truth for that slot.
+      let finalItem = { ...event.item };
+      if (finalItem.type === 'function_call') {
+        const buffered = argBuffers.get(idx);
+        if ((!finalItem.arguments || finalItem.arguments === '') && buffered) {
+          finalItem.arguments = buffered;
+        }
+        // Fail-closed parse is available to callers; we keep the string on the item.
+      }
+      byIndex.set(idx, finalItem);
+      // Place into completed at index order (sparse-safe).
+      completed[idx] = finalItem;
+    }
+
+    if ((event.type === 'response.completed' || event.type === 'response.incomplete') && event.response) {
+      responseId = event.response.id || responseId;
+      status = event.response.status || status;
+      if (event.response.usage) rawUsage = event.response.usage;
+    }
+  }
+
+  function finish() {
+    if (streamOutput && lastStreamed) process.stdout.write('\n');
+
+    // Compact completed list (remove holes) while preserving order.
+    const output = [];
+    const maxIdx = Math.max(-1, ...byIndex.keys(), completed.length - 1);
+    for (let i = 0; i <= maxIdx; i++) {
+      const item = completed[i] || byIndex.get(i);
+      if (item && item.type) output.push(item);
+    }
+
+    // If text deltas arrived but no output_item.done (shouldn't happen on live
+    // captures), synthesize a message from the text buffer.
+    if (output.length === 0 && outputText) {
+      output.push(items.assistantMessage(outputText));
+    }
+
+    const usage = items.normalizeUsage(rawUsage);
+    const functionCalls = items.extractFunctionCalls(output);
+    let stopReason = 'end_turn';
+    if (status === 'incomplete') stopReason = 'incomplete';
+    else if (functionCalls.length > 0) stopReason = 'tool_use';
+
+    return {
+      streamed: true,
+      id: responseId,
+      status,
+      output,
+      output_text: outputText || items.extractText(output),
+      usage,
+      stop_reason: stopReason,
+      function_calls: functionCalls,
+    };
+  }
+
+  return { handleEvent, finish };
+}
+
+function resolveUrl(urlOrOpts, opts) {
+  // Support both post(body, url, opts) and post(body, opts) shapes.
+  if (typeof urlOrOpts === 'string') return { url: urlOrOpts, opts: opts || {} };
+  if (urlOrOpts && typeof urlOrOpts === 'object') return { url: urlOrOpts.url, opts: urlOrOpts };
+  return { url: undefined, opts: opts || {} };
+}
+
+/**
+ * @deprecated Claude-lane helper. Kept so older tests that import it don't break.
+ * Codex auth is CODEX_ACCESS_TOKEN via transport — not a caller bearer.
+ */
+function withCallerAuth(headers = {}, _callerToken) {
+  return headers;
+}
+
+/**
+ * Stream one native Responses turn.
+ * @param {object} body — Responses request (from createRequest or hand-built)
+ * @param {(event: object) => void} [onEvent]
+ * @param {string|object} [urlOrOpts]
+ * @param {object} [opts]
+ */
+function postStream(body, onEvent, urlOrOpts, opts) {
+  const resolved = resolveUrl(urlOrOpts, opts);
+  const options = { streamOutput: false, ...resolved.opts };
+  const assembler = createStreamAssembler({ streamOutput: options.streamOutput });
+
+  const transportOpts = {
+    url: resolved.url || options.url,
+    env: options.env,
+    trace: options.trace,
+    runId: options.runId,
+    turn: options.turn,
+    timeoutMs: options.timeoutMs,
+  };
+
+  return transport
+    .requestStream(
+      body,
+      (event) => {
+        assembler.handleEvent(event);
+        if (onEvent) onEvent(event);
+      },
+      transportOpts,
+    )
+    .then((transportResult) => {
+      const assembled = assembler.finish();
+      return {
+        ...assembled,
+        // Prefer assembler usage (normalized); fall back to transport raw.
+        usage:
+          assembled.usage.input_tokens || assembled.usage.output_tokens
+            ? assembled.usage
+            : items.normalizeUsage(transportResult.usage),
+        _transport: transportResult._transport,
+        events_seen: transportResult.events_seen,
+      };
+    });
+}
+
+/**
+ * Buffered one-shot over the streaming-only wire.
+ */
+function post(body, urlOrOpts, opts) {
+  return postStream(body, null, urlOrOpts, opts);
+}
+
+module.exports = {
+  createRequest,
+  mapEffort,
+  createStreamAssembler,
+  post,
+  postStream,
+  withCallerAuth,
+  EFFORT_MAP,
+};

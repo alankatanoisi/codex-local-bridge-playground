@@ -11,7 +11,7 @@ const { parseArgs } = require('util');
 const path = require('path');
 const { Coordinator } = require('../src/runner/coordinator');
 
-const DEFAULT_MODEL = 'claude-sonnet-4-6';
+const DEFAULT_MODEL = 'gpt-5.5';
 
 async function main() {
   const args = parseArgs({

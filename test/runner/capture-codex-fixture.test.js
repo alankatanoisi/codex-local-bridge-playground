@@ -12,8 +12,7 @@ const FIXTURE_DIR = path.join(__dirname, 'fixtures', 'codex');
 
 describe('capture-codex-fixture redaction', () => {
   it('redacts safety_identifier and prompt_cache_key UUIDs', () => {
-    const raw =
-      '"safety_identifier":"user-secret-id-12345","prompt_cache_key":"550e8400-e29b-41d4-a716-446655440000"';
+    const raw = '"safety_identifier":"user-secret-id-12345","prompt_cache_key":"550e8400-e29b-41d4-a716-446655440000"';
     const redacted = capture.redactFixtureText(raw);
     assert.ok(redacted.includes('user-[REDACTED-ID]'));
     assert.ok(redacted.includes('[REDACTED-UUID]'));

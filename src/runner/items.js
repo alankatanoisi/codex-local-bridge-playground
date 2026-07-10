@@ -414,6 +414,60 @@ function assertNativeSession(data) {
   return data;
 }
 
+/**
+ * Map native function_call items → pipeline toolUses ({ id, name, input }).
+ * Fail-closed: malformed arguments become an empty input with _parseError set
+ * so the pipeline can still emit an error result instead of executing {}.
+ * @param {object[]} functionCallItems
+ * @returns {object[]}
+ */
+function functionCallsToPipelineToolUses(functionCallItems) {
+  if (!Array.isArray(functionCallItems)) return [];
+  return functionCallItems.map((fc) => {
+    const parsed = parseFunctionCallArguments(fc);
+    return {
+      id: fc.call_id,
+      name: fc.name,
+      input: parsed.ok ? parsed.value : {},
+      _parseError: parsed.ok ? null : parsed.error,
+      _nativeItem: fc,
+    };
+  });
+}
+
+/**
+ * Map pipeline toolResults ({ tool_use_id, content, is_error }) → function_call_output items.
+ * Multimodal content arrays are stringified with a placeholder note (Phase 5 revisit).
+ * @param {object[]} toolResults
+ * @returns {object[]}
+ */
+function pipelineResultsToOutputItems(toolResults) {
+  if (!Array.isArray(toolResults)) return [];
+  return toolResults.map((tr) => {
+    let output = '';
+    if (typeof tr.content === 'string') {
+      output = tr.content;
+    } else if (Array.isArray(tr.content)) {
+      // Responses function_call_output is a string — degrade multimodal blocks.
+      output = tr.content
+        .map((block) => {
+          if (!block || typeof block !== 'object') return '';
+          if (block.type === 'text') return block.text || '';
+          return '[unsupported multimodal tool result part: ' + (block.type || 'unknown') + ']';
+        })
+        .filter(Boolean)
+        .join('\n');
+    } else if (tr.content !== undefined && tr.content !== null) {
+      output = String(tr.content);
+    }
+    return functionCallOutput({
+      callId: tr.tool_use_id,
+      output,
+      isError: !!tr.is_error,
+    });
+  });
+}
+
 module.exports = {
   SCHEMA_VERSION,
   PROVIDER,
@@ -442,6 +496,9 @@ module.exports = {
   // tools / usage
   toNativeToolDefinition,
   normalizeUsage,
+  // pipeline boundary adapters (Stage 4/5)
+  functionCallsToPipelineToolUses,
+  pipelineResultsToOutputItems,
   // session schema
   createNativeSession,
   isLegacySession,

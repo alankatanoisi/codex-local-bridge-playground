@@ -177,12 +177,15 @@ describe('session schema v2 clean break', () => {
       messages: [{ role: 'user', content: [{ type: 'text', text: 'hi' }] }],
     };
     const before = JSON.stringify(legacy);
-    assert.throws(() => items.assertNativeSession(legacy), (err) => {
-      assert.equal(err.name, 'SessionSchemaError');
-      assert.equal(err.code, 'session_schema_unsupported');
-      assert.match(err.message, /cannot be resumed/i);
-      return true;
-    });
+    assert.throws(
+      () => items.assertNativeSession(legacy),
+      (err) => {
+        assert.equal(err.name, 'SessionSchemaError');
+        assert.equal(err.code, 'session_schema_unsupported');
+        assert.match(err.message, /cannot be resumed/i);
+        return true;
+      },
+    );
     assert.equal(JSON.stringify(legacy), before);
     assert.equal(items.isLegacySession(legacy), true);
   });
@@ -203,9 +206,12 @@ describe('session schema v2 clean break', () => {
 
   it('rejects wrong provider', () => {
     const other = items.createNativeSession('ses_x', { provider: 'anthropic' });
-    assert.throws(() => items.assertNativeSession(other), (err) => {
-      assert.equal(err.name, 'SessionSchemaError');
-      return true;
-    });
+    assert.throws(
+      () => items.assertNativeSession(other),
+      (err) => {
+        assert.equal(err.name, 'SessionSchemaError');
+        return true;
+      },
+    );
   });
 });

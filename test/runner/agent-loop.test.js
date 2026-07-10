@@ -448,9 +448,12 @@ describe('agent loop — write/edit', () => {
       });
 
       assert.equal(fs.existsSync(plannedPath), false);
-      const lastMessage = secondRequest.messages[secondRequest.messages.length - 1];
-      assert.equal(lastMessage.role, 'user');
-      assert.ok(lastMessage.content[0].content.includes('Plan mode: would'));
+      // Native Responses history: tool results are function_call_output items on `input`.
+      const input = secondRequest.input;
+      assert.ok(Array.isArray(input) && input.length > 0);
+      const lastItem = input[input.length - 1];
+      assert.equal(lastItem.type, 'function_call_output');
+      assert.ok(String(lastItem.output).includes('Plan mode: would'));
       assert.ok(logged.includes('Plan captured'));
     } finally {
       console.log = originalLog;

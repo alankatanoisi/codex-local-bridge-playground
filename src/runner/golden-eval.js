@@ -11,12 +11,62 @@ const path = require('path');
 const os = require('os');
 
 const modelClient = require('./model-client');
+const items = require('./items');
 const confirm = require('./confirmation');
 const { run } = require('./run');
 
 const DEFAULT_GOLDEN_DIR = path.join(__dirname, '../../test/runner/golden');
 
 const SECRET_PATTERNS = [/sk-ant-[a-zA-Z0-9_-]+/g, /Bearer\s+[A-Za-z0-9._-]+/gi, /\bghp_[A-Za-z0-9]{20,}\b/g];
+
+/**
+ * Convert a golden model_script entry (Anthropic content blocks or native output)
+ * into the native model-client return shape Stage 4 expects.
+ */
+function scriptEntryToNativeResponse(entry, callIndex) {
+  if (Array.isArray(entry.output)) {
+    const output = entry.output;
+    const functionCalls = items.extractFunctionCalls(output);
+    return {
+      id: entry.id || 'msg_golden_' + callIndex,
+      output,
+      output_text: entry.output_text || items.extractText(output),
+      usage: items.normalizeUsage(entry.usage || {}),
+      stop_reason: entry.stop_reason || (functionCalls.length ? 'tool_use' : 'end_turn'),
+      function_calls: functionCalls,
+      streamed: false,
+    };
+  }
+
+  const output = [];
+  for (const block of entry.content || []) {
+    if (!block || typeof block !== 'object') continue;
+    if (block.type === 'text') {
+      output.push({
+        type: 'message',
+        role: 'assistant',
+        content: [{ type: 'output_text', text: block.text || '' }],
+      });
+    } else if (block.type === 'tool_use') {
+      output.push({
+        type: 'function_call',
+        call_id: block.id,
+        name: block.name,
+        arguments: JSON.stringify(block.input || {}),
+      });
+    }
+  }
+  const functionCalls = items.extractFunctionCalls(output);
+  return {
+    id: entry.id || 'msg_golden_' + callIndex,
+    output,
+    output_text: items.extractText(output),
+    usage: items.normalizeUsage(entry.usage || {}),
+    stop_reason: entry.stop_reason || (functionCalls.length ? 'tool_use' : 'end_turn'),
+    function_calls: functionCalls,
+    streamed: false,
+  };
+}
 
 function listGoldenCases(dir = DEFAULT_GOLDEN_DIR) {
   if (!fs.existsSync(dir)) return [];
@@ -57,12 +107,7 @@ function installScriptedModel(script) {
   async function nextResponse() {
     const entry = script[Math.min(callIndex, script.length - 1)];
     callIndex++;
-    return {
-      id: entry.id || 'msg_golden_' + callIndex,
-      content: entry.content || [],
-      usage: entry.usage || {},
-      stop_reason: entry.stop_reason,
-    };
+    return scriptEntryToNativeResponse(entry, callIndex);
   }
 
   modelClient.post = async () => nextResponse();

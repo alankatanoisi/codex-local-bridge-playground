@@ -17,13 +17,20 @@ describe('effort passthrough', () => {
     assert.throws(() => normalizeEffort('turbo'), /--effort must be one of/);
   });
 
-  it('forwards output_config.effort in model requests', async () => {
+  it('forwards reasoning.effort in native model requests', async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'effort-run-'));
     const originalPost = modelClient.post;
     let capturedBody = null;
     modelClient.post = async (body) => {
       capturedBody = body;
-      return { content: [{ type: 'text', text: 'ok' }] };
+      return {
+        id: 'resp_test',
+        output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'ok' }] }],
+        output_text: 'ok',
+        usage: {},
+        stop_reason: 'end_turn',
+        function_calls: [],
+      };
     };
 
     try {
@@ -35,7 +42,7 @@ describe('effort passthrough', () => {
         maxSteps: 1,
         effort: 'medium',
       });
-      assert.deepEqual(capturedBody.output_config, { effort: 'medium' });
+      assert.deepEqual(capturedBody.reasoning, { effort: 'medium' });
     } finally {
       modelClient.post = originalPost;
     }
@@ -89,17 +96,41 @@ describe('instruction delta in run loop', () => {
     modelClient.post = async (body) => {
       callCount++;
       if (callCount === 2) {
-        const serialized = JSON.stringify(body.messages || []);
+        const serialized = JSON.stringify(body.input || []);
         sawDelta = serialized.includes('Instruction memory update');
       }
       if (callCount === 1) {
         return {
-          content: [
-            { type: 'tool_use', id: 'w1', name: 'write_file', input: { path: 'CLAUDE.md', content: 'alpha\nbeta\n' } },
+          id: 'resp_1',
+          output: [
+            {
+              type: 'function_call',
+              call_id: 'w1',
+              name: 'write_file',
+              arguments: JSON.stringify({ path: 'CLAUDE.md', content: 'alpha\nbeta\n' }),
+            },
+          ],
+          output_text: '',
+          usage: {},
+          stop_reason: 'tool_use',
+          function_calls: [
+            {
+              type: 'function_call',
+              call_id: 'w1',
+              name: 'write_file',
+              arguments: JSON.stringify({ path: 'CLAUDE.md', content: 'alpha\nbeta\n' }),
+            },
           ],
         };
       }
-      return { content: [{ type: 'text', text: 'done' }] };
+      return {
+        id: 'resp_2',
+        output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'done' }] }],
+        output_text: 'done',
+        usage: {},
+        stop_reason: 'end_turn',
+        function_calls: [],
+      };
     };
 
     try {

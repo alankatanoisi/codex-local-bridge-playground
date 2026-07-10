@@ -5,6 +5,7 @@ const { buildUserMessage, buildRepoContextBlock, buildDynamicEnvironmentBlock } 
 const { resolveContextPolicy } = require('./context-policy');
 const { resolveSystemPrompt } = require('./system-prompt');
 const modelClient = require('./model-client');
+const items = require('./items');
 const { createToolPipeline, _arePathsDisjoint, _groupDisjointWrites } = require('./tool-pipeline');
 const { Transcript } = require('./transcript');
 const confirm = require('./confirmation');
@@ -60,17 +61,25 @@ function normalizeEffort(effort) {
 }
 const OUTPUT_FORMATS = new Set(['text', 'json', 'stream-json']);
 
-function extractTextBlocks(content) {
-  if (!Array.isArray(content)) return '';
-  return content
+function extractTextBlocks(contentOrOutput) {
+  // Native Responses path: output is an item list.
+  if (Array.isArray(contentOrOutput) && contentOrOutput.some((b) => b && b.type === 'message')) {
+    return items.extractText(contentOrOutput);
+  }
+  if (!Array.isArray(contentOrOutput)) return '';
+  return contentOrOutput
     .filter((b) => b.type === 'text')
     .map((b) => b.text)
     .join('\n');
 }
 
-function extractToolUses(content) {
-  if (!Array.isArray(content)) return [];
-  return content.filter((b) => b.type === 'tool_use');
+function extractToolUses(contentOrOutput) {
+  // Native: function_call items → pipeline { id, name, input }.
+  if (Array.isArray(contentOrOutput) && contentOrOutput.some((b) => b && b.type === 'function_call')) {
+    return items.functionCallsToPipelineToolUses(items.extractFunctionCalls(contentOrOutput));
+  }
+  if (!Array.isArray(contentOrOutput)) return [];
+  return contentOrOutput.filter((b) => b.type === 'tool_use');
 }
 
 function addUsage(totalUsage, usage) {
@@ -81,7 +90,70 @@ function addUsage(totalUsage, usage) {
     cache_read_input_tokens: (totalUsage.cache_read_input_tokens || 0) + (usage.cache_read_input_tokens || 0),
     cache_creation_input_tokens:
       (totalUsage.cache_creation_input_tokens || 0) + (usage.cache_creation_input_tokens || 0),
+    reasoning_tokens: (totalUsage.reasoning_tokens || 0) + (usage.reasoning_tokens || 0),
   };
+}
+
+/** Convert context-builder user message (string or text blocks) → native item. */
+function toUserInputItem(userMessage) {
+  if (userMessage && userMessage.type === 'message') return userMessage;
+  if (typeof userMessage === 'string') return items.userMessage(userMessage);
+  if (userMessage && typeof userMessage.content === 'string') {
+    return items.userMessage(userMessage.content);
+  }
+  if (userMessage && Array.isArray(userMessage.content)) {
+    const text = userMessage.content
+      .map((b) => (b && b.type === 'text' ? b.text : typeof b === 'string' ? b : ''))
+      .filter(Boolean)
+      .join('\n');
+    return items.userMessage(text);
+  }
+  return items.userMessage(String(userMessage || ''));
+}
+
+/** True when conversation history is already Responses input items (not Anthropic messages). */
+function historyLooksNative(history) {
+  if (!Array.isArray(history) || history.length === 0) return true;
+  return history.every((entry) => items.isInputItem(entry));
+}
+
+/** Convert Anthropic-shaped stub responses into native output items (test migration aid). */
+function coerceNativeResponse(response) {
+  if (!response || typeof response !== 'object') return response;
+  if (Array.isArray(response.output)) return response;
+
+  if (Array.isArray(response.content)) {
+    const output = [];
+    for (const block of response.content) {
+      if (!block || typeof block !== 'object') continue;
+      if (block.type === 'text') {
+        output.push({
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'output_text', text: block.text || '' }],
+        });
+      } else if (block.type === 'tool_use') {
+        output.push({
+          type: 'function_call',
+          call_id: block.id,
+          name: block.name,
+          arguments: JSON.stringify(block.input || {}),
+        });
+      }
+    }
+    const functionCalls = items.extractFunctionCalls(output);
+    return {
+      ...response,
+      output,
+      output_text: response.output_text || items.extractText(output),
+      function_calls: response.function_calls || functionCalls,
+      stop_reason: response.stop_reason || (functionCalls.length ? 'tool_use' : 'end_turn'),
+      usage: response.usage || {},
+      _transport: response._transport || response._localBridge || null,
+    };
+  }
+
+  return response;
 }
 
 function makeOutput(outputFormat) {
@@ -392,6 +464,11 @@ async function run(options) {
     enableLsp,
     toolProfile,
   } = options;
+  // maxTokens / callerToken are Claude-lane leftovers: Codex rejects max_output_tokens
+  // (budgets stay runner-side) and auth is CODEX_ACCESS_TOKEN via transport.
+  void maxTokens;
+  void callerToken;
+
   const outputFormat = OUTPUT_FORMATS.has(options.outputFormat) ? options.outputFormat : 'text';
 
   const exposedToolsList =
@@ -758,7 +835,7 @@ async function run(options) {
         events: [],
       });
     }
-    messages.push(buildUserMessage(prompt, stdinText));
+    messages.push(toUserInputItem(buildUserMessage(prompt, stdinText)));
     if (!quiet) console.error('[runner] resumed ' + messages.length + ' messages from session ' + resolvedSessionPath);
     if (sessionStore && !noSessionPersistence) {
       sessionStore.setMessages(messages);
@@ -785,7 +862,7 @@ async function run(options) {
       const envBlock = buildDynamicEnvironmentBlock(ctx);
       if (envBlock) userEnvPrefix.push(envBlock);
     }
-    messages = [buildUserMessage(prompt, stdinText, userEnvPrefix.length ? userEnvPrefix : null)];
+    messages = [toUserInputItem(buildUserMessage(prompt, stdinText, userEnvPrefix.length ? userEnvPrefix : null))];
     if (transcript) transcript.append({ type: 'user_prompt', text: prompt });
     if (sessionStore && !noSessionPersistence) {
       sessionStore.load();
@@ -871,7 +948,7 @@ async function run(options) {
 
     const instructionChange = instructionDelta.detectChange(ctx.cwdRealpath);
     if (instructionChange?.kind === 'small_diff') {
-      messages.push({ role: 'user', content: instructionChange.deltaBlock });
+      messages.push(items.userMessage(String(instructionChange.deltaBlock || '')));
       if (transcript) transcript.append({ type: 'instruction_delta', step, kind: 'small_diff' });
     } else if (instructionChange?.kind === 'large_rewrite') {
       ctx.instructionMemory = loadInstructionMemory(ctx.cwdRealpath, {
@@ -889,11 +966,18 @@ async function run(options) {
       if (transcript) transcript.append({ type: 'instruction_delta', step, kind: 'large_rewrite' });
     }
 
-    const compaction = applyCompactionLadder(messages, system, {
-      ...DEFAULT_POLICY,
-      ...(compactionPolicy || {}),
-      compactionGeneration,
-    });
+    // Stage 5 ports the compactor to item lists. Until then, skip Anthropic-shaped
+    // compaction when history is already native Responses items.
+    let compaction;
+    if (historyLooksNative(messages)) {
+      compaction = { changed: false, messages, generation: compactionGeneration, stagesApplied: [], system };
+    } else {
+      compaction = applyCompactionLadder(messages, system, {
+        ...DEFAULT_POLICY,
+        ...(compactionPolicy || {}),
+        compactionGeneration,
+      });
+    }
     if (compaction.changed) {
       compactionGeneration = compaction.generation;
       ctx.compactionGeneration = compactionGeneration;
@@ -926,12 +1010,20 @@ async function run(options) {
     messages = compaction.messages;
     const systemForRequest = compaction.system;
 
-    const { cachedSystem, cachedTools, cachedMessages } = applyCacheControlBudget(
-      systemForRequest,
-      tools,
-      messages,
-      repoContextBlock,
-    );
+    // Codex caching is automatic — no Anthropic cache_control breakpoints.
+    // Flatten system to an instructions string for Responses.
+    let instructions = '';
+    if (typeof systemForRequest === 'string') {
+      instructions = systemForRequest;
+    } else if (Array.isArray(systemForRequest)) {
+      instructions = systemForRequest
+        .map((block) => (typeof block === 'string' ? block : block && block.text ? block.text : ''))
+        .filter(Boolean)
+        .join('\n\n');
+    }
+    if (repoContextBlock && typeof repoContextBlock === 'string') {
+      instructions = (repoContextBlock + '\n\n' + instructions).trim();
+    }
 
     const advisoryTokens = estimateTokensAdvisory(messages);
     if (maxContextTokens && advisoryTokens > maxContextTokens && !quiet) {
@@ -942,23 +1034,26 @@ async function run(options) {
       });
     }
 
-    const requestBody = {
+    const requestBody = modelClient.createRequest({
       model,
-      max_tokens: maxTokens,
-      system: cachedSystem,
-      messages: cachedMessages,
-      tools: cachedTools,
-      ...(stream && outputFormat === 'text' ? { stream: true } : {}),
+      instructions,
+      input: messages,
+      tools,
+      effort: effortLevel,
       ...(typeof temperature === 'number' && !isNaN(temperature) ? { temperature } : {}),
-      ...(effortLevel ? { output_config: { effort: effortLevel } } : {}),
-    };
+    });
 
     if (trace) {
       trace.append('runner_model_request_built', {
         run_id: runId,
         turn: step,
-        boundary: 'runner_to_bridge',
-        request: bodySummary(requestBody),
+        boundary: 'runner_to_codex',
+        request: {
+          model: requestBody.model,
+          input_items: Array.isArray(requestBody.input) ? requestBody.input.length : 0,
+          tools_count: Array.isArray(requestBody.tools) ? requestBody.tools.length : 0,
+          bytes: bodySummary(requestBody).bytes,
+        },
         payload: trace.capture(requestBody),
       });
     }
@@ -968,20 +1063,24 @@ async function run(options) {
 
     let response;
     try {
+      // Codex backend is streaming-only; post() buffers over the same wire.
+      // bridgeUrl is reused as an optional transport URL override for tests.
+      const clientOpts = {
+        streamOutput: !!(stream && outputFormat === 'text'),
+        headers: bridgeTraceHeaders(trace, runId, step),
+        env: process.env,
+        runId,
+        turn: step,
+        trace,
+      };
       if (stream && outputFormat === 'text') {
-        response = await modelClient.postStream(requestBody, null, bridgeUrl, {
-          streamOutput: true,
-          headers: bridgeTraceHeaders(trace, runId, step),
-          callerToken,
-        });
+        response = await modelClient.postStream(requestBody, null, bridgeUrl, clientOpts);
       } else {
-        response = await modelClient.post(requestBody, bridgeUrl, {
-          headers: bridgeTraceHeaders(trace, runId, step),
-          callerToken,
-        });
+        response = await modelClient.post(requestBody, bridgeUrl, clientOpts);
       }
+      response = coerceNativeResponse(response);
     } catch (err) {
-      const msg = 'Bridge error on step ' + step + ': ' + err.message;
+      const msg = 'Codex transport error on step ' + step + ': ' + err.message;
       if (archiveCollector) archiveCollector.recordError(step, msg);
       const hint = emitHint(msg, { quiet, verbose });
       if (transcript) transcript.append({ type: 'error', step, message: msg });
@@ -1014,7 +1113,7 @@ async function run(options) {
     hooks.dispatch('post_model_response', { step, runId });
 
     if (archiveCollector) archiveCollector.recordAssistant(step, response);
-    if (transcript) transcript.append({ type: 'assistant', step, content: response.content });
+    if (transcript) transcript.append({ type: 'assistant', step, content: response.output || response.content });
     if (humanLog) humanLog.writeAssistant(step, response);
     totalUsage = addUsage(totalUsage, response.usage);
     const budgetStopAfterModel = emitBudgetBoundary(step, totalUsage);
@@ -1042,26 +1141,22 @@ async function run(options) {
       trace.append('runner_model_response_received', {
         run_id: runId,
         turn: step,
-        boundary: 'bridge_to_runner',
+        boundary: 'codex_to_runner',
         response_bytes: bytes(response),
-        bridge_response: response._localBridge
-          ? { status_code: response._localBridge.status_code, headers: headerSummary(response._localBridge.headers) }
+        transport: response._transport
+          ? {
+              status_code: response._transport.status_code,
+              headers: headerSummary(response._transport.response_headers || response._transport.headers || {}),
+            }
           : null,
         usage: response.usage || {},
         payload: trace.capture(response),
       });
     }
-    if (
-      verbose &&
-      response.usage &&
-      (response.usage.cache_read_input_tokens || response.usage.cache_creation_input_tokens)
-    ) {
-      const parts = [];
-      if (response.usage.cache_read_input_tokens)
-        parts.push('cache hit ' + response.usage.cache_read_input_tokens + ' tokens');
-      if (response.usage.cache_creation_input_tokens)
-        parts.push('cache created ' + response.usage.cache_creation_input_tokens + ' tokens');
-      console.error('[runner] step ' + step + ': ' + parts.join(', '));
+    if (verbose && response.usage && response.usage.cache_read_input_tokens) {
+      console.error(
+        '[runner] step ' + step + ': cache hit ' + response.usage.cache_read_input_tokens + ' tokens (automatic)',
+      );
     }
 
     // Context token budget check
@@ -1116,7 +1211,9 @@ async function run(options) {
       }
     }
 
-    messages.push({ role: 'assistant', content: response.content });
+    // Append native output items (message / function_call / reasoning) to history.
+    const outputItems = Array.isArray(response.output) ? response.output.map((item) => items.cloneItem(item)) : [];
+    for (const item of outputItems) messages.push(item);
     persistSession(
       sessionStore,
       messages,
@@ -1127,15 +1224,15 @@ async function run(options) {
       step,
       message: {
         id: response.id,
-        role: response.role || 'assistant',
-        content: response.content,
+        role: 'assistant',
+        content: outputItems,
         usage: response.usage,
       },
     });
 
-    const text = extractTextBlocks(response.content);
+    const text = response.output_text || extractTextBlocks(outputItems);
     if (text && verbose) console.error('[runner] step ' + step + ': assistant text (' + text.length + ' chars)');
-    const toolUses = extractToolUses(response.content);
+    const toolUses = extractToolUses(outputItems);
 
     // Tool call per-turn cap
     if (maxToolCallsPerTurn && toolUses.length > maxToolCallsPerTurn) {
@@ -1218,7 +1315,17 @@ async function run(options) {
       return completeRun(result);
     }
 
-    const turn = await pipeline.executeTurn(step, toolUses, {
+    // Fail-closed: never execute tools whose arguments JSON did not parse.
+    const parseFailed = toolUses.filter((tu) => tu._parseError);
+    const executableToolUses = toolUses.filter((tu) => !tu._parseError);
+    const syntheticParseErrors = parseFailed.map((tu) => ({
+      type: 'tool_result',
+      tool_use_id: tu.id,
+      content: 'Malformed function_call arguments (fail-closed): ' + tu._parseError,
+      is_error: true,
+    }));
+
+    const turn = await pipeline.executeTurn(step, executableToolUses, {
       // Loop-level stops (semantic cycles, wall-clock, cost) fire once per
       // turn — after the read batch is recorded, before any write executes.
       midTurnCheck: (readOutcomes) => {
@@ -1279,7 +1386,10 @@ async function run(options) {
       }
       return completeRun(result);
     }
-    messages.push({ role: 'user', content: turn.toolResults });
+    // Map pipeline Anthropic-shaped toolResults → native function_call_output items.
+    const allToolResults = [...syntheticParseErrors, ...(turn.toolResults || [])];
+    const outputResultItems = items.pipelineResultsToOutputItems(allToolResults);
+    for (const item of outputResultItems) messages.push(item);
     persistSession(
       sessionStore,
       messages,

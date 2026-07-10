@@ -17,7 +17,7 @@ const { run } = require('../src/runner/run');
 const { applyPromptTemplates, resolvePromptTemplate, substituteParameters } = require('../src/runner/prompt-templates');
 const safety = require('../src/runner/safety');
 
-const DEFAULT_MODEL = 'claude-sonnet-4-6';
+const DEFAULT_MODEL = 'gpt-5.5';
 const DEFAULT_MAX_TOKENS = 2000;
 const DEFAULT_MAX_STEPS = 16;
 
