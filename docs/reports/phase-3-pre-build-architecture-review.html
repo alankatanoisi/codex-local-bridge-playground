@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phase 3 Pre-Build Architecture Review — codex-local-bridge-playground</title>
+<style>
+  :root { --bg:#0f1117; --panel:#181b24; --panel2:#1f232f; --text:#d7dae2; --dim:#8a90a2;
+          --accent:#e8a33d; --good:#4caf7d; --warn:#e0b341; --bad:#e06c5a; --line:#2a2f3d; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.6 -apple-system,'Segoe UI',Helvetica,Arial,sans-serif; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 { font-size: 26px; margin: 0 0 4px; color:#fff; }
+  h2 { font-size: 19px; margin: 44px 0 12px; color: var(--accent); border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+  h3 { font-size: 15px; margin: 22px 0 8px; color:#fff; }
+  .meta { color: var(--dim); font-size: 13px; margin-bottom: 8px; }
+  .verdict { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--accent);
+             border-radius: 8px; padding: 18px 22px; margin: 24px 0; }
+  .verdict strong { color: var(--accent); }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 13.5px; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--dim); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: .05em; }
+  code, .mono { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12.5px; color:#c9d4ff; }
+  .tag { display:inline-block; padding: 1px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+  .t-good { background: rgba(76,175,125,.15); color: var(--good); }
+  .t-warn { background: rgba(224,179,65,.15); color: var(--warn); }
+  .t-bad  { background: rgba(224,108,90,.15);  color: var(--bad); }
+  .panel { background: var(--panel); border:1px solid var(--line); border-radius: 8px; padding: 16px 20px; margin: 14px 0; }
+  ul, ol { padding-left: 22px; } li { margin: 6px 0; }
+  .dim { color: var(--dim); }
+  .num { text-align: right; font-family: ui-monospace, Menlo, monospace; }
+  .actions li { background: var(--panel2); border:1px solid var(--line); border-radius:6px;
+                padding: 10px 14px; margin: 10px 0; list-style-position: inside; }
+  .footnote { color: var(--dim); font-size: 12.5px; margin-top: 40px; border-top: 1px solid var(--line); padding-top: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Phase 3 Pre-Build Architecture Review</h1>
+<div class="meta">codex-local-bridge-playground · HEAD <code>6165487</code> · read-only review, evidence gathered by direct grep/test verification · reviewer methodology: code-reviewer profile (delegation unavailable at fork depth — review executed in-session)</div>
+
+<div class="verdict">
+<strong>Verdict: Improve the plan first (~1 short session), then build.</strong><br>
+The code is healthy and the transport is solid, but the shipped roadmap's "clean seam" premise is
+<em>half false</em>: the Anthropic dialect is embedded in <strong>19 files</strong> spanning persistence,
+recovery, replay, eval, and archive — not just the model client. The Fable native-rewrite direction is
+correct but under-scopes the blast radius. Neither plan has a <code>function_call</code> SSE fixture,
+which means the single most important transport path (tool calls) is currently untested.
+Fix the plan's scope + fixtures first; do not start rewriting <code>run.js</code> yet.
+</div>
+
+<h2>1 · Verified facts vs claims</h2>
+<table>
+<tr><th>Claim</th><th>Status</th><th>Evidence</th></tr>
+<tr><td><code>model-client.js</code> still targets the Claude bridge</td><td><span class="tag t-good">VERIFIED</span></td><td><code>model-client.js:16</code> — <code>DEFAULT_BRIDGE_URL = 'http://127.0.0.1:11437/v1/messages'</code></td></tr>
+<tr><td><code>codex-transport.js</code> is built &amp; tested but orphaned from runtime</td><td><span class="tag t-good">VERIFIED</span></td><td>306 lines; imported only by <code>scripts/codex-transport-smoke.js</code> and its own test. Zero imports from <code>src/</code> runtime. Its 18/18 tests pass.</td></tr>
+<tr><td>Junk files at repo root</td><td><span class="tag t-good">VERIFIED</span></td><td><code>FOLDER-STRUCTURE.md</code>, <code>verify-done</code>, <code>verify-format.log</code>, <code>verify-lint.log</code>, <code>verify-test.log</code> all present.</td></tr>
+<tr><td>Codex fixtures cover the protocol</td><td><span class="tag t-bad">FALSE</span></td><td><code>test/runner/fixtures/codex/</code> contains only <code>responses-stream-pong.sse</code>. No <code>function_call</code>, no reasoning-item, no error/rate-limit fixture. <code>codex-transport.test.js</code> never mentions <code>function_call</code>.</td></tr>
+<tr><td>"Clean seam": tools/safety/permissions are provider-neutral</td><td><span class="tag t-warn">PARTLY TRUE</span></td><td><code>permissions.js</code>: 0 hits. <code>safety.js</code>: 2 hits, both benign (a <code>.claude/</code> path deny rule, an <code>sk-ant</code> key redaction pattern). Tools: only 3 of ~29 files touch the dialect, and only as <code>tool_use_id</code> plumbing. <strong>But</strong> the seam collapses outside that zone — see §2.</td></tr>
+<tr><td>Test suite passes</td><td><span class="tag t-warn">PARTIAL</span></td><td>85 test files; full <code>npm test</code> exceeds this sandbox's 30s command timeout. Partial run: 11 suites completed, all <code>ok</code>, 0 failures. Targeted <code>codex-transport.test.js</code>: 18/18 pass. No failures observed anywhere.</td></tr>
+</table>
+
+<h2>2 · Coupling hotspot inventory (grep evidence, <code>src/runner/**/*.js</code>)</h2>
+<table>
+<tr><th>Pattern</th><th class="num">Files</th><th class="num">Hits</th><th>Assessment</th></tr>
+<tr><td><code>tool_use</code></td><td class="num">14</td><td class="num">48</td><td rowspan="2">Combined footprint: <strong>19 distinct files</strong>. Beyond the expected four (model-client, run, tool-pipeline, context-compactor), the dialect is baked into <code>transcript.js</code>, <code>golden-eval.js</code>, <code>kernel/contract.js</code>, <code>recovery/run-manifest.js</code>, <code>ledger-repair.js</code>, <code>replay-simulator.js</code>, <code>human-log.js</code>, <code>archive/collector.js</code>, <code>archive/legacy-ingest.js</code>, <code>context-builder.js</code>, <code>tool-result-content.js</code>, <code>repeat-tool-detector.js</code>.</td></tr>
+<tr><td><code>tool_result</code></td><td class="num">12</td><td class="num">32</td></tr>
+<tr><td><code>cache_control</code></td><td class="num">1</td><td class="num">12</td><td>All in <code>run.js</code>. Anthropic-only concept; dead weight against Codex. Isolated → easy delete.</td></tr>
+<tr><td><code>input_schema</code></td><td class="num">20</td><td class="num">20</td><td>One per tool definition. Benign JSON-Schema payload under an Anthropic-flavored key; a mechanical rename to Responses <code>parameters</code>.</td></tr>
+<tr><td><code>thinking</code> / <code>signature</code> blocks</td><td class="num">2</td><td class="num">7</td><td><code>model-client.js</code> (thinking blocks) + <code>workspace-fingerprint.js</code> (unrelated hash "signature" — benign). Contained.</td></tr>
+</table>
+
+<h3>Module size / entanglement</h3>
+<table>
+<tr><th>File</th><th class="num">Lines</th><th>Risk</th></tr>
+<tr><td><code>src/runner/run.js</code></td><td class="num">1370</td><td><span class="tag t-bad">HIGH</span> — orchestration + dialect + cache_control + loop control in one file; 19 dialect references. This is where any plan goes to die if entered unprepared.</td></tr>
+<tr><td><code>src/runner/tool-pipeline.js</code></td><td class="num">532</td><td><span class="tag t-warn">MED</span> — builds <code>tool_result</code> blocks directly.</td></tr>
+<tr><td><code>src/runner/golden-eval.js</code></td><td class="num">344</td><td><span class="tag t-warn">MED</span> — assertions encode Anthropic message shapes; evals break silently on shape change.</td></tr>
+<tr><td><code>src/runner/context-compactor.js</code></td><td class="num">337</td><td><span class="tag t-warn">MED</span> — walks content-block arrays; must understand whatever the internal item shape becomes.</td></tr>
+<tr><td><code>src/runner/codex-transport.js</code></td><td class="num">306</td><td><span class="tag t-good">LOW</span> — clean, tested, already speaks Responses items/<code>function_call</code>/reasoning internally.</td></tr>
+<tr><td><code>src/runner/model-client.js</code></td><td class="num">262</td><td><span class="tag t-good">LOW</span> — small enough to rewrite outright rather than translate inside.</td></tr>
+<tr><td><code>src/runner/transcript.js</code></td><td class="num">95</td><td><span class="tag t-warn">MED (schema)</span> — small file, big consequence: persisted session/transcript records fossilize the dialect; resume + replay + ledger-repair all read it.</td></tr>
+</table>
+
+<h2>3 · Judgment: which plan does the code actually support?</h2>
+
+<div class="panel">
+<h3>(a) Shipped roadmap — boundary translation <span class="tag t-bad">PREMISE BROKEN</span></h3>
+<p>Its core claim — translate only in <code>model-client.js</code>, everything else untouched — assumed the
+dialect lived in ~4 files. It lives in 19. Worse, per the protocol notes, Codex reasoning items are opaque and
+must round-trip losslessly; squeezing them through Anthropic <code>thinking/signature</code> blocks and back is
+a permanent lossy adapter. Translation would also have to fabricate <code>tool_use_id</code> ↔ <code>call_id</code>
+mappings that then leak into transcripts, ledger repair, and replay. Cheapest to start, most expensive to live with.</p>
+</div>
+
+<div class="panel">
+<h3>(b) Fable — native-first items rewrite <span class="tag t-good">RIGHT DIRECTION, UNDER-SCOPED</span></h3>
+<p>Matches the code's reality: <code>codex-transport.js</code> already thinks in Responses items, so making the
+internal state native removes the translation layer instead of adding one. <strong>But</strong> its staged file
+list (model-client / run.js / tool-pipeline / context-compactor) misses roughly half the actual footprint:
+recovery (<code>run-manifest</code>, <code>ledger-repair</code>, <code>replay-simulator</code>),
+<code>golden-eval</code>, <code>archive/*</code>, <code>human-log</code>, <code>kernel/contract.js</code>, and the
+persisted transcript/session schema. Unbudgeted, those become mid-rewrite surprises.</p>
+</div>
+
+<div class="panel">
+<h3>(c) Codex — ModelRuntime + new :11438 bridge <span class="tag t-bad">OVER-ENGINEERED NOW</span></h3>
+<p>A neutral runtime abstraction for a single provider is speculative generality, and a second local bridge
+duplicates what <code>codex-transport.js</code> already does in-process. The critique doc's call to discard
+this for now is confirmed by the code.</p>
+</div>
+
+<h3>Gaps no plan addresses</h3>
+<ul>
+<li><strong>No <code>function_call</code> SSE fixture.</strong> The transport's tool-call parsing — the heart of an agent runner — has zero test coverage. Only a pong (text) stream is fixtured.</li>
+<li><strong>Transcript/session schema versioning.</strong> No plan decides whether old Anthropic-shaped sessions are migrated, converted on read, or cleanly abandoned; resume/replay/ledger-repair all depend on the answer.</li>
+<li><strong>Golden-eval assertions</strong> encode Anthropic shapes; they'll need a native-items rewrite or they'll pass/fail meaninglessly during migration.</li>
+<li><strong>No end-to-end spike.</strong> Auth (<code>CODEX_ACCESS_TOKEN</code>), streaming-only quirks, and rate-limit behavior have never been exercised through the real loop — only through the smoke script.</li>
+</ul>
+
+<h2>4 · Top 5 pre-build actions (in order)</h2>
+<ol class="actions">
+<li><strong>Capture real fixtures:</strong> record live <code>function_call</code>, reasoning-item, multi-tool, and error/429 SSE streams into <code>test/runner/fixtures/codex/</code>; extend <code>codex-transport.test.js</code> against them. Nothing else is trustworthy until this exists.</li>
+<li><strong>Write <code>items.js</code> + a one-page internal item-schema contract first</strong> (Fable's step 1), including an explicit transcript/session <code>schemaVersion: 2</code> decision: migrate, convert-on-read, or clean break. Get this reviewed before touching <code>run.js</code>.</li>
+<li><strong>Re-scope the Fable plan to the verified 19-file inventory:</strong> add recovery/replay/ledger-repair, golden-eval, archive, human-log, and kernel/contract as named stages (or explicitly quarantine them behind a converter with a deletion date).</li>
+<li><strong>Thin vertical spike:</strong> wire <code>codex-transport.js</code> into <code>model-client.js</code> behind a flag and run one real read-only agent loop end-to-end (auth, stream, single tool call) before any rewrite of <code>run.js</code>. De-risks the unknowns cheapest.</li>
+<li><strong>Hygiene:</strong> delete <code>verify-done</code>, <code>verify-*.log</code>, <code>FOLDER-STRUCTURE.md</code>; declare <code>docs/lab-notes/codex-protocol-notes.md</code> the pinned wire contract; note that full <code>npm test</code> runtime (&gt;30s) needs a CI-friendly split.</li>
+</ol>
+
+<div class="footnote">
+Methodology: all counts from <code>grep -r</code> over <code>src/runner/**/*.js</code> at HEAD <code>6165487</code>;
+tests via <code>node --test</code>. Full-suite run was truncated by sandbox command timeout (11 suites completed, 0 failures;
+codex-transport suite 18/18). No repository files were modified; this report and the reviewer agent definition
+(<code>.bridge-runner/agents/code-reviewer.md</code>) are the only files created.
+</div>
+
+</div>
+</body>
+</html>
