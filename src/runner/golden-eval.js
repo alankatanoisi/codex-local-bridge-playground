@@ -20,47 +20,38 @@ const DEFAULT_GOLDEN_DIR = path.join(__dirname, '../../test/runner/golden');
 const SECRET_PATTERNS = [/sk-ant-[a-zA-Z0-9_-]+/g, /Bearer\s+[A-Za-z0-9._-]+/gi, /\bghp_[A-Za-z0-9]{20,}\b/g];
 
 /**
- * Convert a golden model_script entry (Anthropic content blocks or native output)
- * into the native model-client return shape Stage 4 expects.
+ * Convert a golden model_script entry into the native model-client return
+ * shape. Stage 6 clean break: entries must be native Responses `output` item
+ * arrays (message / function_call / reasoning). The old Anthropic
+ * content-block script grammar is rejected with a migration hint so a stale
+ * golden fails loudly instead of being silently translated.
  */
 function scriptEntryToNativeResponse(entry, callIndex) {
-  if (Array.isArray(entry.output)) {
-    const output = entry.output;
-    const functionCalls = items.extractFunctionCalls(output);
-    return {
-      id: entry.id || 'msg_golden_' + callIndex,
-      output,
-      output_text: entry.output_text || items.extractText(output),
-      usage: items.normalizeUsage(entry.usage || {}),
-      stop_reason: entry.stop_reason || (functionCalls.length ? 'tool_use' : 'end_turn'),
-      function_calls: functionCalls,
-      streamed: false,
-    };
+  if (!Array.isArray(entry.output)) {
+    if (Array.isArray(entry.content)) {
+      throw new Error(
+        'Golden model_script entry uses the retired Anthropic content-block grammar. ' +
+          'Rewrite it as native Responses output items ' +
+          '(message / function_call / reasoning) — see test/runner/golden/*.json for examples.',
+      );
+    }
+    throw new Error('Golden model_script entry missing native `output` item array (entry ' + callIndex + ').');
   }
 
-  const output = [];
-  for (const block of entry.content || []) {
-    if (!block || typeof block !== 'object') continue;
-    if (block.type === 'text') {
-      output.push({
-        type: 'message',
-        role: 'assistant',
-        content: [{ type: 'output_text', text: block.text || '' }],
-      });
-    } else if (block.type === 'tool_use') {
-      output.push({
-        type: 'function_call',
-        call_id: block.id,
-        name: block.name,
-        arguments: JSON.stringify(block.input || {}),
-      });
+  const output = entry.output;
+  for (const item of output) {
+    if (!items.isInputItem(item)) {
+      throw new Error(
+        'Golden model_script entry ' + callIndex + ' contains a non-native item: ' + JSON.stringify(item),
+      );
     }
   }
+
   const functionCalls = items.extractFunctionCalls(output);
   return {
     id: entry.id || 'msg_golden_' + callIndex,
     output,
-    output_text: items.extractText(output),
+    output_text: entry.output_text || items.extractText(output),
     usage: items.normalizeUsage(entry.usage || {}),
     stop_reason: entry.stop_reason || (functionCalls.length ? 'tool_use' : 'end_turn'),
     function_calls: functionCalls,
@@ -84,7 +75,29 @@ function loadGoldenCase(casePath) {
   if (!Array.isArray(raw.model_script) || raw.model_script.length === 0) {
     throw new Error('Golden case missing model_script: ' + casePath);
   }
+  // Validate the script grammar up front so a stale case fails at load time
+  // with a clear message instead of surfacing as a mid-run bridge_error.
+  raw.model_script.forEach((entry, index) => assertNativeScriptEntry(entry, index, casePath));
   return raw;
+}
+
+/** Stage 6 clean break: model_script entries must be native Responses output items. */
+function assertNativeScriptEntry(entry, index, casePath) {
+  if (!entry || typeof entry !== 'object') {
+    throw new Error('Golden model_script entry ' + index + ' is not an object: ' + casePath);
+  }
+  if (Array.isArray(entry.output)) return;
+  if (Array.isArray(entry.content)) {
+    throw new Error(
+      'Golden case ' +
+        casePath +
+        ' (entry ' +
+        index +
+        ') uses the retired Anthropic content-block grammar. Rewrite it as native Responses output items ' +
+        '(message / function_call / reasoning) — see test/runner/golden/*.json for examples.',
+    );
+  }
+  throw new Error('Golden model_script entry ' + index + ' missing native `output` item array: ' + casePath);
 }
 
 function setupCaseWorkspace(baseDir, caseData) {

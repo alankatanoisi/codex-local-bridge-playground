@@ -2,9 +2,10 @@
 
 > **Fork status:** experimental proof of concept, seeded from
 > [claude-local-bridge-playground](https://github.com/alankatanoisi/claude-local-bridge-playground) (Option C of the
-> [Codex bridge runner roadmap](./docs/codex-bridge-runner-roadmap.html)). Phase 3 will rewrite internals to native
-> Responses items; until that lands, `src/runner/model-client.js` still speaks the old Claude-bridge dialect and live
-> model calls do not work in this repo yet. Offline tests and golden evals do.
+> [Codex bridge runner roadmap](./docs/codex-bridge-runner-roadmap.html)). Phase 3 Stages 1–6 have landed:
+> `src/runner/model-client.js` is a native Responses client over `codex-transport.js`, conversation history is native
+> Responses items, and offline tests, golden evals, and the mock-SSE end-to-end loop are all green without
+> credentials. Remaining before the phase closes (Stage 7): pricing rows, doc alignment, and one live read-only run.
 
 This repo is the lab for a **Codex local bridge runner**: the same small local coding-agent loop developed in the
 Claude playground (prompts, capability-grouped tools, permissions, safety, sessions, transcripts, archives, undo),
@@ -65,11 +66,14 @@ The living plan is [docs/codex-bridge-runner-roadmap.html](./docs/codex-bridge-r
   `at-…` shapes redact everywhere, `CODEX_*` env vars are scrubbed from child shells, `~/.codex/` joined the deny
   matrix, and request boundaries hit the flight recorder with header names only. Offline: `npm test`
   (`test/runner/codex-transport.test.js`). Live: `npm run smoke:codex`.
-- **Phase 3 — native Responses rewrite:** next up (~10–14 sessions). **Decision (2026-07-10):** internal conversation
-  state becomes native Responses items (`message`, `function_call`, `function_call_output`, `reasoning`) — not
-  Anthropic blocks with a translation layer. Staged plan: fixtures gate → `items.js` → vertical spike → loop rewrite →
-  persistence → goldens/e2e. Explicit non-goals for Phase 3: local bridge on `:11438`, `ModelRuntime`, Claude-repo
-  convergence. Until this lands, `src/runner/` still targets the old local Claude bridge.
+- **Phase 3 — native Responses rewrite:** Stages 1–6 done (2026-07-11); Stage 7 (pricing + docs + live run) next.
+  **Decision (2026-07-10):** internal conversation state is native Responses items (`message`, `function_call`,
+  `function_call_output`, `reasoning`) — not Anthropic blocks with a translation layer. Landed: live SSE fixtures,
+  `items.js` schema contract, native `model-client.js` over `codex-transport.js`, run-loop/pipeline boundary,
+  schema-v2 persistence/observability (`provider: codex`), native golden scripts, an offline mock-SSE end-to-end
+  loop (`test/runner/codex-offline-e2e.test.js`), and the Anthropic-shape fence (`test/runner/codex-fence.test.js` —
+  no `/v1/messages`, no `cache_control`, no Anthropic request shapes on the active path). Explicit non-goals:
+  local bridge on `:11438`, `ModelRuntime`, Claude-repo convergence; native compaction is a focused follow-up.
 - **Phases 4–6:** not started.
 
 ## What's in the box (inherited from the Claude playground)

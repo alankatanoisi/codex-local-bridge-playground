@@ -24,9 +24,11 @@ This fork ports the local coding-agent loop to OpenAI Codex models:
 prompt -> Responses API (OpenAI) -> model response -> function_call -> local tool execution -> function_call_output -> repeat
 ```
 
-Plan of record: `docs/codex-bridge-runner-roadmap.html` (Part 5). Current state is tracked in README.md — until
-roadmap Phase 3 lands, `src/runner/model-client.js` still speaks the old local Claude-bridge dialect and live model
-calls do not work from this repo. Phase 3 rewrites internals to native Responses items (see Part 2 decision, 2026-07-10).
+Plan of record: `docs/codex-bridge-runner-roadmap.html` (Part 5). Current state is tracked in README.md — Phase 3
+Stages 1–6 have landed: `src/runner/model-client.js` is a native Responses client over `codex-transport.js`,
+history is native Responses items, and goldens plus an offline mock-SSE end-to-end loop run without credentials.
+`test/runner/codex-fence.test.js` guards the active Codex path against Anthropic wire shapes (see Part 2 decision,
+2026-07-10). Stage 7 (pricing, doc alignment, first live read-only run) closes the phase.
 
 ## Working Notes for Claude Agents
 

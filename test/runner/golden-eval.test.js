@@ -55,6 +55,36 @@ describe('golden-eval harness', () => {
     assert.equal(fs.readFileSync(path.join(cwd, 'notes.txt'), 'utf8'), 'original\n');
   });
 
+  it('replays reasoning-replay-tool-loop and carries the opaque reasoning item through the loop', async () => {
+    const caseData = loadGoldenCase(path.join(DEFAULT_GOLDEN_DIR, 'reasoning-replay-tool-loop.json'));
+    const { actual, result } = await executeGoldenCase(caseData);
+    const diffs = diffObjects(caseData.expect, actual);
+    assert.deepEqual(diffs, [], diffs.map((d) => d.path + ': ' + JSON.stringify(d)).join('\n'));
+
+    // The first assistant turn must surface the native reasoning item intact —
+    // the encrypted blob is opaque and must survive untouched for replay.
+    const assistantEvents = (result.events || []).filter((event) => event.type === 'assistant');
+    assert.ok(assistantEvents.length >= 2);
+    const firstTurnItems = assistantEvents[0].message.content;
+    const reasoning = firstTurnItems.find((item) => item.type === 'reasoning');
+    assert.ok(reasoning, 'reasoning item present in first assistant turn');
+    assert.equal(reasoning.encrypted_content, 'OPAQUE-FIXTURE-REASONING-BLOB');
+    // reasoning_tokens from output_tokens_details must land in run usage.
+    assert.equal(result.usage.reasoning_tokens, 17);
+  });
+
+  it('rejects legacy Anthropic content-block model scripts with a migration error', async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'golden-legacy-'));
+    const legacyCase = {
+      id: 'legacy-anthropic-script',
+      prompt: 'hi',
+      model_script: [{ content: [{ type: 'text', text: 'old grammar' }] }],
+      expect: {},
+    };
+    fs.writeFileSync(path.join(tmp, 'legacy.json'), JSON.stringify(legacyCase), 'utf8');
+    await assert.rejects(() => runGoldenEval({ dir: tmp }), /retired Anthropic content-block grammar/);
+  });
+
   it('runGoldenEval passes all shipped goldens', async () => {
     const summary = await runGoldenEval({ verbose: false });
     assert.equal(summary.ok, true, JSON.stringify(summary.results, null, 2));

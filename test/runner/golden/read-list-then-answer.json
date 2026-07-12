@@ -1,6 +1,6 @@
 {
   "id": "read-list-then-answer",
-  "description": "Read-only loop: list_files then final text answer.",
+  "description": "Read-only loop: list_files then final text answer. Model script uses native Responses output items.",
   "prompt": "What files are here?",
   "cwd_files": {
     "hello.js": "console.log('hi');\n"
@@ -14,18 +14,22 @@
   },
   "model_script": [
     {
-      "content": [
+      "output": [
         {
-          "type": "text",
-          "text": "Let me list the directory."
+          "type": "message",
+          "role": "assistant",
+          "content": [
+            {
+              "type": "output_text",
+              "text": "Let me list the directory."
+            }
+          ]
         },
         {
-          "type": "tool_use",
-          "id": "tu1",
+          "type": "function_call",
+          "call_id": "call_golden_list_1",
           "name": "list_files",
-          "input": {
-            "path": "."
-          }
+          "arguments": "{\"path\":\".\"}"
         }
       ],
       "usage": {
@@ -34,10 +38,16 @@
       }
     },
     {
-      "content": [
+      "output": [
         {
-          "type": "text",
-          "text": "I found hello.js in the workspace."
+          "type": "message",
+          "role": "assistant",
+          "content": [
+            {
+              "type": "output_text",
+              "text": "I found hello.js in the workspace."
+            }
+          ]
         }
       ],
       "usage": {

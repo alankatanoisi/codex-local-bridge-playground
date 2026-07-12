@@ -233,7 +233,7 @@
         drives OpenAI's Codex models through the same local agent loop? Short answer: yes — this document reviews the
         current runtime capabilities, measures the provider coupling, and lays out a phased build plan.
       </p>
-      <div class="meta">docs/codex-bridge-runner-roadmap.html · updated 2026-07-10 · fork copy (authoritative) · status: Phases 0–2 complete, Phase 3 Stage 5 complete, Stage 6 next</div>
+      <div class="meta">docs/codex-bridge-runner-roadmap.html · updated 2026-07-11 · fork copy (authoritative) · status: Phases 0–2 complete, Phase 3 Stage 6 complete, Stage 7 next</div>
     </header>
 
     <main>
@@ -664,10 +664,11 @@
             <li>Record <code>reasoning_tokens</code> in usage; prefer native items over grand event rename.</li>
             <li><strong>Status:</strong> <code>SessionStore</code> now writes schema v2 <code>items[]</code> and rejects v1 resume without modifying the old file; transcript, human log, archive, ledger/replay, and run manifests identify <code>provider: codex</code>; native assistant/function-call items and reasoning-token usage are covered by targeted and end-to-end tests.</li>
           </ul>
-          <h4>Stage 6 — Goldens + offline e2e <span class="badge blue">Next</span></h4>
+          <h4>Stage 6 — Goldens + offline e2e <span class="badge green">Done on main</span></h4>
           <ul>
             <li>Rewrite golden scripts/expects; fixture-driven client tests + mock e2e loop (runner → mock SSE → real local tool → final answer).</li>
             <li>Late fence test: no <code>/v1/messages</code>, <code>cache_control</code>, or Anthropic request shapes on the active Codex path.</li>
+            <li><strong>Status:</strong> golden <code>model_script</code>s are now native Responses output items (the two rewritten cases passed against unchanged expects — behavior-identical) and the harness rejects the retired Anthropic content-block grammar at load time; a new <code>reasoning-replay-tool-loop</code> golden proves an opaque <code>reasoning</code> item plus <code>reasoning_tokens</code> usage ride through the loop untouched. <code>test/runner/codex-offline-e2e.test.js</code> drives the real run loop against a mock SSE server replaying the Stage 1 live captures — native request on turn 1, the real <code>list_files</code> tool on a temp workspace, <code>function_call</code>/<code>function_call_output</code> pairing with the captured <code>call_id</code> on turn 2, and a final answer, with wire-level Anthropic-shape checks on every captured request body. <code>test/runner/codex-fence.test.js</code> adds the late fence: a static source scan of the active path (<code>run.js</code>, <code>model-client.js</code>, <code>codex-transport.js</code>, <code>items.js</code>, <code>tool-pipeline.js</code>) plus request-shape and endpoint/auth assertions. The dormant Anthropic <code>cache_control</code> budgeting block in <code>run.js</code> (unreachable on the Codex path) was deleted outright and its legacy tests retired.</li>
           </ul>
           <h4>Stage 7 — Pricing + docs + PR</h4>
           <ul>
@@ -788,7 +789,8 @@
           <li><strong>Done (2026-07-10):</strong> Phase 3 direction recorded — native Responses items as internal state (supersedes boundary-translation draft). See Part 2 decision callout and archived proposals in <code>docs/lab-notes/proposals/</code>.</li>
           <li><strong>Done (2026-07-10):</strong> Phase 3 Stage 1 live fixtures captured — <code>responses-stream-function-call.sse</code> and <code>responses-stream-final-answer.sse</code> (leak-grep 0); protocol notes extended with observed grammar.</li>
           <li><strong>Done (2026-07-10):</strong> Phase 3 Stages 2–5 — native item contract, model-client vertical spike, run loop/pipeline boundary, and schema-v2 persistence/observability.</li>
-          <li><strong>Next — Phase 3 Stage 6:</strong> rewrite golden scripts/expects and add the fixture-driven mock end-to-end loop; keep native compaction as a focused follow-up.</li>
+          <li><strong>Done (2026-07-11): Phase 3 Stage 6</strong> — golden scripts rewritten as native output items (legacy grammar rejected at load time), offline mock-SSE end-to-end loop over the live captures with a real local tool, and the late Anthropic-shape fence test; dead <code>cache_control</code> budgeting deleted from <code>run.js</code>. Native compaction stays a focused follow-up.</li>
+          <li><strong>Next — Phase 3 Stage 7:</strong> <code>gpt-5.5</code> reference pricing rows, doc alignment (AGENTS.md / CLAUDE.md / README.md), archive superseded proposals, and one live read-only agent run to close the phase exit criteria.</li>
           <li><strong>Housekeeping:</strong> rotate the <code>at-…</code> token in the ChatGPT dashboard if it appeared in a terminal, then <code>unset CODEX_ACCESS_TOKEN</code>.</li>
           <li><strong>Phase 4:</strong> live capability ladder including session resume and compaction checks.</li>
         </ol>

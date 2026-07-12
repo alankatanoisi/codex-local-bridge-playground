@@ -1,31 +1,38 @@
 {
-  "id": "plan-mode-write-blocked",
-  "description": "Plan mode fabricates write results without touching disk. Model script uses native Responses output items.",
-  "prompt": "Edit notes.txt to say updated.",
+  "id": "reasoning-replay-tool-loop",
+  "description": "Native reasoning item rides along with a function_call and must not disturb the loop (opaque encrypted_content round-trip, reasoning_tokens usage).",
+  "prompt": "Read hello.js and tell me what it does.",
   "cwd_files": {
-    "notes.txt": "original\n"
+    "hello.js": "console.log('hi');\n"
   },
   "run": {
     "maxSteps": 3,
-    "plan": true,
     "allowedTools": [
-      "read_file",
-      "edit_file"
+      "read_file"
     ]
   },
   "model_script": [
     {
       "output": [
         {
+          "type": "reasoning",
+          "id": "rs_golden_1",
+          "summary": [],
+          "encrypted_content": "OPAQUE-FIXTURE-REASONING-BLOB"
+        },
+        {
           "type": "function_call",
-          "call_id": "call_golden_edit_1",
-          "name": "edit_file",
-          "arguments": "{\"path\":\"notes.txt\",\"old_string\":\"original\",\"new_string\":\"updated\"}"
+          "call_id": "call_golden_read_1",
+          "name": "read_file",
+          "arguments": "{\"path\":\"hello.js\"}"
         }
       ],
       "usage": {
-        "input_tokens": 55,
-        "output_tokens": 30
+        "input_tokens": 60,
+        "output_tokens": 25,
+        "output_tokens_details": {
+          "reasoning_tokens": 17
+        }
       }
     },
     {
@@ -36,14 +43,14 @@
           "content": [
             {
               "type": "output_text",
-              "text": "In plan mode I would update notes.txt."
+              "text": "hello.js logs the string 'hi' to the console."
             }
           ]
         }
       ],
       "usage": {
-        "input_tokens": 90,
-        "output_tokens": 12
+        "input_tokens": 120,
+        "output_tokens": 14
       }
     }
   ],
@@ -52,17 +59,16 @@
     "steps": 2,
     "tool_sequence": [
       {
-        "name": "edit_file",
+        "name": "read_file",
         "ok": true,
         "permission": {
-          "category": "write",
-          "mode": "plan",
+          "category": "read-only",
+          "mode": "default",
           "ruleId": "mode_policy",
           "matchedGuards": [],
           "severity": "bypassable_ask",
-          "explanation": "Plan mode — dry run only.",
-          "decision": "ask",
-          "proposedAction": "(plan mode) Edit notes.txt — replace string → \"updated\""
+          "explanation": "Allowed by current permission mode.",
+          "decision": "allow"
         }
       }
     ],
@@ -71,10 +77,9 @@
       "model_request",
       "budget",
       "assistant",
-      "budget",
       "tool_use",
-      "approval_required",
       "tool_result",
+      "budget",
       "budget",
       "model_request",
       "budget",
@@ -87,10 +92,9 @@
       "runner_model_request_built",
       "budget",
       "runner_model_response_received",
-      "budget",
       "tool_requested",
-      "permission_decision",
       "tool_finished",
+      "budget",
       "budget",
       "runner_model_request_built",
       "budget",

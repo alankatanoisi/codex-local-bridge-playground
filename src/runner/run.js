@@ -171,108 +171,11 @@ function makeOutput(outputFormat) {
   return { events, emit, finish };
 }
 
-// Shared TTL for all runner-side cache_control markers. Must match the bridge
-// OAuth path (prependClaudeCodeSystem uses ttl: '1h'). Anthropic rejects mixed
-// TTL ordering (e.g. default 5m on tools before 1h on system).
-const RUNNER_CACHE_CONTROL = Object.freeze({ type: 'ephemeral', ttl: '1h' });
-
-// Mark cache_control breakpoints so the bridge/Anthropic side can serve a
-// prompt-cache read instead of reprocessing the whole prefix every turn.
-// Budget: Anthropic allows 4 breakpoints per request. We use up to 3 —
-//   1. last block of system prompt
-//   2. last tool definition (caches the whole tools array prefix)
-//   3. last block of the second-most-recent message (the most recent message
-//      is the freshly-appended turn that would invalidate the cache).
-//
-// We never mutate the inputs: only the touched message is shallow-cloned.
-// E1: optional repoContextBlock string occupies the fourth cache breakpoint,
-// prepended to the system message and marked separately from the last-block
-// breakpoint that already lived there.
-// Anthropic allows 4 cache_control markers per request. The OAuth bridge prepends
-// a cached identity block (see prependClaudeCodeSystem) — reserve one slot so
-// runner + bridge stay within the limit.
-const BRIDGE_OAUTH_CACHE_RESERVE = 1;
-
-function applyCacheControlBudget(system, tools, messages, repoContextBlock) {
-  let cachedSystem;
-  if (repoContextBlock) {
-    const repoBlock = { type: 'text', text: repoContextBlock, cache_control: RUNNER_CACHE_CONTROL };
-    if (typeof system === 'string') {
-      // Repo block is the only runner system marker when E1 is active — a second
-      // system breakpoint would exceed 4 once the bridge identity block is added.
-      cachedSystem = [repoBlock, { type: 'text', text: system }];
-    } else if (Array.isArray(system)) {
-      cachedSystem = [repoBlock, ...system];
-    } else {
-      cachedSystem = [repoBlock];
-    }
-  } else {
-    cachedSystem =
-      typeof system === 'string'
-        ? [{ type: 'text', text: system, cache_control: RUNNER_CACHE_CONTROL }]
-        : markLastBlock(system);
-  }
-
-  const cachedTools =
-    Array.isArray(tools) && tools.length > 0
-      ? tools.map((tool, i, arr) => (i === arr.length - 1 ? { ...tool, cache_control: RUNNER_CACHE_CONTROL } : tool))
-      : tools;
-
-  const cachedMessages = Array.isArray(messages) ? markStableTranscriptPrefix(messages) : messages;
-
-  // Anthropic allows up to 4 cache_control markers per request. Throw loud
-  // rather than rely on silent server-side eviction if a future change adds
-  // a fifth breakpoint without demoting one.
-  const used = _countCacheControlBreakpoints(cachedSystem, cachedTools, cachedMessages);
-  const maxRunner = 4 - BRIDGE_OAUTH_CACHE_RESERVE;
-  if (used > maxRunner) {
-    throw new Error(
-      'applyCacheControlBudget: ' + used + ' cache_control breakpoints exceeds runner budget of ' + maxRunner,
-    );
-  }
-
-  return { cachedSystem, cachedTools, cachedMessages };
-}
-
-function _countCacheControlBreakpoints(cachedSystem, cachedTools, cachedMessages) {
-  let n = 0;
-  if (Array.isArray(cachedSystem)) {
-    for (const b of cachedSystem) if (b && b.cache_control) n++;
-  }
-  if (Array.isArray(cachedTools)) {
-    for (const t of cachedTools) if (t && t.cache_control) n++;
-  }
-  if (Array.isArray(cachedMessages)) {
-    for (const msg of cachedMessages) {
-      if (Array.isArray(msg.content)) {
-        for (const b of msg.content) if (b && b.cache_control) n++;
-      }
-    }
-  }
-  return n;
-}
-
-function markLastBlock(blocks) {
-  if (!Array.isArray(blocks) || blocks.length === 0) return blocks;
-  return blocks.map((block, i, arr) =>
-    i === arr.length - 1 ? { ...block, cache_control: RUNNER_CACHE_CONTROL } : block,
-  );
-}
-
-// Walk back from the second-to-last message to find one with array content
-// we can mark. Skipping the most recent message keeps the cache stable across
-// the turn that appends the new tool_result / assistant block.
-function markStableTranscriptPrefix(messages) {
-  if (messages.length < 2) return messages;
-  for (let i = messages.length - 2; i >= 0; i--) {
-    const msg = messages[i];
-    if (!Array.isArray(msg.content) || msg.content.length === 0) continue;
-    const cloned = messages.slice();
-    cloned[i] = { ...msg, content: markLastBlock(msg.content) };
-    return cloned;
-  }
-  return messages;
-}
+// Phase 3 Stage 6 note: the Anthropic manual prompt-cache machinery
+// (RUNNER_CACHE_CONTROL / applyCacheControlBudget and friends) was deleted
+// here. Codex prompt caching is automatic — the backend reports hits via
+// usage.input_tokens_details.cached_tokens and there are no request-side
+// markers. test/runner/codex-fence.test.js guards against reintroduction.
 
 // C3: when called with `options.ledgerCursor`, stop processing transcript
 // lines once we've consumed roughly cursor.seq * 4 events — a conservative
@@ -1555,7 +1458,6 @@ module.exports = {
   extractTextBlocks,
   extractToolUses,
   loadMessagesFromTranscript,
-  applyCacheControlBudget,
   addUsage,
   normalizeEffort,
   // Re-exported from tool-pipeline for existing callers/tests.
