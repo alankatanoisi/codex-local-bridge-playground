@@ -1,0 +1,2562 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Evidence-led architecture and runtime pivot audit of the Claude and Codex local runner lanes, their shared runtime state, and the historical Claude bridge."
+    />
+    <title>Claude-to-Codex Runner Pivot Audit — 2026-08-10</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #172033;
+        --muted: #5f6b7d;
+        --paper: #f6f3ec;
+        --panel: #fffdf8;
+        --line: #d9d4c8;
+        --navy: #183b56;
+        --teal: #0b6f6b;
+        --green: #277a52;
+        --amber: #9a6510;
+        --red: #a13d3d;
+        --blue-soft: #e8f1f7;
+        --teal-soft: #e4f3f0;
+        --green-soft: #e8f4ec;
+        --amber-soft: #fff2d8;
+        --red-soft: #fbe8e6;
+        --shadow: 0 18px 55px rgba(24, 59, 86, 0.11);
+        --radius: 18px;
+        --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+        --sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        --serif: Charter, 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at 8% 0%, rgba(11, 111, 107, 0.12), transparent 28rem),
+          radial-gradient(circle at 92% 8%, rgba(24, 59, 86, 0.12), transparent 32rem), var(--paper);
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 16px;
+        line-height: 1.65;
+      }
+
+      a {
+        color: var(--teal);
+        text-decoration-thickness: 1px;
+        text-underline-offset: 0.18em;
+      }
+
+      a:hover {
+        color: var(--navy);
+      }
+
+      code,
+      pre {
+        font-family: var(--mono);
+      }
+
+      code {
+        padding: 0.1rem 0.34rem;
+        border-radius: 0.35rem;
+        background: #edf0f1;
+        font-size: 0.9em;
+      }
+
+      pre {
+        margin: 1rem 0;
+        padding: 1rem 1.1rem;
+        overflow: auto;
+        border: 1px solid #26364b;
+        border-radius: 12px;
+        background: #101927;
+        color: #e7edf4;
+        font-size: 0.84rem;
+        line-height: 1.55;
+      }
+
+      .shell {
+        width: min(1500px, calc(100% - 28px));
+        margin: 20px auto 56px;
+        display: grid;
+        grid-template-columns: 270px minmax(0, 1fr);
+        gap: 24px;
+      }
+
+      .toc {
+        position: sticky;
+        top: 18px;
+        align-self: start;
+        max-height: calc(100vh - 36px);
+        overflow: auto;
+        padding: 18px;
+        border: 1px solid rgba(24, 59, 86, 0.14);
+        border-radius: var(--radius);
+        background: rgba(255, 253, 248, 0.9);
+        box-shadow: 0 12px 36px rgba(24, 59, 86, 0.08);
+        backdrop-filter: blur(16px);
+      }
+
+      .toc .eyebrow {
+        margin: 0 0 8px;
+        color: var(--teal);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .toc strong {
+        display: block;
+        margin-bottom: 12px;
+        color: var(--navy);
+      }
+
+      .toc ol {
+        margin: 0;
+        padding-left: 1.25rem;
+        font-size: 0.82rem;
+        line-height: 1.34;
+      }
+
+      .toc li {
+        margin: 0.4rem 0;
+      }
+
+      .toc a {
+        color: var(--muted);
+        text-decoration: none;
+      }
+
+      .toc a:hover {
+        color: var(--teal);
+      }
+
+      main {
+        min-width: 0;
+      }
+
+      .hero {
+        position: relative;
+        overflow: hidden;
+        padding: clamp(30px, 5vw, 70px);
+        border-radius: 26px;
+        background: linear-gradient(140deg, #102c43, #194d64 58%, #0b6f6b);
+        color: white;
+        box-shadow: var(--shadow);
+      }
+
+      .hero::after {
+        content: '';
+        position: absolute;
+        width: 360px;
+        height: 360px;
+        right: -120px;
+        top: -160px;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: 50%;
+        box-shadow:
+          0 0 0 54px rgba(255, 255, 255, 0.035),
+          0 0 0 108px rgba(255, 255, 255, 0.025);
+      }
+
+      .hero .kicker {
+        margin: 0 0 12px;
+        color: #bfe9e2;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4 {
+        color: var(--navy);
+        line-height: 1.18;
+      }
+
+      h1 {
+        position: relative;
+        z-index: 1;
+        max-width: 920px;
+        margin: 0;
+        color: white;
+        font-family: var(--serif);
+        font-size: clamp(2.25rem, 5vw, 4.8rem);
+        font-weight: 700;
+        letter-spacing: -0.035em;
+      }
+
+      .hero .subtitle {
+        position: relative;
+        z-index: 1;
+        max-width: 920px;
+        margin: 22px 0 0;
+        color: #e4f4f2;
+        font-size: clamp(1rem, 2vw, 1.25rem);
+      }
+
+      .meta-row {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 26px;
+      }
+
+      .meta-pill,
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        border-radius: 999px;
+        font-size: 0.76rem;
+        font-weight: 800;
+      }
+
+      .meta-pill {
+        padding: 0.42rem 0.7rem;
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+      }
+
+      section {
+        margin-top: 24px;
+        padding: clamp(24px, 4vw, 46px);
+        border: 1px solid rgba(24, 59, 86, 0.12);
+        border-radius: var(--radius);
+        background: var(--panel);
+        box-shadow: 0 10px 34px rgba(24, 59, 86, 0.06);
+      }
+
+      h2 {
+        margin: 0 0 1.2rem;
+        font-family: var(--serif);
+        font-size: clamp(1.7rem, 3vw, 2.5rem);
+        letter-spacing: -0.02em;
+      }
+
+      h3 {
+        margin: 2rem 0 0.7rem;
+        font-size: 1.25rem;
+      }
+
+      h4 {
+        margin: 1.4rem 0 0.45rem;
+        font-size: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.045em;
+      }
+
+      p {
+        margin: 0.65rem 0 1rem;
+      }
+
+      ul,
+      ol {
+        padding-left: 1.35rem;
+      }
+
+      li + li {
+        margin-top: 0.38rem;
+      }
+
+      .lead {
+        color: #2a3c50;
+        font-size: 1.12rem;
+      }
+
+      .verdict {
+        margin: 1.4rem 0;
+        padding: 22px 24px;
+        border-left: 6px solid var(--teal);
+        border-radius: 0 14px 14px 0;
+        background: var(--teal-soft);
+      }
+
+      .verdict strong {
+        color: #075c58;
+      }
+
+      .callout {
+        margin: 1rem 0;
+        padding: 16px 18px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+      }
+
+      .callout.warn {
+        border-color: #e9c983;
+        background: var(--amber-soft);
+      }
+
+      .callout.risk {
+        border-color: #e5aaa4;
+        background: var(--red-soft);
+      }
+
+      .callout.good {
+        border-color: #abd4bc;
+        background: var(--green-soft);
+      }
+
+      .grid-2,
+      .grid-3,
+      .grid-4 {
+        display: grid;
+        gap: 14px;
+        margin: 1rem 0;
+      }
+
+      .grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .grid-3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .grid-4 {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .card {
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: white;
+      }
+
+      .card h3,
+      .card h4 {
+        margin-top: 0;
+      }
+
+      .card p:last-child,
+      .callout p:last-child,
+      .verdict p:last-child {
+        margin-bottom: 0;
+      }
+
+      .metric {
+        color: var(--navy);
+        font-family: var(--serif);
+        font-size: 2.1rem;
+        font-weight: 800;
+        line-height: 1;
+      }
+
+      .metric-label {
+        margin-top: 0.45rem;
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
+      .table-wrap {
+        margin: 1rem 0;
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        background: white;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.88rem;
+      }
+
+      th,
+      td {
+        padding: 0.78rem 0.82rem;
+        border-bottom: 1px solid #e6e2d9;
+        vertical-align: top;
+        text-align: left;
+      }
+
+      th {
+        position: sticky;
+        top: 0;
+        background: #edf3f5;
+        color: var(--navy);
+        font-size: 0.76rem;
+        letter-spacing: 0.035em;
+        text-transform: uppercase;
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      tbody tr:nth-child(even) {
+        background: #fcfbf7;
+      }
+
+      .badge {
+        padding: 0.24rem 0.55rem;
+        white-space: nowrap;
+      }
+
+      .badge.preserve {
+        background: var(--green-soft);
+        color: var(--green);
+      }
+
+      .badge.adapt {
+        background: var(--blue-soft);
+        color: var(--navy);
+      }
+
+      .badge.relocate {
+        background: var(--teal-soft);
+        color: var(--teal);
+      }
+
+      .badge.reject {
+        background: var(--red-soft);
+        color: var(--red);
+      }
+
+      .badge.investigate {
+        background: var(--amber-soft);
+        color: var(--amber);
+      }
+
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(120px, 1fr));
+        gap: 24px;
+        align-items: stretch;
+        margin: 1rem 0 1.4rem;
+        overflow-x: auto;
+        padding: 8px 4px 18px;
+      }
+
+      .node {
+        position: relative;
+        min-width: 130px;
+        padding: 14px;
+        border: 1px solid #bad0d8;
+        border-radius: 12px;
+        background: var(--blue-soft);
+        color: var(--navy);
+        font-size: 0.8rem;
+        font-weight: 750;
+        text-align: center;
+      }
+
+      .node:not(:last-child)::after {
+        content: '→';
+        position: absolute;
+        right: -21px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--teal);
+        font-size: 1.4rem;
+      }
+
+      .node.provider {
+        border-color: #96cec7;
+        background: var(--teal-soft);
+      }
+
+      .node.risk {
+        border-color: #e5aaa4;
+        background: var(--red-soft);
+        color: #7d3030;
+      }
+
+      .lane {
+        margin: 1rem 0;
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #fbfaf5;
+      }
+
+      .lane-title {
+        margin-bottom: 8px;
+        color: var(--navy);
+        font-weight: 850;
+      }
+
+      .evidence-key {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .evidence-key div {
+        padding: 12px;
+        border-radius: 10px;
+        background: #f3f1ea;
+        font-size: 0.83rem;
+      }
+
+      .evidence-key strong {
+        display: block;
+        color: var(--navy);
+      }
+
+      .gate {
+        display: grid;
+        grid-template-columns: 80px minmax(0, 1fr);
+        gap: 16px;
+        margin: 12px 0;
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        background: white;
+      }
+
+      .gate-id {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 60px;
+        border-radius: 11px;
+        background: var(--navy);
+        color: white;
+        font-weight: 900;
+      }
+
+      .gate h3 {
+        margin: 0 0 0.3rem;
+      }
+
+      .gate p {
+        margin: 0.25rem 0;
+      }
+
+      details {
+        margin: 0.8rem 0;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: white;
+      }
+
+      summary {
+        cursor: pointer;
+        padding: 13px 16px;
+        color: var(--navy);
+        font-weight: 800;
+      }
+
+      details > div {
+        padding: 0 16px 16px;
+      }
+
+      .evidence-list {
+        columns: 2;
+        column-gap: 2rem;
+      }
+
+      .evidence-list li {
+        break-inside: avoid;
+        margin-bottom: 0.45rem;
+      }
+
+      .handoff {
+        border: 2px solid var(--teal);
+        background: linear-gradient(135deg, #f5fffc, #eef7f8);
+      }
+
+      .small {
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
+      footer {
+        padding: 28px 10px 10px;
+        color: var(--muted);
+        font-size: 0.82rem;
+        text-align: center;
+      }
+
+      @media (max-width: 1100px) {
+        .shell {
+          grid-template-columns: 1fr;
+        }
+
+        .toc {
+          position: relative;
+          top: auto;
+          max-height: none;
+        }
+
+        .toc ol {
+          columns: 2;
+        }
+
+        .grid-4 {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 760px) {
+        .shell {
+          width: min(100% - 16px, 1500px);
+          margin-top: 8px;
+        }
+
+        .hero,
+        section {
+          border-radius: 15px;
+        }
+
+        .grid-2,
+        .grid-3,
+        .grid-4,
+        .evidence-key {
+          grid-template-columns: 1fr;
+        }
+
+        .toc ol,
+        .evidence-list {
+          columns: 1;
+        }
+
+        .gate {
+          grid-template-columns: 1fr;
+        }
+
+        .gate-id {
+          min-height: 42px;
+        }
+      }
+
+      @media print {
+        body {
+          background: white;
+          font-size: 10pt;
+        }
+
+        .shell {
+          display: block;
+          width: 100%;
+          margin: 0;
+        }
+
+        .toc {
+          display: none;
+        }
+
+        .hero,
+        section {
+          break-inside: avoid-page;
+          box-shadow: none;
+        }
+
+        section {
+          border-color: #bbb;
+        }
+
+        .hero {
+          background: white;
+          color: black;
+          border: 2px solid #333;
+        }
+
+        .hero h1,
+        .hero .subtitle,
+        .hero .kicker,
+        .meta-pill {
+          color: black;
+        }
+
+        a {
+          color: black;
+          text-decoration: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <nav class="toc" aria-label="Report contents">
+        <p class="eyebrow">Architecture audit</p>
+        <strong>Report contents</strong>
+        <ol>
+          <li><a href="#executive">Executive pivot</a></li>
+          <li><a href="#provenance">Provenance</a></li>
+          <li><a href="#method">Method and evidence</a></li>
+          <li><a href="#architectures">Four architectures</a></li>
+          <li><a href="#flows">Runtime flows</a></li>
+          <li><a href="#boundaries">Responsibility boundaries</a></li>
+          <li><a href="#comparison">Claude vs Codex</a></li>
+          <li><a href="#matrix">Translation matrix</a></li>
+          <li><a href="#security">Security and trust</a></li>
+          <li><a href="#state">Context and state</a></li>
+          <li><a href="#tests">Tests and runtime health</a></li>
+          <li><a href="#drift">Documentation drift</a></li>
+          <li><a href="#stage7">Stage 7 assessment</a></li>
+          <li><a href="#unchanged-risk">Risks unchanged</a></li>
+          <li><a href="#overport-risk">Risks over-porting</a></li>
+          <li><a href="#roadmap">Gated roadmap</a></li>
+          <li><a href="#ledger">Decision ledger</a></li>
+          <li><a href="#questions">Owner questions</a></li>
+          <li><a href="#evidence">File evidence</a></li>
+          <li><a href="#beginner">Beginner handoff</a></li>
+        </ol>
+      </nav>
+
+      <main>
+        <header class="hero">
+          <p class="kicker">Evidence-led current-state review · 10 August 2026</p>
+          <h1>Preserve the native Codex loop. Rebuild the shared control plane.</h1>
+          <p class="subtitle">
+            A four-location architecture and runtime audit of the current Claude runner, the Codex native Responses
+            fork, the sensitive shared <code>~/.bridge-runner</code> state root, and the historical Claude bridge.
+          </p>
+          <div class="meta-row">
+            <span class="meta-pill">Read-only investigation</span>
+            <span class="meta-pill">No credentials opened</span>
+            <span class="meta-pill">No paid calls by this audit</span>
+            <span class="meta-pill">Stage 7 preserved</span>
+            <span class="meta-pill">20 required sections</span>
+          </div>
+        </header>
+
+        <section id="executive">
+          <h2>1. Executive summary and recommended pivot</h2>
+          <p class="lead">
+            The Codex repository has a sound native Responses vertical slice. The pivot is not to replace it with Claude
+            code; it is to surround it with the stronger provider-independent safety, state, recovery, and orchestration
+            contracts that evolved later in the Claude playground.
+          </p>
+          <div class="verdict">
+            <strong>Decision:</strong> keep native <code>message</code>, <code>reasoning</code>,
+            <code>function_call</code>, and <code>function_call_output</code> items end to end. Stop a file-by-file
+            port. Converge at the authority, tool execution, private state, recovery, output, budget, and worker
+            interfaces.
+          </div>
+          <div class="grid-4">
+            <div class="card">
+              <div class="metric">603/603</div>
+              <div class="metric-label">Codex tests passed on the dirty Stage 7 tree</div>
+            </div>
+            <div class="card">
+              <div class="metric">993 + 1</div>
+              <div class="metric-label">Claude tests passed plus one explicitly pinned TODO</div>
+            </div>
+            <div class="card">
+              <div class="metric">84/84</div>
+              <div class="metric-label">Starlark orchestration tests passed</div>
+            </div>
+            <div class="card">
+              <div class="metric">54,770</div>
+              <div class="metric-label">Approximate files sharing the runtime-state root</div>
+            </div>
+          </div>
+          <h3>The five-part pivot</h3>
+          <ol>
+            <li>
+              <strong>Preserve Codex-native work:</strong> Items, SSE assembly, call/result pairing, schema v2,
+              fixtures, goldens, fence tests, and Stage 7 pricing.
+            </li>
+            <li>
+              <strong>Define a provider-neutral harness contract:</strong> immutable authority, capability visibility,
+              path ownership, trust, redaction, private persistence, recovery, outputs, budgets, and workers.
+            </li>
+            <li>
+              <strong>Repair shared state first:</strong> provider/lane namespaces, strict schema selection, private
+              modes, and a non-destructive legacy-artifact plan.
+            </li>
+            <li>
+              <strong>Build Responses-native context projection:</strong> preserve reasoning and call/result units; do
+              not reuse Anthropic content-block compaction.
+            </li>
+            <li>
+              <strong>Choose the transport boundary:</strong> prefer documented Codex app-server automation; otherwise
+              explicitly accept the direct endpoint as experimental.
+            </li>
+          </ol>
+          <div class="callout warn">
+            <strong>Recommended first owner decision:</strong> choose app-server versus experimental direct backend. Do
+            not spend the pending live-canary budget until that choice defines what the proof is supposed to prove.
+          </div>
+        </section>
+
+        <section id="provenance">
+          <h2>2. Audit provenance, folders, commits, and dirty-state caveats</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Role</th>
+                  <th>Path and Git state</th>
+                  <th>Audit caveat</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Authoritative Claude runner</td>
+                  <td>
+                    <code>/Users/alanman/Developer/claude-local-bridge-playground</code><br /><code>main</code> · final
+                    <code>81f233fb…</code><br />core snapshot <code>e197c2e1…</code>
+                  </td>
+                  <td>
+                    Initial clean snapshot was ahead 1. Concurrent Starlark-only work first reached Bundle C
+                    <code>8e7c5acf…</code>, then three local commits reached <code>81f233fb…</code>. Every diff was
+                    inspected; the final clean head is three commits ahead of origin.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Codex comparison and report destination</td>
+                  <td>
+                    <code>/Users/alanman/Developer/codex-local-bridge-playground</code><br /><code>main</code> ·
+                    <code>cbc216a9…</code>
+                  </td>
+                  <td>Aligned with origin; intentional uncommitted Stage 7 changes preserved exactly.</td>
+                </tr>
+                <tr>
+                  <td>Shared state root</td>
+                  <td><code>/Users/alanman/.bridge-runner</code><br />Not a Git repository</td>
+                  <td>Metadata and aggregate modes/counts only; no payload opened.</td>
+                </tr>
+                <tr>
+                  <td>Historical Claude bridge</td>
+                  <td>
+                    <code>/Users/alanman/Developer/claude-local-bridge</code><br /><code>codex/runner-clean-pr</code> ·
+                    <code>af556b41…</code>
+                  </td>
+                  <td>One commit ahead; pre-existing <code>.DS_Store</code> dirty; reference-only.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <h3>Stage 7 work found and preserved</h3>
+          <p>
+            Nine files were modified, three proposal files were deleted at their former locations, and an untracked
+            <code>docs/lab-notes/proposals/archive/</code> held their preserved replacements. The tracked diff was 12
+            files, 184 insertions, and 570 deletions; most deletions were the moves. No existing byte was changed by
+            this audit.
+          </p>
+          <p class="small">
+            Applicable <code>AGENTS.md</code>, <code>CLAUDE.md</code>, and Claude <code>SECURITY.md</code> instructions
+            were read before project commands. The report files are the only authorized additions.
+          </p>
+          <div class="callout warn">
+            <strong>Concurrent-source caveat:</strong> the Claude runner/transport audit used <code>e197c2e1…</code>.
+            Bundle C <code>8e7c5acf…</code> added the committed 25-trial aggregates and scorer corrections. Three later
+            commits added only Starlark R13 planner escalation, R9 a deterministic second provider, and R14c host-JSON
+            planning. No runner, bridge, authority, context, session, permission, or tool file changed. At final
+            <code>81f233fb…</code>, the full suite, Starlark 84/84, lint, docs, and format gates passed. No raw
+            evaluation payload was opened.
+          </div>
+        </section>
+
+        <section id="method">
+          <h2>3. Methodology and evidence strength</h2>
+          <div class="evidence-key">
+            <div><strong>Source-proven</strong>Current code directly implements the behavior.</div>
+            <div><strong>Test-proven</strong>A current automated test exercised it and passed.</div>
+            <div>
+              <strong>Offline-runtime-proven</strong>A credential-free local execution exercised the module or loop.
+            </div>
+            <div><strong>Documented</strong>Current prose claims it; not automatically a runtime fact.</div>
+            <div><strong>Historical / inferred</strong>History explains it, or facts support a bounded inference.</div>
+            <div>
+              <strong>Unverified / broken</strong>Necessary evidence is absent, or current source leads to failure.
+            </div>
+          </div>
+          <p>
+            The audit combined Git preflights, source/control-flow mapping, current history, full non-destructive
+            checks, synthetic no-write state probes, metadata-only runtime inventory, and current official provider
+            documentation. Matching names and flags were not treated as semantic parity.
+          </p>
+          <div class="callout good">
+            <strong>Privacy boundary:</strong> no transcript, prompt, trace, ledger, session, auth file, or credential
+            value under <code>~/.bridge-runner</code> was opened. This audit initiated no paid or live provider request;
+            a concurrent externally run Starlark campaign was incorporated only from its committed aggregate report and
+            source diff.
+          </div>
+        </section>
+
+        <section id="architectures">
+          <h2>4. Current architecture of each location</h2>
+          <div class="grid-2">
+            <article class="card">
+              <h3>Claude playground</h3>
+              <p>
+                A native Anthropic runner, a Claude-specific local OAuth transport shim, and a separate Starlark
+                orchestration host. The runner now has an immutable authority ceiling, capability groups, private
+                serializers, strict recovery, rebuilt context projection, and bounded child leases. Agent/profile
+                runtime concepts are retired. Bundle C records a bounded 25-trial Starlark planner evaluation with
+                corrected scorer logic. The final head also adds measured cheap-tier escalation, a deterministic
+                zero-cost second worker provider, and validated host-JSON planning for fully determined fan-out. This
+                strengthens the separate control-plane evidence without making it a native Runner integration.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Codex playground</h3>
+              <p>
+                A native Responses conversation and SSE core surrounded by an older inherited harness. It keeps native
+                Items and provider-tagged schema v2, but lacks the latest authority, private-state, recovery,
+                capability-group, and context controls. Profiles and file agents remain active.
+              </p>
+            </article>
+            <article class="card">
+              <h3><code>~/.bridge-runner</code></h3>
+              <p>
+                A shared sensitive state/control root—not source code. It holds sessions, logs, traces, archives,
+                campaigns, worktrees, trust, and user skills from multiple versions and provider lanes. The root is
+                private, but many historical/current artifacts have mixed <code>0600/0644</code> files and
+                <code>0700/0755</code> directories.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Canonical Claude bridge</h3>
+              <p>
+                Historical boundary archaeology: local server, credential discovery, proxy, fingerprinting, and old
+                multi-route/API-key behavior. Its tests pass its old contract, but OpenAI-compatible routes and
+                credential fallbacks are obsolete for both active native lanes.
+              </p>
+            </article>
+          </div>
+          <h3>Shared-state metadata snapshot</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Area</th>
+                  <th>Files</th>
+                  <th>Dirs</th>
+                  <th>Approx. KiB</th>
+                  <th>Role</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>archive</td>
+                  <td>10,411</td>
+                  <td>1,081</td>
+                  <td>66,396</td>
+                  <td>Sensitive run/session artifacts</td>
+                </tr>
+                <tr>
+                  <td>campaigns</td>
+                  <td>2</td>
+                  <td>3</td>
+                  <td>184</td>
+                  <td>Durable budget/control state</td>
+                </tr>
+                <tr>
+                  <td>cc-bridge-runner</td>
+                  <td>12</td>
+                  <td>4</td>
+                  <td>56</td>
+                  <td>Local runner material, unopened</td>
+                </tr>
+                <tr>
+                  <td>fingerprint-checks</td>
+                  <td>4</td>
+                  <td>1</td>
+                  <td>16</td>
+                  <td>Claude-specific diagnostics</td>
+                </tr>
+                <tr>
+                  <td>logs</td>
+                  <td>2,494</td>
+                  <td>1</td>
+                  <td>34,548</td>
+                  <td>Transcripts/logs</td>
+                </tr>
+                <tr>
+                  <td>sessions</td>
+                  <td>3,148</td>
+                  <td>1</td>
+                  <td>29,972</td>
+                  <td>Mixed-generation/provider checkpoints</td>
+                </tr>
+                <tr>
+                  <td>skills</td>
+                  <td>1</td>
+                  <td>1</td>
+                  <td>16</td>
+                  <td>User customization</td>
+                </tr>
+                <tr>
+                  <td>traces</td>
+                  <td>202</td>
+                  <td>1</td>
+                  <td>374,668</td>
+                  <td>Flight-recorder data</td>
+                </tr>
+                <tr>
+                  <td>worktrees</td>
+                  <td>38,494</td>
+                  <td>5,878</td>
+                  <td>629,748</td>
+                  <td>Git worktree checkouts</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="flows">
+          <h2>5. End-to-end runtime flows</h2>
+          <div class="lane">
+            <div class="lane-title">Claude today</div>
+            <div class="flow" aria-label="Claude runtime flow">
+              <div class="node">CLI + trust + authority ceiling</div>
+              <div class="node">Capabilities + projected Messages</div>
+              <div class="node provider">localhost /v1/messages bridge</div>
+              <div class="node provider">OAuth + stable fingerprint</div>
+              <div class="node provider">Anthropic response</div>
+              <div class="node">Permissioned local tools</div>
+              <div class="node">Private/redacted state + outputs</div>
+            </div>
+          </div>
+          <div class="lane">
+            <div class="lane-title">Codex today</div>
+            <div class="flow" aria-label="Codex runtime flow">
+              <div class="node">CLI + inherited trust/modes</div>
+              <div class="node">Native Responses Items</div>
+              <div class="node provider">Direct backend SSE POST</div>
+              <div class="node provider">Typed event assembler</div>
+              <div class="node">Native function_call / function_call_output</div>
+              <div class="node">Inherited local tools</div>
+              <div class="node">Schema-v2 state + outputs</div>
+            </div>
+          </div>
+          <div class="lane">
+            <div class="lane-title">Shared-state failure path</div>
+            <div class="flow" aria-label="Shared state collision">
+              <div class="node risk">Claude v1 messages[]</div>
+              <div class="node risk">Same sessions/*.state.json drawer</div>
+              <div class="node risk">Claude newest-by-mtime selector</div>
+              <div class="node risk">Codex file accepted</div>
+              <div class="node risk">messages is undefined</div>
+              <div class="node risk">.length dereference</div>
+              <div class="node risk">Resume failure</div>
+            </div>
+          </div>
+          <div class="lane">
+            <div class="lane-title">Recommended target</div>
+            <div class="flow" aria-label="Recommended target flow">
+              <div class="node">CLI / UI / orchestration</div>
+              <div class="node">Shared harness contracts</div>
+              <div class="node">Provider-native projector</div>
+              <div class="node provider">Claude or Codex adapter</div>
+              <div class="node">Neutral tool execution</div>
+              <div class="node">Provider-native results</div>
+              <div class="node">Private provider/lane state</div>
+            </div>
+          </div>
+        </section>
+
+        <section id="boundaries">
+          <h2>6. Repository and responsibility boundaries</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Concern</th>
+                  <th>Correct owner</th>
+                  <th>Boundary rule</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Authority, trust, visibility, path/shell rules</td>
+                  <td>Shared harness</td>
+                  <td>Provider-independent local-effect policy.</td>
+                </tr>
+                <tr>
+                  <td>Tool definitions/execution</td>
+                  <td>Shared harness</td>
+                  <td>Neutral execution intents/results; no provider message types.</td>
+                </tr>
+                <tr>
+                  <td>Messages and tool-use adjacency</td>
+                  <td>Claude adapter</td>
+                  <td>Anthropic-native only.</td>
+                </tr>
+                <tr>
+                  <td>Items, reasoning, call IDs, SSE</td>
+                  <td>Codex adapter</td>
+                  <td>Responses-native only.</td>
+                </tr>
+                <tr>
+                  <td>OAuth/fingerprint/local bridge</td>
+                  <td>Claude transport</td>
+                  <td>Never port to Codex.</td>
+                </tr>
+                <tr>
+                  <td>Access token and app-server/backend</td>
+                  <td>Codex transport</td>
+                  <td>Isolate endpoint and credential lifecycle.</td>
+                </tr>
+                <tr>
+                  <td>State selection/private modes/recovery</td>
+                  <td>Shared state contract + native codec</td>
+                  <td>Shared envelope; provider-owned payload.</td>
+                </tr>
+                <tr>
+                  <td>Context policy</td>
+                  <td>Shared interface</td>
+                  <td>Common budgets and terminal states.</td>
+                </tr>
+                <tr>
+                  <td>Context compaction</td>
+                  <td>Provider adapter</td>
+                  <td>Preserve native sequencing and opaque items.</td>
+                </tr>
+                <tr>
+                  <td>Starlark workflows</td>
+                  <td>Optional orchestration plane</td>
+                  <td>Above runners; mock-first provider registry.</td>
+                </tr>
+                <tr>
+                  <td><code>~/.bridge-runner</code></td>
+                  <td>Shared data root</td>
+                  <td>Never an unversioned source-code distribution folder.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="verdict">
+            A future shared core must not invent a universal flattened conversation object. It should define narrow
+            interfaces around an opaque provider-native history: project, validate, extract execution intents, encode
+            native results, and persist with provider/schema identity.
+          </div>
+        </section>
+
+        <section id="comparison">
+          <h2>7. Claude-versus-Codex architecture comparison</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Dimension</th>
+                  <th>Claude now</th>
+                  <th>Codex now</th>
+                  <th>Judgment</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Conversation</td>
+                  <td>Anthropic Messages/content blocks</td>
+                  <td>Native Responses Items</td>
+                  <td>Preserve both native forms.</td>
+                </tr>
+                <tr>
+                  <td>Transport</td>
+                  <td>Local OAuth bridge to Anthropic</td>
+                  <td>Direct streaming ChatGPT backend</td>
+                  <td>Provider adapters; Codex support gate open.</td>
+                </tr>
+                <tr>
+                  <td>Tools</td>
+                  <td>20 tools + 8 capability groups</td>
+                  <td>Same 20 tools + profiles/allowlists</td>
+                  <td>Share executors; adopt capability semantics.</td>
+                </tr>
+                <tr>
+                  <td>Authority</td>
+                  <td>Immutable ceiling; child narrowing</td>
+                  <td>Mutable flags/modes; no ceiling</td>
+                  <td>High-priority Codex gap.</td>
+                </tr>
+                <tr>
+                  <td>Profiles</td>
+                  <td>Retired and test-fenced</td>
+                  <td>Agents and profiles active</td>
+                  <td>Stale unless owner dependency exists.</td>
+                </tr>
+                <tr>
+                  <td>Privacy</td>
+                  <td>Deep scrub + explicit 0700/0600 writers</td>
+                  <td>Scattered scrub + default-mode writes</td>
+                  <td>Shared-state gate.</td>
+                </tr>
+                <tr>
+                  <td>Session codec</td>
+                  <td>v1 messages; no provider validation</td>
+                  <td>v2 provider=codex; strict items</td>
+                  <td>Keep Codex strictness; fix namespace.</td>
+                </tr>
+                <tr>
+                  <td>Continue</td>
+                  <td>Newest state file, not provider-aware</td>
+                  <td>Newest transcript, then rejected</td>
+                  <td>Both need redesign.</td>
+                </tr>
+                <tr>
+                  <td>Recovery</td>
+                  <td>Exact cursor, torn-tail, private writes</td>
+                  <td>Behind cursor accepted; ordinary modes</td>
+                  <td>Port durability contract.</td>
+                </tr>
+                <tr>
+                  <td>Context</td>
+                  <td>Projection/epoch/message contract</td>
+                  <td>Native history bypasses old compactor</td>
+                  <td>Responses-native redesign required.</td>
+                </tr>
+                <tr>
+                  <td>Workers</td>
+                  <td>Narrowed authority + token leases</td>
+                  <td>Older profile-driven inheritance</td>
+                  <td>Share current control contract.</td>
+                </tr>
+                <tr>
+                  <td>Orchestration</td>
+                  <td>Separate Starlark host + budgets</td>
+                  <td>No Starlark host</td>
+                  <td>Defer Codex adapter until core gates.</td>
+                </tr>
+                <tr>
+                  <td>Tests</td>
+                  <td>
+                    False-green/adversarial/durability depth plus a corrected 25-trial Starlark planner evaluation
+                  </td>
+                  <td>Strong native fixtures/goldens/fence</td>
+                  <td>Combine the strengths.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="matrix">
+          <h2>8. Capability-by-capability translation matrix</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Capability</th>
+                  <th>Decision</th>
+                  <th>Translation and proof</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Native Items/schema v2</td>
+                  <td><span class="badge preserve">Preserve</span></td>
+                  <td>
+                    Keep provider-tagged native history and clean legacy rejection; add namespaced private storage.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Typed SSE assembly</td>
+                  <td><span class="badge preserve">Preserve</span></td>
+                  <td>
+                    Retain output-item/delta assembly and parse-fail-closed behavior; retest against chosen transport.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Direct backend client</td>
+                  <td><span class="badge investigate">Investigate</span></td>
+                  <td>Isolate while owner chooses app-server or experimental direct dependency.</td>
+                </tr>
+                <tr>
+                  <td>Claude bridge/auth/fingerprint/interceptor</td>
+                  <td><span class="badge reject">Reject for Codex</span></td>
+                  <td>Claude-specific transport and policy boundary.</td>
+                </tr>
+                <tr>
+                  <td>Canonical OpenAI routes/API-key fallback</td>
+                  <td><span class="badge reject">Obsolete</span></td>
+                  <td>Do not resurrect translation endpoints or old credential paths.</td>
+                </tr>
+                <tr>
+                  <td>Tools and execution pipeline</td>
+                  <td><span class="badge relocate">Relocate</span></td>
+                  <td>Shared local effects and neutral intent/result seam; provider adapters encode envelopes.</td>
+                </tr>
+                <tr>
+                  <td>Capability groups</td>
+                  <td><span class="badge adapt">Adapt</span></td>
+                  <td>Adopt safe-core semantics; exact allowlists cannot bypass hidden/gated features.</td>
+                </tr>
+                <tr>
+                  <td>Agent/tool profiles</td>
+                  <td><span class="badge reject">Reject stale</span></td>
+                  <td>Retire unless an actual workflow dependency is found.</td>
+                </tr>
+                <tr>
+                  <td>Authority ceiling</td>
+                  <td><span class="badge relocate">Relocate</span></td>
+                  <td>Shared immutable monotonic authority with matrix/mutation/child tests.</td>
+                </tr>
+                <tr>
+                  <td>Path-argument contract</td>
+                  <td><span class="badge relocate">Relocate</span></td>
+                  <td>Catalogue declares every path-bearing argument; permission and execution share it.</td>
+                </tr>
+                <tr>
+                  <td>Trust and shell opt-in</td>
+                  <td><span class="badge adapt">Port semantics</span></td>
+                  <td>Fail-closed trust; shell hidden; dont-ask never enables shell; hard-deny canaries.</td>
+                </tr>
+                <tr>
+                  <td>Deep redaction/private FS</td>
+                  <td><span class="badge relocate">Relocate</span></td>
+                  <td>One circular-safe serialization boundary; 0700 dirs, 0600 files, private atomic/append.</td>
+                </tr>
+                <tr>
+                  <td>Shared state layout</td>
+                  <td><span class="badge adapt">Redesign</span></td>
+                  <td>Provider/lane namespaces, strict index/selector, non-destructive legacy plan.</td>
+                </tr>
+                <tr>
+                  <td>Codex codec</td>
+                  <td><span class="badge preserve">Preserve + harden</span></td>
+                  <td>Keep strict native codec; add private writer and stronger ledger.</td>
+                </tr>
+                <tr>
+                  <td>Claude codec</td>
+                  <td><span class="badge adapt">Adapt</span></td>
+                  <td>Add provider/schema validation and compatible selection.</td>
+                </tr>
+                <tr>
+                  <td><code>--continue</code></td>
+                  <td><span class="badge adapt">Redesign</span></td>
+                  <td>Newest compatible checkpoint only; never transcript; mixed-provider tests.</td>
+                </tr>
+                <tr>
+                  <td>Ledger recovery</td>
+                  <td><span class="badge relocate">Relocate</span></td>
+                  <td>Exact cursor/file match, torn-tail policy, intent/result reconciliation, private writes.</td>
+                </tr>
+                <tr>
+                  <td>Context policy</td>
+                  <td><span class="badge relocate">Shared interface</span></td>
+                  <td>Common budgets/states/metrics; native history remains opaque.</td>
+                </tr>
+                <tr>
+                  <td>Claude compactor</td>
+                  <td><span class="badge reject">No verbatim port</span></td>
+                  <td>Content-block logic stays in Claude adapter.</td>
+                </tr>
+                <tr>
+                  <td>Codex compactor</td>
+                  <td><span class="badge adapt">Responses-native</span></td>
+                  <td>Preserve reasoning and complete call/output units; long-history/resume tests.</td>
+                </tr>
+                <tr>
+                  <td>Function-call bridge</td>
+                  <td><span class="badge preserve">Preserve/share seam</span></td>
+                  <td>Keep call IDs, multiple calls, malformed-JSON failure, and native output encoding.</td>
+                </tr>
+                <tr>
+                  <td>Multimodal outputs</td>
+                  <td><span class="badge investigate">Investigate</span></td>
+                  <td>Current array output degrades to placeholder although public API supports structured parts.</td>
+                </tr>
+                <tr>
+                  <td>Outputs/traces/archive</td>
+                  <td><span class="badge adapt">Adapt/shared envelope</span></td>
+                  <td>Common terminal vocabulary, provider-tagged safe envelopes, private sinks.</td>
+                </tr>
+                <tr>
+                  <td>Prompts/skills</td>
+                  <td><span class="badge adapt">Port semantics</span></td>
+                  <td>
+                    Layered provenance, bounded injection checks, explicit activation; native instruction adapter.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Hooks</td>
+                  <td><span class="badge adapt">Adapt</span></td>
+                  <td>Trusted only and always beneath the immutable authority ceiling.</td>
+                </tr>
+                <tr>
+                  <td>Workers/budgets</td>
+                  <td><span class="badge relocate">Relocate</span></td>
+                  <td>Narrowed authority plus token/dollar/wall leases and cancellation.</td>
+                </tr>
+                <tr>
+                  <td>Starlark host</td>
+                  <td><span class="badge relocate">Retain separately</span></td>
+                  <td>Optional shared orchestration; Codex adapter only after core gates.</td>
+                </tr>
+                <tr>
+                  <td>Model controls/pricing</td>
+                  <td><span class="badge preserve">Provider-specific</span></td>
+                  <td>Keep GPT/Claude catalogues and cache semantics separate.</td>
+                </tr>
+                <tr>
+                  <td>Paid canary</td>
+                  <td><span class="badge investigate">Defer</span></td>
+                  <td>Explicit approval after transport, state, authority, recovery, and context gates.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="security">
+          <h2>9. Security, permissions, credentials, and trust</h2>
+          <h3>Provider-independent invariants</h3>
+          <div class="grid-2">
+            <div class="card">
+              <ol>
+                <li>Startup authority can only narrow.</li>
+                <li>Plan mode creates no effects.</li>
+                <li>Shell is explicit unsandboxed host authority.</li>
+                <li><code>dont-ask</code> never reveals hidden authority.</li>
+                <li>Permission and execution share realpath rules.</li>
+              </ol>
+            </div>
+            <div class="card">
+              <ol start="6">
+                <li>Sensitive paths/env remain hard-denied.</li>
+                <li>Children inherit only subsets and leases.</li>
+                <li>Every output/persistence boundary scrubs.</li>
+                <li>Sensitive state is private by explicit mode.</li>
+                <li>Transport success is not semantic success.</li>
+              </ol>
+            </div>
+          </div>
+          <div class="callout risk">
+            <strong>Current Codex gaps:</strong> no immutable ceiling, default-mode state writers, older ledger cursor
+            rules, active profiles, and no central circular-safe redaction boundary. Individual safety checks exist; the
+            concern is missing system-level monotonicity and sink consistency.
+          </div>
+          <h3>Provider support evidence</h3>
+          <p>
+            OpenAI documents workspace access tokens for Codex CLI/app-server trusted automation and distinguishes them
+            from Platform API keys. The environment-only token source is narrow, but those documents do not establish
+            this custom direct backend POST as a supported public integration. See
+            <a href="https://learn.chatgpt.com/docs/enterprise/access-tokens">Codex access tokens</a>,
+            <a href="https://learn.chatgpt.com/docs/config-file/environment-variables#authentication-and-network"
+              >authentication/environment</a
+            >, and <a href="https://developers.openai.com/api/docs/guides/migrate-to-responses">Responses migration</a>.
+          </p>
+          <p>
+            Anthropic documents Claude Code OAuth automation while also distinguishing subscription OAuth/native-app use
+            from developer product/service API authentication. The local fingerprint-replay bridge remains personal
+            research, not provider approval. See
+            <a href="https://code.claude.com/docs/en/authentication">Claude Code authentication</a>,
+            <a href="https://code.claude.com/docs/en/legal-and-compliance">legal/compliance</a>, and
+            <a href="https://platform.claude.com/docs/en/manage-claude/authentication">API authentication</a>.
+          </p>
+          <p class="small">
+            Claude's one current known test gap is HS-01, a case-variant sensitive-filename deny case. It remains an
+            explicit TODO pinned by suite-integrity tests; the correct result is 993 passed plus one TODO.
+          </p>
+        </section>
+
+        <section id="state">
+          <h2>10. Context, compaction, state, persistence, recovery, and orchestration</h2>
+          <h3>Native conversation rule</h3>
+          <p>
+            Responses uses Items; Anthropic uses Messages/content blocks. Shared code can own budgets, integrity
+            outcomes, and projection interfaces, but each provider adapter must own its concrete sequence. OpenAI's
+            guidance requires carrying reasoning and related function-call/output items when context is managed;
+            Anthropic requires its own tool-use/result ordering. See
+            <a href="https://developers.openai.com/api/docs/guides/reasoning#keeping-reasoning-items-in-context"
+              >reasoning context</a
+            >,
+            <a href="https://developers.openai.com/api/docs/guides/function-calling#handling-function-calls"
+              >function calling</a
+            >, and
+            <a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls"
+              >Anthropic tool handling</a
+            >.
+          </p>
+          <div class="grid-2">
+            <div class="card">
+              <h3>Claude context engine</h3>
+              <p>
+                Raw history and request projection are separated; instruction identity, context epoch, deterministic
+                policy, and an Anthropic message contract are explicit. The architecture idea is portable; the
+                content-block implementation is not.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Codex context gap</h3>
+              <p>
+                Native history deliberately bypasses the inherited Anthropic compactor. That prevents corruption, but
+                means long-session compaction and “compact” flags do not reclaim native context.
+              </p>
+            </div>
+          </div>
+          <h3>Cross-provider state defect</h3>
+          <pre>
+~/.bridge-runner/sessions/
+  ses_*.state.json     # Claude v1 messages[] OR Codex v2 provider=codex/items[]
+  ses_*.ledger.jsonl
+  ses_*.ledger.jsonl.cursor.json</pre
+          >
+          <p>
+            Claude's selector chooses the newest state file by modification time without provider/schema filtering. Its
+            loader accepts the Codex object and then the run path reads <code>messages.length</code>. Codex rejects a
+            Claude state cleanly, but Codex <code>--continue</code> selects a transcript that its run loop rejects.
+          </p>
+          <pre>
+~/.bridge-runner/
+  state-index-v1.json
+  providers/
+    claude/playground-v1/{sessions,logs,traces,archive}/
+    codex/playground-v1/{sessions,logs,traces,archive}/
+  campaigns/    # every reservation records provider/lane
+  worktrees/    # every manifest records owner/run</pre
+          >
+          <p class="small">
+            Names are illustrative. Required properties are provider/lane identity, strict schema validation, private
+            modes, atomic indexes, compatible latest selection, and no automatic legacy deletion/rewrite.
+          </p>
+          <h3>Recovery and orchestration</h3>
+          <p>
+            Claude now requires exact cursor/file-size concordance, handles torn tails, writes privately, and reconciles
+            intent/result events. Codex's older cursor can accept unseen appended bytes and uses ordinary modes. Worker
+            parity likewise requires narrowed authority, token/dollar/wall leases, cancellation, and safe
+            environment—not copied profile names.
+          </p>
+          <div class="callout good">
+            The Starlark host is promising above the loop: deterministic evaluator, validated descriptors, durable
+            campaign budgets, semantic synthesis, synthesis-only resume, measured planner escalation, and a second
+            deterministic provider behind the same registry contract. Its host-JSON cheap path skips unnecessary
+            generated code but not descriptor validation. Keep it separate and add a Codex adapter only after the
+            single-run gates.
+          </div>
+          <p>
+            The concurrently landed Bundle C aggregate reports five planner models × five repetitions, 271 upstream
+            calls, and $6.2881 settled under prior owner authorization. It records zero authority-field attempts, zero
+            permanent-fault retries, 25/25 complete traces, and three scorer defects caught before corrected aggregates
+            were published. Its model ranking is directional (n=5, one fixture/day/fixed worker); its stronger
+            architecture lessons are concise descriptors, validated scorers, and keeping evaluation/orchestration
+            separate from the runner core.
+          </p>
+          <p>
+            The later R9/R13/R14c commits add source-, test-, and offline-runtime evidence only: no new live provider
+            campaign was run. They prove a provider seam with a deterministic adapter, recorded cheap-tier escalation,
+            and a zero-model-call fully determined pipeline while preserving host-owned routing and validation.
+          </p>
+        </section>
+
+        <section id="tests">
+          <h2>11. Exact tests and runtime health</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Repository</th>
+                  <th>Command</th>
+                  <th>Outcome</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Claude playground</td>
+                  <td><code>npm test</code></td>
+                  <td>
+                    Exit 0 · 994 total · 993 pass · 0 fail/skip · 1 TODO · 233 suites · ~52s at <code>81f233fb…</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Claude playground</td>
+                  <td><code>npm run lint</code></td>
+                  <td>Passed</td>
+                </tr>
+                <tr>
+                  <td>Claude playground</td>
+                  <td><code>npm run check:docs</code></td>
+                  <td>
+                    Passed · port 11437 · default <code>claude-sonnet-5</code> · caller auth false · 20 tools · 78 flags
+                    · 12 models · 6 prompts
+                  </td>
+                </tr>
+                <tr>
+                  <td>Claude playground</td>
+                  <td><code>npm run format:check</code></td>
+                  <td>Passed</td>
+                </tr>
+                <tr>
+                  <td>Claude playground</td>
+                  <td><code>npm run test:starlark</code></td>
+                  <td>
+                    84/84 passed at final <code>81f233fb…</code>, including scorer corrections, planner escalation,
+                    second-provider contracts, host-JSON recovery, and a zero-model-call pipeline
+                  </td>
+                </tr>
+                <tr>
+                  <td>Codex playground</td>
+                  <td><code>npm test</code></td>
+                  <td>Exit 0 · 603/603 · 155 suites · no skip/TODO · ~7.2s</td>
+                </tr>
+                <tr>
+                  <td>Codex playground</td>
+                  <td><code>npm run lint</code></td>
+                  <td>Passed</td>
+                </tr>
+                <tr>
+                  <td>Codex playground</td>
+                  <td><code>npm run format:check</code></td>
+                  <td>Passed</td>
+                </tr>
+                <tr>
+                  <td>Codex playground</td>
+                  <td><code>npm run runner:eval</code></td>
+                  <td>3/3 native goldens passed</td>
+                </tr>
+                <tr>
+                  <td>Canonical bridge</td>
+                  <td><code>npm test</code></td>
+                  <td>192/192 · 40 suites</td>
+                </tr>
+                <tr>
+                  <td>Canonical bridge</td>
+                  <td><code>npm run lint</code></td>
+                  <td>Passed</td>
+                </tr>
+                <tr>
+                  <td>Canonical bridge</td>
+                  <td><code>npm run check:docs</code></td>
+                  <td>Passed against historical checkout</td>
+                </tr>
+                <tr>
+                  <td>Canonical bridge</td>
+                  <td><code>npm run format:check</code></td>
+                  <td>Failed only on listed pre-existing Markdown formatting</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <h3>Focused no-write state probe</h3>
+          <pre>
+{"loadedSchema":2,"provider":"codex","messagesType":"undefined","wouldLengthAccessThrow":true}
+{"name":"SessionSchemaError","code":"session_schema_unsupported","accepted":false}</pre
+          >
+          <p>
+            The first line is the Claude loader accepting a synthetic Codex object; the second is Codex cleanly
+            rejecting a synthetic Claude object. No actual session file was read or written.
+          </p>
+          <div class="callout warn">
+            <strong>Not tested:</strong> paid/live models, app-server transport, Stage 7 live proof, native long-session
+            compaction, mixed-provider integration, or OS-level network sandboxing.
+          </div>
+          <h3>Concurrent Starlark live evidence</h3>
+          <p>
+            The externally produced <code>8e7c5acf…</code> commit arrived during the audit. Its committed aggregate
+            report—not sensitive local run payloads—records 25 live Claude-side orchestration trials, 271 upstream
+            calls, and $6.2881 settled. This audit did not initiate or extend that campaign. Source inspection confirms
+            three fixes: per-run trace expectations, the real <code>recover_rejected</code> event suffix, and nested
+            <code>RunLedger.payload</code> classification. The final 84/84 suite uses the real ledger shape and covers
+            the later offline R9/R13/R14c slices. Treat planner rankings as directional; treat the scorer-integrity
+            lesson and boundary counts as current committed evidence. The later commits add no new live-provider
+            evidence.
+          </p>
+        </section>
+
+        <section id="drift">
+          <h2>12. Documentation and roadmap drift</h2>
+          <div class="grid-2">
+            <div class="card">
+              <h3>Stage 7 correctly improves</h3>
+              <ul>
+                <li>Replaces the old four-module/85% story with the real ~19-file rewrite.</li>
+                <li>States native history and offline E2E have landed.</li>
+                <li>Explicitly defers native compaction.</li>
+                <li>Labels API pricing as reference-only, not subscription billing.</li>
+                <li>Archives only genuinely superseded proposals.</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Still stale or too broad</h3>
+              <ul>
+                <li>“Native implementation complete” overstates the vertical slice.</li>
+                <li>Profiles/file agents are still described as carryover.</li>
+                <li>Shared provider/schema state ownership is absent.</li>
+                <li>Direct endpoint support is stronger in prose than official evidence.</li>
+                <li>Codex <code>--continue</code> help describes a path that fails.</li>
+                <li>Claude root instructions still list implemented R9/R13/R14 work as remaining.</li>
+              </ul>
+            </div>
+          </div>
+          <p>
+            Keep historical: boundary translation, 85% carryover, port-11438 bridge convergence, canonical OpenAI
+            routes/API-key fallback, and Claude agent/profile runtime concepts.
+          </p>
+        </section>
+
+        <section id="stage7">
+          <h2>13. Existing Codex Stage 7 assessment</h2>
+          <div class="verdict">
+            <strong>Verdict: substantively good, incomplete as a phase-closeout claim.</strong> Preserve the work
+            exactly. Pricing, accounting, proposal archiving, and native terminology are coherent and green. Narrow
+            “implementation complete” to “native Responses vertical slice complete.”
+          </div>
+          <div class="grid-3">
+            <div class="card">
+              <h3>Preserve</h3>
+              <p>
+                GPT-5.5 $5/$0.50/$30 reference row, cached-token subset math, honest billing label, tests, archive
+                moves, and corrected native comments.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Adapt later</h3>
+              <p>
+                Status language, explicit state/authority/recovery/context prerequisites, and a live-proof checklist
+                tied to the selected transport.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Do not do now</h3>
+              <p>No revert, format sweep, staging, paid canary, or source fix during this audit.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="unchanged-risk">
+          <h2>14. Risks of continuing unchanged</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Risk</th>
+                  <th>Severity</th>
+                  <th>Consequence</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Mixed-provider latest session</td>
+                  <td>High</td>
+                  <td>Foreign state accepted by Claude, then resume failure.</td>
+                </tr>
+                <tr>
+                  <td>Codex transcript-based continue</td>
+                  <td>High UX / Medium safety</td>
+                  <td>Advertised recovery shortcut always reaches a rejected path.</td>
+                </tr>
+                <tr>
+                  <td>No Codex authority ceiling</td>
+                  <td>High</td>
+                  <td>Future hooks/children/flags may accidentally widen authority.</td>
+                </tr>
+                <tr>
+                  <td>Default-mode Codex artifacts</td>
+                  <td>High local confidentiality</td>
+                  <td>Runner state may be readable by other local accounts/processes.</td>
+                </tr>
+                <tr>
+                  <td>No native compaction</td>
+                  <td>High for long sessions</td>
+                  <td>Context growth and failed long-task continuity.</td>
+                </tr>
+                <tr>
+                  <td>Direct endpoint drift/support</td>
+                  <td>High operational</td>
+                  <td>Unversioned behavior can break abruptly.</td>
+                </tr>
+                <tr>
+                  <td>Profiles remain active</td>
+                  <td>Medium</td>
+                  <td>Duplicated policy vocabulary and privilege surface.</td>
+                </tr>
+                <tr>
+                  <td>Older ledger cursor/privacy</td>
+                  <td>Medium–High</td>
+                  <td>Unseen appended events and weaker durability/confidentiality.</td>
+                </tr>
+                <tr>
+                  <td>Multimodal output placeholder</td>
+                  <td>Medium, scope-dependent</td>
+                  <td>Lossy tool feedback.</td>
+                </tr>
+                <tr>
+                  <td>Broad completion language</td>
+                  <td>Medium governance</td>
+                  <td>Live proof mistaken for the only remaining risk.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="overport-risk">
+          <h2>15. Risks of over-porting Claude-specific architecture</h2>
+          <div class="grid-2">
+            <div class="card">
+              <h3>Do not copy the data plane</h3>
+              <p>
+                Anthropic compaction, thinking blocks, tool-result adjacency, cache markers, model controls, and session
+                payloads can corrupt or flatten native Responses semantics.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Do not copy transport/auth</h3>
+              <p>
+                OAuth discovery, fingerprints, interception, local server routes, and canonical API-key fallbacks are
+                Claude-specific and policy-sensitive.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Do not merge orchestration early</h3>
+              <p>
+                Adding Starlark before single-run transport/state/authority stabilization multiplies uncertainty and
+                budget risk.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Do not turn state into code</h3>
+              <p>
+                <code>~/.bridge-runner</code> should hold private, versioned data—not unversioned shared source modules.
+              </p>
+            </div>
+          </div>
+          <div class="verdict">
+            Restate every candidate invariant without provider vocabulary, implement it through the native adapter, and
+            prove it with provider-specific plus cross-provider tests.
+          </div>
+        </section>
+
+        <section id="roadmap">
+          <h2>16. Prioritized gated pivot roadmap</h2>
+          <div class="gate">
+            <div class="gate-id">Gate 0</div>
+            <div>
+              <h3>Choose transport support boundary</h3>
+              <p>Recommended app-server adapter versus explicitly experimental direct backend.</p>
+              <p class="small">
+                <strong>Evidence:</strong> written decision, official sources, threat/support statement, isolated
+                adapter contract.
+              </p>
+            </div>
+          </div>
+          <div class="gate">
+            <div class="gate-id">P0.1</div>
+            <div>
+              <h3>Freeze and label native baseline</h3>
+              <p>Preserve Stage 7, narrow completion language, pin test/fixture manifest.</p>
+              <p class="small"><strong>Evidence:</strong> 603 tests, 3 goldens, native fence, accounted dirty diff.</p>
+            </div>
+          </div>
+          <div class="gate">
+            <div class="gate-id">P0.2</div>
+            <div>
+              <h3>Provider/lane-owned private state</h3>
+              <p>Versioned layout/index, private modes, compatible selectors, legacy dry run.</p>
+              <p class="small">
+                <strong>Evidence:</strong> mixed fixtures, 0700/0600 under umask 022, legacy bytes untouched.
+              </p>
+            </div>
+          </div>
+          <div class="gate">
+            <div class="gate-id">P0.3</div>
+            <div>
+              <h3>Shared authority and capability contract</h3>
+              <p>Immutable ceiling, groups, path schema, trust, plan no-effects, shell/hook/child narrowing.</p>
+              <p class="small">
+                <strong>Evidence:</strong> permission matrix, mutation tests, child inheritance, catalogue concordance.
+              </p>
+            </div>
+          </div>
+          <div class="gate">
+            <div class="gate-id">P0.4</div>
+            <div>
+              <h3>Redaction and durability boundaries</h3>
+              <p>Circular-safe deep scrub, private atomic/append, strict ledger/torn-tail, safe sinks.</p>
+              <p class="small">
+                <strong>Evidence:</strong> canary matrix, crash injection, zero new 0644 sensitive artifacts.
+              </p>
+            </div>
+          </div>
+          <div class="gate">
+            <div class="gate-id">P1.1</div>
+            <div>
+              <h3>Honest continuation and recovery</h3>
+              <p>Compatible canonical checkpoint, no transcript resume, explicit degraded states.</p>
+              <p class="small">
+                <strong>Evidence:</strong> mixed-provider tests, reciprocal rejection, pending-intent reconciliation,
+                CLI/docs parity.
+              </p>
+            </div>
+          </div>
+          <div class="gate">
+            <div class="gate-id">P1.2</div>
+            <div>
+              <h3>Responses-native context projection</h3>
+              <p>Reasoning/call-output integrity, deterministic compaction, instruction separation.</p>
+              <p class="small">
+                <strong>Evidence:</strong> official-contract fixtures, long histories, no orphan items, resume after
+                compaction.
+              </p>
+            </div>
+          </div>
+          <div class="gate">
+            <div class="gate-id">P1.3</div>
+            <div>
+              <h3>Workers, budgets, hooks, prompts, skills</h3>
+              <p>Narrowed leases and effects; retire profiles unless owner vetoes.</p>
+              <p class="small">
+                <strong>Evidence:</strong> cancellation/reconciliation, timeouts, injection tests, no profile backdoor.
+              </p>
+            </div>
+          </div>
+          <div class="gate">
+            <div class="gate-id">P2.1</div>
+            <div>
+              <h3>Optional Starlark Codex adapter</h3>
+              <p>Mock-first registry adapter and provider-tagged campaign state.</p>
+              <p class="small">
+                <strong>Evidence:</strong> current 84 tests, the deterministic second-provider contract, a Codex adapter
+                under the same registry/matrix boundary, and cross-process budget cases.
+              </p>
+            </div>
+          </div>
+          <div class="gate">
+            <div class="gate-id">P2.2</div>
+            <div>
+              <h3>Bounded live canary</h3>
+              <p>One approved read-only throwaway run through the chosen transport.</p>
+              <p class="small">
+                <strong>Evidence:</strong> semantic success, call/result integrity, private artifacts, bounded cost,
+                redacted receipt.
+              </p>
+            </div>
+          </div>
+          <div class="gate">
+            <div class="gate-id">P3</div>
+            <div>
+              <h3>UI/docs and scored A/B trials</h3>
+              <p>Derive command builder from runtime and compare only after stable contracts.</p>
+              <p class="small">
+                <strong>Evidence:</strong> drift gates, browser checks, repeated-trial rubric, provider-specific
+                failures.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section id="ledger">
+          <h2>17. Preserve / adapt / relocate / reject / investigate ledger</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Item</th>
+                  <th>Decision</th>
+                  <th>Why</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>D-01</td>
+                  <td>Native Items/schema v2</td>
+                  <td><span class="badge preserve">Preserve</span></td>
+                  <td>Correct native state and strict legacy rejection.</td>
+                </tr>
+                <tr>
+                  <td>D-02</td>
+                  <td>SSE assembler/fixtures</td>
+                  <td><span class="badge preserve">Preserve</span></td>
+                  <td>Offline-proven native vertical slice.</td>
+                </tr>
+                <tr>
+                  <td>D-03</td>
+                  <td>Stage 7 pricing/archive</td>
+                  <td><span class="badge preserve">Preserve</span></td>
+                  <td>Correct accounting, honest label, content retained.</td>
+                </tr>
+                <tr>
+                  <td>D-04</td>
+                  <td>Direct backend</td>
+                  <td><span class="badge investigate">Investigate</span></td>
+                  <td>Empirical protocol, unsupported custom-client boundary unestablished.</td>
+                </tr>
+                <tr>
+                  <td>D-05</td>
+                  <td>Authority/private FS/redaction</td>
+                  <td><span class="badge relocate">Relocate</span></td>
+                  <td>Provider-independent control and confidentiality.</td>
+                </tr>
+                <tr>
+                  <td>D-06</td>
+                  <td>Claude context/message contract</td>
+                  <td><span class="badge adapt">Adapt ideas</span></td>
+                  <td>Policy/integrity portable; concrete data shapes are not.</td>
+                </tr>
+                <tr>
+                  <td>D-07</td>
+                  <td>Tools/pipeline</td>
+                  <td><span class="badge relocate">Relocate</span></td>
+                  <td>Common local effects and neutral seam.</td>
+                </tr>
+                <tr>
+                  <td>D-08</td>
+                  <td>Profiles</td>
+                  <td><span class="badge reject">Reject stale</span></td>
+                  <td>Authoritative lane retired them.</td>
+                </tr>
+                <tr>
+                  <td>D-09</td>
+                  <td>Shared session namespace</td>
+                  <td><span class="badge reject">Reject</span></td>
+                  <td>Incompatible schemas collide.</td>
+                </tr>
+                <tr>
+                  <td>D-10</td>
+                  <td>Current continue paths</td>
+                  <td><span class="badge adapt">Redesign</span></td>
+                  <td>Claude is not provider-aware; Codex is transcript-broken.</td>
+                </tr>
+                <tr>
+                  <td>D-11</td>
+                  <td>Ledger durability</td>
+                  <td><span class="badge relocate">Relocate</span></td>
+                  <td>Generic crash/recovery contract.</td>
+                </tr>
+                <tr>
+                  <td>D-12</td>
+                  <td>Claude transport internals</td>
+                  <td><span class="badge reject">Reject for Codex</span></td>
+                  <td>Provider-specific and policy-sensitive.</td>
+                </tr>
+                <tr>
+                  <td>D-13</td>
+                  <td>Canonical routes/fallbacks</td>
+                  <td><span class="badge reject">Obsolete</span></td>
+                  <td>Contradict native active lanes.</td>
+                </tr>
+                <tr>
+                  <td>D-14</td>
+                  <td>Prompts/skills/hooks</td>
+                  <td><span class="badge adapt">Adapt</span></td>
+                  <td>Useful customization beneath authority and native instructions.</td>
+                </tr>
+                <tr>
+                  <td>D-15</td>
+                  <td>Workers/budgets</td>
+                  <td><span class="badge relocate">Relocate</span></td>
+                  <td>User-owned bounded orchestration.</td>
+                </tr>
+                <tr>
+                  <td>D-16</td>
+                  <td>Starlark host</td>
+                  <td><span class="badge relocate">Retain separately</span></td>
+                  <td>Promising control plane, not runner core.</td>
+                </tr>
+                <tr>
+                  <td>D-17</td>
+                  <td>Multimodal outputs</td>
+                  <td><span class="badge investigate">Investigate</span></td>
+                  <td>Current representation is lossy.</td>
+                </tr>
+                <tr>
+                  <td>D-18</td>
+                  <td>Existing runtime artifacts</td>
+                  <td><span class="badge preserve">Preserve pending migration</span></td>
+                  <td>User-owned sensitive history; no automatic rewrite.</td>
+                </tr>
+                <tr>
+                  <td>D-19</td>
+                  <td>Paid canary</td>
+                  <td><span class="badge investigate">Defer</span></td>
+                  <td>Needs gates and explicit approval.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="questions">
+          <h2>18. Open questions for the owner</h2>
+          <ol>
+            <li>Choose documented Codex app-server automation or explicitly experimental direct backend.</li>
+            <li>
+              After interfaces stabilize, use a shared package/monorepo or duplicated code with a conformance suite?
+            </li>
+            <li>Keep legacy runtime artifacts read-only, permission-harden them, or import with checksums/receipts?</li>
+            <li>What stable provider/lane identifiers should the state index use?</li>
+            <li>Does any real workflow still depend on Codex <code>--agent</code> or <code>--profile</code>?</li>
+            <li>Should the Claude OAuth bridge remain personal research or later evaluate a supported SDK/API lane?</li>
+            <li>Is multimodal function output in current scope?</li>
+            <li>Keep Starlark Claude-only until parity, or add an earlier mock-only Codex adapter?</li>
+            <li>What exact token/dollar/wall cap should an eventual approved canary use?</li>
+            <li>Does “Phase 3” mean native conversation loop or full runner convergence?</li>
+          </ol>
+        </section>
+
+        <section id="evidence">
+          <h2>19. Clickable file-level evidence</h2>
+          <p class="small">
+            These links target the exact local checkouts audited. The visible number is the relevant starting line.
+          </p>
+          <details open>
+            <summary>Authoritative Claude runner and state controls</summary>
+            <div>
+              <ul class="evidence-list">
+                <li>
+                  <a href="file:///Users/alanman/Developer/claude-local-bridge-playground/src/runner/authority.js#L27"
+                    >authority.js:27 — immutable ceiling</a
+                  >
+                </li>
+                <li>
+                  <a href="file:///Users/alanman/Developer/claude-local-bridge-playground/src/runner/run.js#L500"
+                    >run.js:500 — startup control context</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/claude-local-bridge-playground/src/runner/tool-catalog.js#L95"
+                    >tool-catalog.js:95 — groups/path keys</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/claude-local-bridge-playground/src/runner/tool-visibility.js#L27"
+                    >tool-visibility.js:27 — safe visibility</a
+                  >
+                </li>
+                <li>
+                  <a href="file:///Users/alanman/Developer/claude-local-bridge-playground/src/runner/private-fs.js#L28"
+                    >private-fs.js:28 — private modes</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/claude-local-bridge-playground/src/runner/redaction-boundary.js#L25"
+                    >redaction-boundary.js:25 — deep scrub</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/claude-local-bridge-playground/src/runner/session-store.js#L46"
+                    >session-store.js:46 — Claude schema/write</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/claude-local-bridge-playground/src/runner/session-store.js#L104"
+                    >session-store.js:104 — permissive load</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/claude-local-bridge-playground/src/runner/session-store.js#L236"
+                    >session-store.js:236 — latest selector</a
+                  >
+                </li>
+                <li>
+                  <a href="file:///Users/alanman/Developer/claude-local-bridge-playground/src/runner/run.js#L1111"
+                    >run.js:1111 — resume dereference</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/claude-local-bridge-playground/src/runner/session-ledger.js#L46"
+                    >session-ledger.js:46 — strict recovery</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/claude-local-bridge-playground/src/runner/context-projection.js#L272"
+                    >context-projection.js:272 — projector</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/claude-local-bridge-playground/src/runner/message-contract.js#L60"
+                    >message-contract.js:60 — Messages integrity</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/claude-local-bridge-playground/src/runner/worker-runtime.js#L60"
+                    >worker-runtime.js:60 — child authority</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/claude-local-bridge-playground/src/runner/budget-broker.js#L69"
+                    >budget-broker.js:69 — leases</a
+                  >
+                </li>
+              </ul>
+            </div>
+          </details>
+          <details>
+            <summary>Claude transport and Starlark boundary</summary>
+            <div>
+              <ul class="evidence-list">
+                <li>
+                  <a href="file:///Users/alanman/Developer/claude-local-bridge-playground/src/server.js#L53"
+                    >server.js:53 — loopback/routes</a
+                  >
+                </li>
+                <li>
+                  <a href="file:///Users/alanman/Developer/claude-local-bridge-playground/src/credentials.js#L98"
+                    >credentials.js:98 — OAuth discovery</a
+                  >
+                </li>
+                <li>
+                  <a href="file:///Users/alanman/Developer/claude-local-bridge-playground/src/proxy.js#L35"
+                    >proxy.js:35 — upstream proxy</a
+                  >
+                </li>
+                <li>
+                  <a href="file:///Users/alanman/Developer/claude-local-bridge-playground/src/fingerprint.js#L24"
+                    >fingerprint.js:24 — stable fields</a
+                  >
+                </li>
+                <li>
+                  <a href="file:///Users/alanman/Developer/claude-local-bridge-playground/src/interceptors/https.js#L9"
+                    >interceptors/https.js:9 — interception</a
+                  >
+                </li>
+                <li>
+                  <a href="file:///Users/alanman/Developer/claude-local-bridge-playground/starlark-host/README.md#L8"
+                    >starlark-host README:8 — architecture</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/claude-local-bridge-playground/starlark-host/src/worker-registry.js#L4"
+                    >worker-registry.js:4 — provider registry</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/claude-local-bridge-playground/starlark-host/src/campaign-budget.js#L124"
+                    >campaign-budget.js:124 — durable budget</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/claude-local-bridge-playground/starlark-host/src/synthesis.js#L4"
+                    >synthesis.js:4 — semantic states</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/claude-local-bridge-playground/docs/starlark-r4-planner-eval-2026-08-10.md#L1"
+                    >Starlark R4 results:1 — repeated-trial aggregates</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/claude-local-bridge-playground/docs/starlark-r4-planner-eval-2026-08-10.md#L89"
+                    >Starlark R4 results:89 — scorer disclosure</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/claude-local-bridge-playground/starlark-host/src/evaluation-harness.js#L44"
+                    >evaluation-harness.js:44 — corrected nested rejection classification</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/claude-local-bridge-playground/starlark-host/src/evaluation-harness.js#L104"
+                    >evaluation-harness.js:104 — corrected per-run call accounting</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/claude-local-bridge-playground/starlark-host/src/coordinator.js#L30"
+                    >coordinator.js:30 — host-JSON source and shared validation boundary</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/claude-local-bridge-playground/starlark-host/src/coordinator.js#L274"
+                    >coordinator.js:274 — cheap-first planner escalation</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/claude-local-bridge-playground/starlark-host/src/deterministic-analyst.js#L4"
+                    >deterministic-analyst.js:4 — zero-cost second provider</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/claude-local-bridge-playground/starlark-host/src/json-plan.js#L4"
+                    >json-plan.js:4 — fully determined plan and recovery builders</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/claude-local-bridge-playground/starlark-host/test/worker-adapters.test.js#L43"
+                    >worker-adapters.test.js:43 — cross-provider contract tests</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/claude-local-bridge-playground/starlark-host/test/json-plan.test.js#L32"
+                    >json-plan.test.js:32 — host-JSON authority and zero-model pipeline tests</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/claude-local-bridge-playground/starlark-host/test/planner-ladder.test.js#L48"
+                    >planner-ladder.test.js:48 — escalation and exhaustion tests</a
+                  >
+                </li>
+                <li>
+                  <a href="file:///Users/alanman/Developer/claude-local-bridge-playground/CLAUDE.md#L288"
+                    >CLAUDE.md:288 — stale R9/R13/R14 status</a
+                  >
+                </li>
+              </ul>
+            </div>
+          </details>
+          <details open>
+            <summary>Codex native core, gaps, and Stage 7</summary>
+            <div>
+              <ul class="evidence-list">
+                <li>
+                  <a href="file:///Users/alanman/Developer/codex-local-bridge-playground/src/runner/items.js#L3"
+                    >items.js:3 — native contract</a
+                  >
+                </li>
+                <li>
+                  <a href="file:///Users/alanman/Developer/codex-local-bridge-playground/src/runner/items.js#L349"
+                    >items.js:349 — strict session validation</a
+                  >
+                </li>
+                <li>
+                  <a href="file:///Users/alanman/Developer/codex-local-bridge-playground/src/runner/items.js#L438"
+                    >items.js:438 — multimodal fallback</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/codex-local-bridge-playground/src/runner/codex-transport.js#L3"
+                    >codex-transport.js:3 — direct boundary</a
+                  >
+                </li>
+                <li>
+                  <a href="file:///Users/alanman/Developer/codex-local-bridge-playground/src/runner/model-client.js#L24"
+                    >model-client.js:24 — effort/native request</a
+                  >
+                </li>
+                <li>
+                  <a href="file:///Users/alanman/Developer/codex-local-bridge-playground/src/runner/model-client.js#L97"
+                    >model-client.js:97 — SSE assembler</a
+                  >
+                </li>
+                <li>
+                  <a href="file:///Users/alanman/Developer/codex-local-bridge-playground/src/runner/run.js#L949"
+                    >run.js:949 — no native compaction</a
+                  >
+                </li>
+                <li>
+                  <a href="file:///Users/alanman/Developer/codex-local-bridge-playground/src/runner/run.js#L1195"
+                    >run.js:1195 — native persistence</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/codex-local-bridge-playground/src/runner/session-store.js#L47"
+                    >session-store.js:47 — schema-v2 writer</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/codex-local-bridge-playground/src/runner/session-ledger.js#L46"
+                    >session-ledger.js:46 — older cursor</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/codex-local-bridge-playground/bin/local-bridge-runner.js#L416"
+                    >CLI:416 — transcript continue</a
+                  >
+                </li>
+                <li>
+                  <a href="file:///Users/alanman/Developer/codex-local-bridge-playground/src/runner/run.js#L805"
+                    >run.js:805 — transcript rejected</a
+                  >
+                </li>
+                <li>
+                  <a href="file:///Users/alanman/Developer/codex-local-bridge-playground/src/runner/permissions.js#L193"
+                    >permissions.js:193 — path precheck</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/codex-local-bridge-playground/src/runner/tool-profiles.js#L15"
+                    >tool-profiles.js:15 — active profiles</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/codex-local-bridge-playground/src/runner/agents/registry.js#L12"
+                    >agents/registry.js:12 — active agents</a
+                  >
+                </li>
+                <li>
+                  <a href="file:///Users/alanman/Developer/codex-local-bridge-playground/README.md#L82"
+                    >README:82 — pricing boundary</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/codex-local-bridge-playground/docs/codex-bridge-runner-roadmap.html#L236"
+                    >roadmap:236 — completion label</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/codex-local-bridge-playground/docs/codex-bridge-runner-roadmap.html#L678"
+                    >roadmap:678 — Stage 7 pending live proof</a
+                  >
+                </li>
+                <li>
+                  <a href="file:///Users/alanman/Developer/codex-local-bridge-playground/src/runner/model-pricing.js#L8"
+                    >model-pricing.js:8 — GPT-5.5</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="file:///Users/alanman/Developer/codex-local-bridge-playground/test/runner/model-pricing.test.js#L11"
+                    >pricing test:11</a
+                  >
+                </li>
+              </ul>
+            </div>
+          </details>
+          <details>
+            <summary>Historical canonical bridge</summary>
+            <div>
+              <ul class="evidence-list">
+                <li>
+                  <a href="file:///Users/alanman/Developer/claude-local-bridge/src/server.js#L6"
+                    >server.js:6 — old multi-route surface</a
+                  >
+                </li>
+                <li>
+                  <a href="file:///Users/alanman/Developer/claude-local-bridge/src/credentials.js#L14"
+                    >credentials.js:14 — old credential priority</a
+                  >
+                </li>
+                <li>
+                  <a href="file:///Users/alanman/Developer/claude-local-bridge/src/proxy.js#L35"
+                    >proxy.js:35 — historical proxy</a
+                  >
+                </li>
+              </ul>
+            </div>
+          </details>
+        </section>
+
+        <section id="beginner">
+          <h2>20. Beginner-friendly meaning and next step</h2>
+          <p class="lead">
+            Picture the runner as a workshop: a foreman decides what is allowed, a translator speaks the model's
+            language, a delivery driver reaches the provider, and a filing room stores sessions and recovery records.
+          </p>
+          <div class="grid-4">
+            <div class="card">
+              <h3>Foreman</h3>
+              <p>
+                Trust, read/write/shell/network authority, workers, and budgets. The newer Claude workshop has the
+                stronger foreman.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Translator</h3>
+              <p>
+                Claude Messages and Codex Responses Items are different languages. Codex already has a good native
+                translator.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Driver</h3>
+              <p>
+                Claude uses the local OAuth bridge. Codex should choose a documented app-server driver or accept an
+                experimental direct one.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Filing room</h3>
+              <p>
+                Both runners currently put incompatible session documents in the same drawer. Separate and label the
+                drawers first.
+              </p>
+            </div>
+          </div>
+          <div class="verdict">
+            Do not replace the Codex translator. Give it the stronger common foreman, private provider-owned filing
+            drawers, honest recovery, and its own safe way to shorten long Responses conversations.
+          </div>
+          <h3>Recommended next action—not an implementation</h3>
+          <p>
+            Record one owner decision:
+            <strong
+              >use a documented Codex app-server transport adapter (recommended), or explicitly accept the direct
+              endpoint as experimental.</strong
+            >
+            Then authorize a separate plan starting with provider-namespaced private state and immutable shared
+            authority. Do not run the paid canary yet.
+          </p>
+        </section>
+
+        <section class="handoff" aria-label="Audit handoff">
+          <h2>Audit handoff</h2>
+          <h3>Inspected</h3>
+          <ul>
+            <li>
+              <code>claude-local-bridge-playground</code> · runner/transport snapshot <code>e197c2e1…</code> · final
+              Starlark head <code>81f233fb…</code> · clean and three commits ahead of origin after concurrent work
+            </li>
+            <li>
+              <code>codex-local-bridge-playground</code> · <code>main</code> · <code>cbc216a9…</code> · Stage 7 dirty
+              state preserved
+            </li>
+            <li><code>~/.bridge-runner</code> · metadata-only sensitive-state audit</li>
+            <li>
+              <code>claude-local-bridge</code> · <code>codex/runner-clean-pr</code> · <code>af556b41…</code> ·
+              pre-existing <code>.DS_Store</code>
+            </li>
+          </ul>
+          <h3>Created</h3>
+          <ul>
+            <li><code>docs/architecture-audits/2026-08-10-claude-codex-runner-pivot-audit.md</code></li>
+            <li><code>docs/architecture-audits/2026-08-10-claude-codex-runner-pivot-audit.html</code></li>
+          </ul>
+          <h3>Checks</h3>
+          <p>
+            Claude full tests/lint/docs/format/Starlark at the core snapshot plus final full suite (993 pass + one
+            TODO), Starlark 84/84, lint, docs, and format at <code>81f233fb…</code>; Codex full
+            tests/lint/format/goldens; canonical full tests/lint/docs plus the recorded pre-existing format failure;
+            synthetic cross-provider state probe; metadata-only state inventory; HTML structural, browser-render, link,
+            overflow, and substantive-parity validation.
+          </p>
+          <h3>Skipped</h3>
+          <p>
+            Live/paid calls, credentials, runtime payloads, pulls, commits, pushes, migrations, cleanup, and all fixes.
+          </p>
+          <h3>Uncertainties</h3>
+          <p>
+            Direct backend longevity/support, exact app-server adapter version, real profile dependencies, owner choice
+            for legacy artifacts, and live model/cost/effort behavior.
+          </p>
+          <h3>First decision</h3>
+          <p><strong>Choose the Codex transport support boundary.</strong></p>
+        </section>
+
+        <footer>
+          Self-contained HTML companion to the Markdown audit · generated and validated locally on 2026-08-10 · no
+          external scripts, fonts, images, or runtime dependencies
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

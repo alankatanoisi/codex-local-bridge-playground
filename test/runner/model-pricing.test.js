@@ -8,6 +8,31 @@ const { estimateCostUsd, summarizeUsage, resolveRates } = require('../../src/run
 const M = 1_000_000;
 
 describe('model-pricing: estimateCostUsd', () => {
+  it('exposes gpt-5.5 standard short-context API rates as reference-only', () => {
+    // These numbers are a budgeting reference for the public OpenAI API.
+    // They must not be presented as the billing rules for the ChatGPT Business
+    // programmatic token that this experimental runner currently uses.
+    const rates = resolveRates('gpt-5.5');
+
+    assert.equal(rates.input, 5.0);
+    assert.equal(rates.output, 30.0);
+    assert.equal(rates.cache_read, 0.5);
+    assert.equal(rates.cache_write, 0);
+    assert.equal(rates.reference_only, true);
+    assert.match(rates.reference_note, /not ChatGPT subscription billing/i);
+  });
+
+  it('prices cached gpt-5.5 input once because Responses includes it in input_tokens', () => {
+    // Responses reports cached tokens as a subset of input_tokens. Here, 750K
+    // tokens use the normal input rate and 250K use the discounted cache rate.
+    const cost = estimateCostUsd('gpt-5.5', {
+      input_tokens: M,
+      cache_read_input_tokens: M / 4,
+    });
+
+    assert.equal(cost, 0.75 * 5.0 + 0.25 * 0.5);
+  });
+
   it('prices input + output (regression, no cache tokens)', () => {
     // sonnet: 1M input @ $3 + 1M output @ $15 = $18.00
     const cost = estimateCostUsd('claude-sonnet-4-6', { input_tokens: M, output_tokens: M });
@@ -46,6 +71,24 @@ describe('model-pricing: estimateCostUsd', () => {
 });
 
 describe('model-pricing: summarizeUsage', () => {
+  it('reports a Responses cache share without adding cached tokens twice', () => {
+    // For Responses, 250 cached tokens are already inside the 1,000 input
+    // tokens. The prompt total stays 1,000 and the reuse share is 25%.
+    const s = summarizeUsage('gpt-5.5', {
+      input_tokens: 1_000,
+      cache_read_input_tokens: 250,
+    });
+
+    assert.equal(s.totalInputTokens, 1_000);
+    assert.equal(s.cacheReadShare, 0.25);
+  });
+
+  it('labels the displayed gpt-5.5 dollar amount as reference-only', () => {
+    const s = summarizeUsage('gpt-5.5', { input_tokens: 100, output_tokens: 50 });
+
+    assert.match(s.oneLine, /~\$[0-9.]+ \(reference only; not subscription billing\)/);
+  });
+
   it('exposes raw counts and derived fields', () => {
     const s = summarizeUsage('claude-sonnet-4-6', {
       input_tokens: 100,

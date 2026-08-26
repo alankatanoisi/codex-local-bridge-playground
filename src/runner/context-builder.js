@@ -1,7 +1,10 @@
 'use strict';
 
 /**
- * context-builder.js — Builds the message payload for the Anthropic API.
+ * context-builder.js — Builds provider-neutral prompt/context text.
+ *
+ * The Codex run loop wraps the resulting user content as native Responses
+ * input items; this module does not construct an Anthropic wire request.
  */
 
 const fs = require('fs');

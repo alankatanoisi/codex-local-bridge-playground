@@ -2,10 +2,12 @@
 
 > **Fork status:** experimental proof of concept, seeded from
 > [claude-local-bridge-playground](https://github.com/alankatanoisi/claude-local-bridge-playground) (Option C of the
-> [Codex bridge runner roadmap](./docs/codex-bridge-runner-roadmap.html)). Phase 3 Stages 1–6 have landed:
+> [Codex bridge runner roadmap](./docs/codex-bridge-runner-roadmap.html)). The Phase 3 native Responses implementation
+> has landed:
 > `src/runner/model-client.js` is a native Responses client over `codex-transport.js`, conversation history is native
 > Responses items, and offline tests, golden evals, and the mock-SSE end-to-end loop are all green without
-> credentials. Remaining before the phase closes (Stage 7): pricing rows, doc alignment, and one live read-only run.
+> credentials. Stage 7 pricing, documentation, and proposal archiving are complete in the working tree; one tightly
+> bounded live read-only proof remains before the phase can be marked closed.
 
 This repo is the lab for a **Codex local bridge runner**: the same small local coding-agent loop developed in the
 Claude playground (prompts, capability-grouped tools, permissions, safety, sessions, transcripts, archives, undo),
@@ -19,7 +21,7 @@ prompt -> Responses API (OpenAI) -> model response -> function_call -> local too
 
 | Lane                       | GitHub                                                                                            | Use for                                              |
 | -------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| **This fork (Codex lane)** | [codex-local-bridge-playground](https://github.com/alankatanoisi/codex-local-bridge-playground)   | Codex runner port: transport, adapter, PoC runs      |
+| **This fork (Codex lane)** | [codex-local-bridge-playground](https://github.com/alankatanoisi/codex-local-bridge-playground)   | Native Responses runner: transport and PoC runs      |
 | Claude playground          | [claude-local-bridge-playground](https://github.com/alankatanoisi/claude-local-bridge-playground) | Claude runner work; do not mix commits between lanes |
 
 The two repos share ancestry (see the seed commit) but diverge on purpose. Fixes worth carrying across are logged in
@@ -29,7 +31,7 @@ The two repos share ancestry (see the seed commit) but diverge on purpose. Fixes
 
 Upstream auth for this lane is a **ChatGPT Business programmatic access token** (`at-…`), created in the ChatGPT
 dashboard under _Access tokens — create and manage access tokens for ChatGPT and Codex programmatic use cases_, and
-supplied to the runner through **one environment variable only** (planned name: `CODEX_ACCESS_TOKEN`).
+supplied to the runner through **one environment variable only**: `CODEX_ACCESS_TOKEN`.
 
 OpenAI's dashboard documentation describes these tokens as intended for:
 
@@ -66,7 +68,8 @@ The living plan is [docs/codex-bridge-runner-roadmap.html](./docs/codex-bridge-r
   `at-…` shapes redact everywhere, `CODEX_*` env vars are scrubbed from child shells, `~/.codex/` joined the deny
   matrix, and request boundaries hit the flight recorder with header names only. Offline: `npm test`
   (`test/runner/codex-transport.test.js`). Live: `npm run smoke:codex`.
-- **Phase 3 — native Responses rewrite:** Stages 1–6 done (2026-07-11); Stage 7 (pricing + docs + live run) next.
+- **Phase 3 — native Responses rewrite:** Stages 1–6 landed on `main`; Stage 7 pricing, documentation alignment, and
+  proposal archiving are complete in the working tree, with the bounded live read-only proof still pending.
   **Decision (2026-07-10):** internal conversation state is native Responses items (`message`, `function_call`,
   `function_call_output`, `reasoning`) — not Anthropic blocks with a translation layer. Landed: live SSE fixtures,
   `items.js` schema contract, native `model-client.js` over `codex-transport.js`, run-loop/pipeline boundary,
@@ -75,6 +78,15 @@ The living plan is [docs/codex-bridge-runner-roadmap.html](./docs/codex-bridge-r
   no `/v1/messages`, no `cache_control`, no Anthropic request shapes on the active path). Explicit non-goals:
   local bridge on `:11438`, `ModelRuntime`, Claude-repo convergence; native compaction is a focused follow-up.
 - **Phases 4–6:** not started.
+
+### Pricing estimate boundary
+
+The local usage summary now recognizes `gpt-5.5` using the public OpenAI API **Standard, short-context** reference
+rates checked on 2026-08-10: $5.00 input, $0.50 cached input, and $30.00 output per million tokens; cache-write is
+zero in the runner's normalized Responses usage. The displayed estimate is labeled
+`reference only; not subscription billing`. These public API rates are useful for a conservative local estimate but
+do **not** establish how a ChatGPT Business subscription or its programmatic access token is billed. Current source:
+[OpenAI API pricing](https://developers.openai.com/api/docs/pricing).
 
 ## What's in the box (inherited from the Claude playground)
 

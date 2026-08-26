@@ -3,13 +3,27 @@
 /**
  * Model pricing table — estimate only, for budget warnings and usage summaries.
  *
- * Rates are USD per million tokens. Cache rates follow Anthropic's public
- * multipliers for the 1-hour TTL the runner pins (see RUNNER_CACHE_CONTROL in
- * run.js): cache writes (creation) are 2.0x base input, cache reads are 0.1x
- * base input.
+ * Rates are USD per million tokens. Each row documents its provider-specific
+ * cache semantics. The active gpt-5.5 row is explicitly reference-only because
+ * public OpenAI API rates do not establish ChatGPT subscription billing.
  */
 
 const PRICING_PER_MILLION = Object.freeze({
+  // Official OpenAI API Standard rates for short-context gpt-5.5 requests,
+  // checked 2026-08-10. This runner authenticates through a ChatGPT Business
+  // programmatic token, so the row is an estimate/reference only; it does not
+  // claim that a ChatGPT subscription is billed at these public API rates.
+  'gpt-5.5': {
+    input: 5.0,
+    output: 30.0,
+    cache_read: 0.5,
+    cache_write: 0,
+    // Responses input_tokens already contains the cached-token subset. The
+    // estimator subtracts that subset before applying the full input rate.
+    input_includes_cache_read: true,
+    reference_only: true,
+    reference_note: 'OpenAI API Standard short-context rates; not ChatGPT subscription billing.',
+  },
   'claude-sonnet-4-6': { input: 3.0, output: 15.0, cache_read: 0.3, cache_write: 6.0 },
   'claude-opus-4-6': { input: 15.0, output: 75.0, cache_read: 1.5, cache_write: 30.0 },
   'claude-haiku-4-5': { input: 0.8, output: 4.0, cache_read: 0.08, cache_write: 1.6 },
@@ -38,14 +52,20 @@ function resolveRates(model) {
 function estimateCostUsd(model, usage) {
   const rates = resolveRates(model);
   const u = usage || {};
-  // The Messages API reports cache_read_input_tokens and
-  // cache_creation_input_tokens SEPARATELY from input_tokens (they are not
-  // included in it), so summing all four components is correct — no double count.
   const input = (u.input_tokens || 0) / 1_000_000;
   const output = (u.output_tokens || 0) / 1_000_000;
   const cacheRead = (u.cache_read_input_tokens || 0) / 1_000_000;
   const cacheWrite = (u.cache_creation_input_tokens || 0) / 1_000_000;
-  return input * rates.input + output * rates.output + cacheRead * rates.cache_read + cacheWrite * rates.cache_write;
+
+  // Anthropic usage reports cached tokens separately from input_tokens, while
+  // Responses reports cached tokens as a subset of input_tokens. This small
+  // rate flag lets one public estimator handle both shapes without charging a
+  // cached Responses token once at full price and again at the cache price.
+  const fullRateInput = rates.input_includes_cache_read ? Math.max(0, input - cacheRead) : input;
+
+  return (
+    fullRateInput * rates.input + output * rates.output + cacheRead * rates.cache_read + cacheWrite * rates.cache_write
+  );
 }
 
 /**
@@ -60,12 +80,18 @@ function estimateCostUsd(model, usage) {
  */
 function summarizeUsage(model, usage) {
   const u = usage || {};
+  const rates = resolveRates(model);
   const inputTokens = u.input_tokens || 0;
   const outputTokens = u.output_tokens || 0;
   const reasoningTokens = u.reasoning_tokens || 0;
   const cacheReadTokens = u.cache_read_input_tokens || 0;
   const cacheCreationTokens = u.cache_creation_input_tokens || 0;
-  const totalInputTokens = inputTokens + cacheReadTokens + cacheCreationTokens;
+  // Responses counts cached reads inside input_tokens. Claude-style usage
+  // keeps them separate. Match the model's public usage shape so the displayed
+  // prompt total and reuse percentage describe the same token population.
+  const totalInputTokens = rates.input_includes_cache_read
+    ? inputTokens + cacheCreationTokens
+    : inputTokens + cacheReadTokens + cacheCreationTokens;
   const costUsd = estimateCostUsd(model, u);
   const cacheReadShare = totalInputTokens > 0 ? cacheReadTokens / totalInputTokens : 0;
 
@@ -75,6 +101,7 @@ function summarizeUsage(model, usage) {
   if (cacheCreationTokens) parts.push('cache_write=' + cacheCreationTokens);
   parts.push('(reuse ' + Math.round(cacheReadShare * 100) + '%)');
   parts.push('~$' + costUsd.toFixed(4));
+  if (rates.reference_only) parts.push('(reference only; not subscription billing)');
   const oneLine = '[runner usage] ' + parts.join(' ');
 
   return {
@@ -86,6 +113,7 @@ function summarizeUsage(model, usage) {
     cacheCreationTokens,
     totalInputTokens,
     costUsd,
+    costReferenceOnly: !!rates.reference_only,
     cacheReadShare,
     oneLine,
   };

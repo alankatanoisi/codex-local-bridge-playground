@@ -5,10 +5,10 @@
  * backend. This module owns exactly one concern: moving bytes between the
  * runner and `POST https://chatgpt.com/backend-api/codex/responses`.
  *
- * It does NOT translate between the Responses API dialect and the runner's
- * internal Anthropic-block dialect — that is the Phase 3 adapter's job. The
- * transport hands back raw Responses SSE events plus a small amount of
- * assembled convenience state (output text, final response, usage).
+ * It does NOT translate conversation history into another provider's schema.
+ * The runner keeps native Responses items end to end; this transport hands
+ * back raw Responses SSE events plus a small amount of assembled convenience
+ * state (output text, final response, usage).
  *
  * Contract (pinned in docs/lab-notes/codex-protocol-notes.md):
  *   - Auth: `Authorization: Bearer $CODEX_ACCESS_TOKEN` — the env var is the

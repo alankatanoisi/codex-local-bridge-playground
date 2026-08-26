@@ -24,7 +24,7 @@ const DEFAULT_MAX_STEPS = 16;
 function showHelp() {
   console.log(
     '\
-local-bridge-runner — Coding agent runner on top of claude-local-bridge\n\
+local-bridge-runner — Local coding agent over native OpenAI Responses\n\
 \n\
 Usage:\n\
   node bin/local-bridge-runner.js [options] <prompt>\n\

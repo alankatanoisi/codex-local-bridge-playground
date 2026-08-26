@@ -1,6 +1,6 @@
 > **Status:** Archived critique (2026-07-10). Recommendation adopted: **Native DNA, thin client**. Superseded by the
-> amended roadmap in [`docs/codex-bridge-runner-roadmap.html`](../../codex-bridge-runner-roadmap.html) and
-> [`docs/reports/phase-3-pre-build-architecture-review.html`](../../reports/phase-3-pre-build-architecture-review.html).
+> amended roadmap in [`docs/codex-bridge-runner-roadmap.html`](../../../codex-bridge-runner-roadmap.html) and
+> [`docs/reports/phase-3-pre-build-architecture-review.html`](../../../reports/phase-3-pre-build-architecture-review.html).
 
 ---
 name: Phase 3 Critique
@@ -29,9 +29,9 @@ Three conflicting stories exist in the Codex fork:
 
 | Layer | Says |
 |-------|------|
-| Shipped plan of record — [docs/codex-bridge-runner-roadmap.html](docs/codex-bridge-runner-roadmap.html), [AGENTS.md](AGENTS.md), [CLAUDE.md](CLAUDE.md), [README.md](README.md) | Phase 3 = **boundary translation**: keep Anthropic `tool_use`/`tool_result` internally; translate only in `model-client.js`. 3–4 sessions. Tools/pipeline/compactor untouched. |
-| [docs/Phase 3 Codex-DNA Rewrite Suggested by Fable.md](docs/Phase%203%20Codex-DNA%20Rewrite%20Suggested%20by%20Fable.md) | **Native-first**: internals become Responses items. Claims Alan already decided this. ~8–12 sessions. Direct over `codex-transport.js`. |
-| [docs/Phase 3 Native Convergence Roadmap Suggested by Codex.md](docs/Phase%203%20Native%20Convergence%20Roadmap%20Suggested%20by%20Codex.md) | **Neutral harness + native runtimes + local bridge on :11438**. Phases 3A–3E, then Claude convergence. Much larger reset. |
+| Shipped plan of record — [docs/codex-bridge-runner-roadmap.html](../../../codex-bridge-runner-roadmap.html), [AGENTS.md](../../../../AGENTS.md), [CLAUDE.md](../../../../CLAUDE.md), [README.md](../../../../README.md) | Phase 3 = **boundary translation**: keep Anthropic `tool_use`/`tool_result` internally; translate only in `model-client.js`. 3–4 sessions. Tools/pipeline/compactor untouched. |
+| [Phase 3 Codex-DNA Rewrite Suggested by Fable.md](./Phase%203%20Codex-DNA%20Rewrite%20Suggested%20by%20Fable.md) | **Native-first**: internals become Responses items. Claims Alan already decided this. ~8–12 sessions. Direct over `codex-transport.js`. |
+| [Phase 3 Native Convergence Roadmap Suggested by Codex.md](./Phase%203%20Native%20Convergence%20Roadmap%20Suggested%20by%20Codex.md) | **Neutral harness + native runtimes + local bridge on :11438**. Phases 3A–3E, then Claude convergence. Much larger reset. |
 
 Code reality matches the **shipped boundary story**, not either proposal: `model-client.js` still talks to `localhost:11437/v1/messages`; `codex-transport.js` exists but is unwired; Anthropic shapes are deep (~112 hits across ~37 runner files).
 
@@ -180,8 +180,8 @@ Choose the **shipped** Phase 3 only if the goal this week is “see a Codex mode
 
 ## Suggested doc actions (after you approve a direction)
 
-- Update [docs/codex-bridge-runner-roadmap.html](docs/codex-bridge-runner-roadmap.html) Parts 2, 5, next-steps (and mark the architecture decision like Option C).
-- Align [AGENTS.md](AGENTS.md) / [CLAUDE.md](CLAUDE.md) / [README.md](README.md).
+- Update [docs/codex-bridge-runner-roadmap.html](../../../codex-bridge-runner-roadmap.html) Parts 2, 5, next-steps (and mark the architecture decision like Option C).
+- Align [AGENTS.md](../../../../AGENTS.md) / [CLAUDE.md](../../../../CLAUDE.md) / [README.md](../../../../README.md).
 - Keep both suggestion markdown files as **archived proposals** (rename/move under `docs/lab-notes/proposals/` or add a header “superseded by roadmap decision YYYY-MM-DD”) so the critique trail remains.
 - Do **not** implement code until the roadmap decision text is agreed.
 
