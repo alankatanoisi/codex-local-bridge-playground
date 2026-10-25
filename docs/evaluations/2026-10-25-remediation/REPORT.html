@@ -1,0 +1,84 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Codex runner · Three bounded fixes · October 25, 2026</title><style>body{margin:0;background:#edf3f3;color:#20343d;font:17px/1.65 system-ui,sans-serif}main{max-width:1060px;margin:auto;background:white;padding:48px}h1{font-size:39px;line-height:1.2;color:#104e56;letter-spacing:-1px}h2{margin-top:42px;padding-top:20px;border-top:2px solid #dce8e8;color:#164c55}h3{margin-top:26px;color:#155f65}.eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:2px;color:#5c777d}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:28px 0}.card{padding:18px;border-radius:12px;background:#e6f3ee}.card b{display:block;font-size:30px;color:#15634c}.card span{font-size:13px}code{font-size:.86em;background:#eff4f5;padding:2px 4px;border-radius:3px;overflow-wrap:anywhere}pre{padding:20px;background:#17353f;color:#e1f1ed;border-radius:10px;overflow:auto}pre code{background:none;padding:0;overflow-wrap:normal}table{border-collapse:collapse;width:100%;font-size:14px}th{background:#194d57;color:white;text-align:left}td,th{padding:12px;border-bottom:1px solid #d8e3e5;vertical-align:top}tr:nth-child(even){background:#f2f7f7}.scroll{overflow:auto}li{padding:4px 0}strong{color:#145e56}@media(max-width:650px){main{padding:24px 18px}h1{font-size:29px}.cards{grid-template-columns:1fr}}@media print{main{padding:0}.scroll{overflow:visible}h2,h3{break-after:avoid}}</style></head><body><main><div class="eyebrow">Codex playground · Bounded remediation · Original baseline preserved</div><div class="cards"><div class="card"><b>3</b><span>agreed issues fixed</span></div><div class="card"><b>619 / 619</b><span>full automated suite</span></div><div class="card"><b>0</b><span>paid model calls</span></div></div><h1>Codex runner: three bounded fixes — October 25, 2026</h1>
+<p>The evaluation evidence is now committed and pushed. The three agreed runner fixes are implemented on Codex main: safe session filenames, classified retries with bounded waits, and current-request context accounting. No paid model requests were made. The original October 18 evidence remains byte-for-byte unchanged.</p>
+<h2>Folder, branch, and provenance</h2>
+<ul>
+<li>Repository: <code>/Users/alanman/Developer/codex-local-bridge-playground</code>, branch <code>main</code>.</li>
+<li>Evidence commit: <code>bebd914</code> (29 supporting files), published separately before implementation.</li>
+<li>Original report commit: <code>d87a705</code>; original results remain under <code>docs/evaluations/2026-10-18/</code>.</li>
+<li>Implementation starts from <code>bebd914</code>; the commit containing this report records the exact patch.</li>
+<li>The Claude repository, original isolated snapshot, existing user projects, and credentials were not edit targets.</li>
+</ul>
+<p>The original isolated evaluation included uncommitted features that were never present in this Mac&#x27;s committed Codex main. Comparing its manifest with the pre-fix main tree found <strong>42 differing or missing paths</strong>, including hosted transport, T3 adapter, output-control, and observer changes. Therefore, <strong>635 tests describes the evaluated snapshot, while 603 tests describes the actual pre-fix main checkout</strong>. This work fixes only the agreed issues on committed main; it does not silently promote those other snapshot features.</p>
+<h2>What changed and why</h2>
+<h3>1. Session filenames fail safely before creating files</h3>
+<p>Previously, <code>session.json</code> could be used as both a state file and its event log because the log filename was derived by replacing a <code>.state.json</code> suffix that was absent. The shared validator now requires <code>.state.json</code> before state-store construction, ledger path derivation, explicit path resolution, or autopsy-file writing. Empty explicit filenames are rejected too. The command-line interface treats this as an understandable input error and gives an example: <code>session.state.json</code>.</p>
+<p>Regression checks verify zero model requests and zero new project files for an invalid path; they also verify that an existing invalid-path file stays byte-for-byte unchanged. Existing tests verify that valid native session persistence and resumption still work.</p>
+<h3>2. Permanent errors stop; temporary errors retry with waits</h3>
+<p>The transport now attaches a numeric HTTP status and a parsed Retry-After delay to redacted errors. The runner uses those structured fields, rather than guessing from backend prose. Error messages remain scrubbed.</p>
+<ul>
+<li>Temporary HTTP statuses: 408, 429, 500, 502, 503, and 504.</li>
+<li>Temporary network codes: ECONNRESET, ECONNREFUSED, ETIMEDOUT, EAI_AGAIN, and EPIPE.</li>
+<li>All other statuses and unclassified errors stop. This includes invalid-request and authentication failures.</li>
+<li>A consecutive failure can receive at most two retries, also bounded by the remaining model steps. The waits start at 250 ms and 500 ms; a valid server Retry-After can make them longer.</li>
+<li>A server delay over 30 seconds ends this bounded run instead of retrying earlier than requested. A wait that would consume the remaining configured wall-clock allowance is refused too.</li>
+<li>A successful model response resets the consecutive retry allowance. Tool failures have their own counter.</li>
+</ul>
+<p>These are deliberately bounded policy choices for this runner. They do not establish universal backend recovery behavior. A temporary network error may occur after upstream processing; a retry can repeat processing, so limits remain important.</p>
+<h3>3. Context size is separated from cumulative usage</h3>
+<p>The hard context guard now uses the latest response&#x27;s reported input plus output tokens. It no longer adds all earlier requests together. Cached input and reasoning are already represented within the normalized input/output totals and are not added again.</p>
+<p>The existing threshold behavior is retained: warn above the configured context threshold and stop above twice that threshold. Cumulative input/output allowances remain separate and still stop a run when used up. Before a response arrives, an advisory estimate includes the entire serialized request: instructions, native history, tool receipts, and tool definitions. Bytes divided by three is only a rough estimate; it warns and never blocks by itself.</p>
+<p>Native history compaction remains bypassed. This change corrects accounting; it does not implement compression, guarantee that an oversized request is stopped before transmission, or establish full-window endurance.</p>
+<h2>Before and after verification</h2>
+<p>The first nine regression checks were run against untouched main before fixes: <strong>seven failed and two passed</strong>. Their names and outcomes are preserved in <code>checks.json</code>. After implementation, those cases plus edge checks pass: <strong>16 of 16</strong>. The current full suite passes <strong>619 of 619</strong> (603 existing tests plus 16 new tests).</p>
+<div class="scroll"><table><thead><tr><th>Scenario</th><th>Before</th><th>After</th></tr></thead><tbody>
+<tr><td>Invalid session filename</td><td>Not rejected safely</td><td>Rejected before session writes or network requests</td></tr>
+<tr><td>Direct invalid store/log/autopsy path</td><td>Unsafe path accepted</td><td>Rejected; existing file preserved</td></tr>
+<tr><td>Permanent HTTP 400</td><td>Three requests</td><td>One request; bridge_error</td></tr>
+<tr><td>One HTTP 503 followed by success</td><td>Immediate retry</td><td>Delayed retry, then success</td></tr>
+<tr><td>Repeated HTTP 503</td><td>Immediate retries</td><td>Three requests maximum, with increasing waits</td></tr>
+<tr><td>HTTP 429 with a 120-second Retry-After</td><td>Retried immediately</td><td>One request; bounded run ends</td></tr>
+<tr><td>Five small contexts with 15,000 cumulative input tokens</td><td>Stopped on fourth response</td><td>All five requests complete; usage remains 15,000</td></tr>
+<tr><td>One individually oversized context</td><td>Stopped</td><td>Still stopped before executing its tool</td></tr>
+<tr><td>Separate 5,000-token cumulative input cap</td><td>Stopped</td><td>Still stopped on the second 3,000-token request</td></tr>
+</tbody></table></div>
+<p>Additional tests cover HTTP-date delays, invalid/overflowing header values, short server waits, the last allowed model step, the wall-clock allowance, successful-response retry resets, understandable filename errors, and structured error metadata/redaction.</p>
+<div class="scroll"><table><thead><tr><th>Check</th><th>Exit code</th><th>Result</th></tr></thead><tbody>
+<tr><td>regressions</td><td>0</td><td>16 passed, 0 failed</td></tr>
+<tr><td>test</td><td>0</td><td>619 passed, 0 failed</td></tr>
+<tr><td>lint</td><td>0</td><td>Pass</td></tr>
+<tr><td>format</td><td>0</td><td>Pass</td></tr>
+<tr><td>bin-syntax</td><td>0</td><td>Pass</td></tr>
+<tr><td>diff-whitespace</td><td>0</td><td>Pass</td></tr>
+</tbody></table></div>
+<p>The tests use a local HTTP server and disposable projects. They exercise the real runner, client, session stores, and local tool execution without real credentials. The fake token exists only for these offline tests. The original read/edit/live model fixtures and reports are preserved; new paid live comparisons were not run. This is deterministic regression evidence, not a claim about current live backend behavior or typical timing.</p>
+<h2>Changed files</h2>
+<ul>
+<li><code>src/runner/session-path.js</code>: shared validation and beginner-friendly error.</li>
+<li><code>src/runner/session-store.js</code>, <code>session-ledger.js</code>, and <code>loop-autopsy.js</code>: validate before using derived session files.</li>
+<li><code>src/runner/model-retry.js</code>: structured classification and bounded server/backoff delays.</li>
+<li><code>src/runner/codex-transport.js</code>: retain only the numeric retry metadata and network error code; authentication is unchanged.</li>
+<li><code>src/runner/run.js</code>: delayed bounded retries and current-response context accounting.</li>
+<li><code>bin/local-bridge-runner.js</code>: accurate help and expected-error formatting.</li>
+<li><code>test/runner/codex-remediation.test.js</code>: 16 offline regression checks.</li>
+<li><code>test/runner/codex-transport.test.js</code>: retain redaction coverage and assert structured HTTP status.</li>
+<li><code>docs/command-builder.html</code> and <code>docs/runner-quickstart.html</code>: correct filename and context explanations, including the absence of native compaction.</li>
+<li>This Markdown report, its standalone HTML companion, and <code>checks.json</code>.</li>
+</ul>
+<h2>Reproducing the checks</h2>
+<p>In macOS Terminal, work in the Codex folder below. Terminal can be opened by pressing Command-Space, typing Terminal, and pressing Return. Run one command at a time; the regression command should report 16 passing tests, while the complete suite should report 619. The fake local service means these commands do not spend model credits.</p>
+<pre><code>
+# Point Terminal at the Codex repository, which is separate from the Claude one.
+cd /Users/alanman/Developer/codex-local-bridge-playground
+# Exercise the specific failures and boundary conditions fixed here.
+node --require ./test/setup.js --test test/runner/codex-remediation.test.js
+# Check the complete existing suite plus the new tests.
+npm test
+# Check the configured JavaScript rules.
+npm run lint
+# Check formatting without changing files.
+npm run format:check
+</code></pre>
+<p>If lint or formatting reports that its executable is missing, the pinned development dependencies have not been installed in that checkout; <code>npm ci</code> installs them using its existing lockfile. No dependency files were changed in this work. Installation reported two high-severity dependency advisories; these were not investigated or changed as part of the three runner fixes.</p>
+<h2>Remaining boundaries and handoff</h2>
+<p>No fixes were made to native compaction, cancellation notification semantics, T3, or Starlark. No real upstream calls, large-project tests, long-context endurance runs, or account billing checks were performed. The preserved evaluation snapshot and any already-running process have not been updated by changing this repository; they must not be assumed to contain these fixes.</p>
+<p>The original snapshot&#x27;s hosted/observer features need a separate reconciliation decision before assuming that tests in main cover them. The next useful review is of these three changes and their focused regressions. Scope of this handoff is the Codex repository on main; all implementation checks listed above passed, and original evaluation checksums were verified again.</p></main></body></html>

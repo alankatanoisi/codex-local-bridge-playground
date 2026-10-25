@@ -52,7 +52,7 @@ Options:\n\
   --prompt-arg k=v      Fill a {{k}} placeholder in the prompt template (repeatable)\n\
   --resume <path>      Resume from a transcript (appends new prompt to existing conversation)\n\
   --session-id <id>    Canonical session id (*.state.json under ~/.bridge-runner/sessions/)\n\
-  --session-path <p>   Explicit path to session state JSON file\n\
+  --session-path <p>   Explicit session path ending in .state.json\n\
   --resume-session     Resume from session store (--session-id or --session-path required)\n\
   --new-session        Force a fresh session (ignore --resume / --continue)\n\
   --ack-resume-risk    Allow resume even when session health is degraded\n\
@@ -97,7 +97,7 @@ Options:\n\
   --no-network         Best-effort HTTP/HTTPS proxy guard for shell commands; not a sandbox\n\
   --system-prompt <s>  Override the default system prompt\n\
   --allowed-tools <f>  Same as --tools (others hidden + denied)\n\
-  --max-context-tokens <n> Warn when total tokens exceed budget; halt at 2x budget\n\
+  --max-context-tokens <n> Warn on current request/reply tokens; halt above 2x budget\n\
   --max-tool-calls-per-turn <n> Cap tool calls per model response; halt if exceeded\n\
   --temperature <f>    Model temperature 0.0–1.0 (default: model default, usually 1.0)\n\
   --confirm-timeout <ms> Auto-deny confirmation prompts after N ms (default: no timeout)\n\
@@ -764,9 +764,9 @@ function readIncludedFiles(cwd, includeFiles) {
 }
 
 function formatFatalError(err) {
-  // A rejected v1 session is an expected compatibility boundary, not an
-  // internal crash. The message already tells the beginner exactly what to do.
-  if (err && err.code === 'session_schema_unsupported') {
+  // Invalid filenames and old sessions are expected input errors. Their
+  // messages tell the beginner how to proceed without implying a crash.
+  if (err && ['session_schema_unsupported', 'session_path_invalid'].includes(err.code)) {
     return 'Error: ' + err.message;
   }
   return 'Unexpected error: ' + (err && err.message ? err.message : String(err));

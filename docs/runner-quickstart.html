@@ -661,7 +661,7 @@ cat "/Users/alanman/path/to/another/project/README.md" | node bin/local-bridge-r
             <tr>
               <td><code>--session-path &lt;path&gt;</code></td>
               <td>off</td>
-              <td>Playground: explicit path to a session state JSON file</td>
+              <td>Explicit path ending in <code>.state.json</code>; other endings are rejected before session files are created.</td>
             </tr>
             <tr>
               <td><code>--resume-session</code></td>
@@ -770,7 +770,7 @@ cat "/Users/alanman/path/to/another/project/README.md" | node bin/local-bridge-r
             <tr>
               <td><code>--max-context-tokens &lt;n&gt;</code></td>
               <td>off</td>
-              <td>Warn near budget; halt at 2× budget (playground compaction)</td>
+              <td>Warn above the current request/reply token threshold; halt above 2×. Cumulative token budgets are separate. Native history compaction is not implemented.</td>
             </tr>
             <tr>
               <td><code>--max-tool-calls-per-turn &lt;n&gt;</code></td>

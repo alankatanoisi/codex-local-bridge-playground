@@ -1,6 +1,8 @@
 'use strict';
 
 const fs = require('fs');
+const { setTimeout: delay } = require('node:timers/promises');
+const { retryDelayMs } = require('./model-retry');
 const { buildUserMessage, buildRepoContextBlock, buildDynamicEnvironmentBlock } = require('./context-builder');
 const { resolveContextPolicy } = require('./context-policy');
 const { resolveSystemPrompt } = require('./system-prompt');
@@ -18,7 +20,7 @@ const { HookDispatcher } = require('./hooks/hook-dispatcher');
 const { runBootstrap } = require('./bootstrap');
 const { SessionLedger } = require('./session-ledger');
 const { emitHint } = require('./beginner-hints');
-const { buildAutopsy, writeAutopsyFile, detectSemanticCycles, estimateTokensAdvisory } = require('./loop-autopsy');
+const { buildAutopsy, writeAutopsyFile, detectSemanticCycles } = require('./loop-autopsy');
 const { estimateCostUsd, summarizeUsage } = require('./model-pricing');
 const { loadInstructionMemory } = require('./memory/instruction-memory');
 const { isAutoMemoryEnabled } = require('./memory/auto-memory');
@@ -864,6 +866,7 @@ async function run(options) {
     reasoning_tokens: 0,
   };
   const toolHistory = [];
+  let transportRetries = 0;
   const effortLevel = normalizeEffort(effort);
 
   if (taskScope && !quiet && !plan) {
@@ -1006,15 +1009,6 @@ async function run(options) {
       instructions = (repoContextBlock + '\n\n' + instructions).trim();
     }
 
-    const advisoryTokens = estimateTokensAdvisory(messages);
-    if (maxContextTokens && advisoryTokens > maxContextTokens && !quiet) {
-      emitHint('Approaching context budget (~' + advisoryTokens + ' tokens estimated).', {
-        quiet,
-        verbose,
-        stopReason: 'predictive_context_budget_exceeded',
-      });
-    }
-
     const requestBody = modelClient.createRequest({
       model,
       instructions,
@@ -1023,6 +1017,17 @@ async function run(options) {
       effort: effortLevel,
       ...(typeof temperature === 'number' && !isNaN(temperature) ? { temperature } : {}),
     });
+
+    // Include instructions, native tool receipts and tool definitions in the
+    // advisory estimate. Serialized bytes are NOT a tokenizer: warn only.
+    const advisoryTokens = Math.ceil(bytes(requestBody) / 3);
+    if (maxContextTokens && advisoryTokens > maxContextTokens && !quiet) {
+      emitHint('Approaching context budget (~' + advisoryTokens + ' tokens estimated).', {
+        quiet,
+        verbose,
+        stopReason: 'predictive_context_budget_exceeded',
+      });
+    }
 
     if (trace) {
       trace.append('runner_model_request_built', {
@@ -1068,12 +1073,23 @@ async function run(options) {
       if (humanLog) humanLog.writeError(msg, { stopReason: STOP_REASONS.BRIDGE_ERROR });
       if (trace) trace.append('runner_bridge_error', { run_id: runId, turn: step, message: msg });
       output.emit('error', { message: msg, hint: hint ? { whatHappened: hint.whatHappened, tip: hint.tip } : null });
-      if (step < steps && pipeline.failureStreak < MAX_CONSECUTIVE_FAILURES) {
-        pipeline.recordExternalFailure();
+      const waitMs = retryDelayMs(err, transportRetries);
+      // Count retries separately from tool failures. A failed file read is
+      // unrelated to a temporary model-service outage.
+      const wallRemaining = maxWallClockMs ? maxWallClockMs - (Date.now() - startedAt) : Infinity;
+      if (step < steps && transportRetries < MAX_CONSECUTIVE_FAILURES && waitMs !== null && waitMs < wallRemaining) {
+        transportRetries++;
         if (!quiet)
           console.error(
-            '[runner] retrying after bridge error (' + pipeline.failureStreak + '/' + MAX_CONSECUTIVE_FAILURES + ')',
+            '[runner] retrying temporary transport error in ' +
+              waitMs +
+              'ms (' +
+              transportRetries +
+              '/' +
+              MAX_CONSECUTIVE_FAILURES +
+              ')',
           );
+        await delay(waitMs);
         continue;
       }
       if (transcript) transcript.flush();
@@ -1091,6 +1107,7 @@ async function run(options) {
       return completeRun(result);
     }
 
+    transportRetries = 0;
     hooks.dispatch('post_model_response', { step, runId });
 
     if (archiveCollector) archiveCollector.recordAssistant(step, response);
@@ -1140,14 +1157,15 @@ async function run(options) {
       );
     }
 
-    // Context token budget check
+    // Context is the CURRENT request plus its reply. Cumulative usage counts
+    // repeated processing of history and belongs to the separate spend caps.
     if (maxContextTokens) {
-      const contextTokens = totalUsage.input_tokens + totalUsage.output_tokens;
+      const contextTokens = (response.usage?.input_tokens || 0) + (response.usage?.output_tokens || 0);
       if (contextTokens > maxContextTokens * 2) {
         const msg =
           'Context token budget exceeded (2x ' +
           maxContextTokens +
-          '). Stopping to prevent runaway costs. Use --max-steps 1 to force an answer or --continue to resume from transcript.';
+          ') for the latest request and reply. Start a fresh session or reduce the supplied context.';
         if (transcript) transcript.append({ type: 'error', step, message: msg });
         if (humanLog) humanLog.writeError(msg);
         console.error('[runner] ' + msg);

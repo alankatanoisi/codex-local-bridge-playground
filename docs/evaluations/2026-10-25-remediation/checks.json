@@ -1,0 +1,158 @@
+{
+  "date": "2026-10-25",
+  "repository": "codex-local-bridge-playground",
+  "branch": "main",
+  "evidence_commit": "bebd914",
+  "implementation_base_commit": "bebd9140d9f853f161cdd2180052f76b4342bed7",
+  "node": "v22.22.3",
+  "main_before_counts": {
+    "tests": 603,
+    "pass": 603,
+    "fail": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "snapshot_before_test_count": 635,
+  "snapshot_differs_from_main_files": [
+    ".gitignore",
+    "PORTING.md",
+    "README.md",
+    "bin/codex-host.js",
+    "bin/local-bridge-acp.js",
+    "bin/local-bridge-runner.js",
+    "docs/codex-acp-hosting.html",
+    "docs/codex-acp-hosting.md",
+    "docs/codex-bridge-runner-roadmap.html",
+    "docs/codex-reopening-2026-10-17.html",
+    "docs/codex-reopening-2026-10-17.md",
+    "docs/command-builder.html",
+    "docs/lab-notes/codex-protocol-notes.html",
+    "docs/lab-notes/codex-protocol-notes.md",
+    "package-lock.json",
+    "package.json",
+    "scripts/capture-codex-fixture.js",
+    "scripts/codex-transport-smoke.js",
+    "scripts/package-standalone.js",
+    "src/hosting/server.js",
+    "src/hosting/state.js",
+    "src/runner/acp/agent.js",
+    "src/runner/acp/connection.js",
+    "src/runner/codex-transport.js",
+    "src/runner/confirmation.js",
+    "src/runner/hosted-ports.js",
+    "src/runner/human-log.js",
+    "src/runner/kernel/contract.js",
+    "src/runner/model-client.js",
+    "src/runner/model-controls.js",
+    "src/runner/model-pricing.js",
+    "src/runner/run.js",
+    "src/runner/tool-pipeline.js",
+    "src/runner/tool-registry.js",
+    "test/runner/codex-acp.test.js",
+    "test/runner/codex-host.test.js",
+    "test/runner/codex-model-client.test.js",
+    "test/runner/codex-reopening.test.js",
+    "test/runner/codex-transport.test.js",
+    "test/runner/command-builder-drift.test.js",
+    "test/runner/model-client.test.js",
+    "test/runner/model-pricing.test.js"
+  ],
+  "original_evaluation_checksums_verified": true,
+  "initial_regressions_before_fix": [
+    {
+      "name": "rejects session.json before creating files or sending a request",
+      "passed": false
+    },
+    {
+      "name": "rejects invalid session paths at direct store, ledger, resolution and autopsy entry points",
+      "passed": false
+    },
+    {
+      "name": "stops permanent HTTP 400 errors after one request",
+      "passed": false
+    },
+    {
+      "name": "backs off before recovering from a temporary HTTP 503 error",
+      "passed": false
+    },
+    {
+      "name": "limits repeated transient errors to three total requests with increasing waits",
+      "passed": false
+    },
+    {
+      "name": "respects Retry-After and stops rather than retrying earlier than a long server delay",
+      "passed": false
+    },
+    {
+      "name": "does not mistake accumulated usage for current context size",
+      "passed": false
+    },
+    {
+      "name": "still stops an individually oversized response before running its tool",
+      "passed": true
+    },
+    {
+      "name": "still applies a separate cumulative input budget",
+      "passed": true
+    }
+  ],
+  "checks_after_fix": [
+    {
+      "check": "regressions",
+      "exit_code": 0,
+      "elapsed_seconds": 2.846,
+      "counts": {
+        "tests": 16,
+        "pass": 16,
+        "fail": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "check": "test",
+      "exit_code": 0,
+      "elapsed_seconds": 2.994,
+      "counts": {
+        "tests": 619,
+        "pass": 619,
+        "fail": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "check": "lint",
+      "exit_code": 0,
+      "elapsed_seconds": 1.062
+    },
+    {
+      "check": "format",
+      "exit_code": 0,
+      "elapsed_seconds": 1.183
+    },
+    {
+      "check": "bin-syntax",
+      "exit_code": 0,
+      "elapsed_seconds": 0.029
+    },
+    {
+      "check": "diff-whitespace",
+      "exit_code": 0,
+      "elapsed_seconds": 0.021
+    }
+  ],
+  "paid_model_calls": 0,
+  "scope": [
+    "session filename validation",
+    "classified and delayed transport retries",
+    "per-request context accounting"
+  ],
+  "deferred": [
+    "native history compaction",
+    "cancellation event semantics",
+    "T3 expansion",
+    "Starlark",
+    "promotion of unrelated snapshot features"
+  ]
+}

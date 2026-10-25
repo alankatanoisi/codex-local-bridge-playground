@@ -31,6 +31,7 @@
 const http = require('http');
 const https = require('https');
 const safety = require('./safety');
+const { parseRetryAfter } = require('./model-retry');
 const { headerSummary, bytes, sha256 } = require('../trace-utils');
 
 const CODEX_RESPONSES_URL = 'https://chatgpt.com/backend-api/codex/responses';
@@ -181,12 +182,15 @@ function requestStream(body, onEvent, opts = {}) {
         const chunks = [];
         res.on('data', (c) => chunks.push(c));
         res.on('end', () => {
-          fail(
-            scrubbedError(
-              'Codex backend returned HTTP ' + res.statusCode + ': ',
-              Buffer.concat(chunks).toString('utf8'),
-            ),
+          const error = scrubbedError(
+            'Codex backend returned HTTP ' + res.statusCode + ': ',
+            Buffer.concat(chunks).toString('utf8'),
           );
+          // Keep numeric retry metadata separate from the redacted message.
+          // The runner must not parse arbitrary backend prose to decide retries.
+          error.statusCode = res.statusCode;
+          error.retryAfterMs = parseRetryAfter(res.headers['retry-after']);
+          fail(error);
         });
         return;
       }
@@ -274,10 +278,17 @@ function requestStream(body, onEvent, opts = {}) {
       res.on('error', (err) => fail(scrubbedError('Stream error: ', err.message)));
     });
 
-    req.on('error', (err) => fail(scrubbedError('Request error: ', err.message)));
+    req.on('error', (err) => {
+      const error = scrubbedError('Request error: ', err.message);
+      error.code = err.code;
+      fail(error);
+    });
     req.on('timeout', () => {
-      req.destroy();
-      fail(new Error('Request timed out after ' + timeoutMs + 'ms'));
+      const error = new Error('Request timed out after ' + timeoutMs + 'ms');
+      error.code = 'ETIMEDOUT';
+      // Destroy with the same error so a later socket event cannot change
+      // which failure the retry policy sees.
+      req.destroy(error);
     });
 
     req.write(bodyStr);

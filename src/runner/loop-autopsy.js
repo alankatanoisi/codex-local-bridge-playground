@@ -5,6 +5,7 @@
  */
 
 const fs = require('fs');
+const { assertSessionPath } = require('./session-path');
 
 function normalizeToolCall(toolName, args) {
   return toolName + ':' + JSON.stringify(args || {});
@@ -45,8 +46,8 @@ function buildAutopsy(input) {
 }
 
 function writeAutopsyFile(sessionPath, autopsy) {
-  if (!sessionPath) return null;
-  const outPath = sessionPath.replace(/\.state\.json$/, '.autopsy.json');
+  if (sessionPath === undefined || sessionPath === null) return null;
+  const outPath = assertSessionPath(sessionPath).replace(/\.state\.json$/, '.autopsy.json');
   fs.writeFileSync(outPath, JSON.stringify(autopsy, null, 2) + '\n', 'utf8');
   return outPath;
 }

@@ -13,12 +13,13 @@ const fs = require('fs');
 const path = require('path');
 const { PROVIDER } = require('./items');
 const safety = require('./safety');
+const { assertSessionPath } = require('./session-path');
 
 const LEDGER_VERSION = 1;
 
 function ledgerPathForSession(sessionPath) {
-  if (!sessionPath) return null;
-  return sessionPath.replace(/\.state\.json$/, '.ledger.jsonl');
+  if (sessionPath === undefined || sessionPath === null) return null;
+  return assertSessionPath(sessionPath).replace(/\.state\.json$/, '.ledger.jsonl');
 }
 
 function cursorPathForLedger(ledgerPath) {

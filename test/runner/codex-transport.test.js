@@ -223,6 +223,7 @@ describe('codex transport streaming client', () => {
       }),
       (err) => {
         assert.match(err.message, /HTTP 401/);
+        assert.equal(err.statusCode, 401, 'retry classification uses structured status');
         assert.ok(!err.message.includes(FIXTURE_TOKEN), 'token must not leak into errors');
         return true;
       },

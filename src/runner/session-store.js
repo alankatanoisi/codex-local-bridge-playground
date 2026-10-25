@@ -11,6 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const nativeItems = require('./items');
+const { assertSessionPath } = require('./session-path');
 
 // Keep one source of truth for the session version. If the native item contract
 // changes later, SessionStore cannot accidentally continue writing an old number.
@@ -65,7 +66,7 @@ class SessionStore {
    * @param {string} filePath — absolute path to *.state.json
    */
   constructor(filePath) {
-    this.filePath = filePath;
+    this.filePath = assertSessionPath(filePath);
     this._data = null;
     this._dirty = false;
     this._timer = null;
@@ -193,7 +194,7 @@ class SessionStore {
 }
 
 function resolveSessionPath(options) {
-  if (options.sessionPath) return options.sessionPath;
+  if (options.sessionPath !== undefined && options.sessionPath !== null) return assertSessionPath(options.sessionPath);
   if (options.sessionId) {
     const home = process.env.HOME || process.env.USERPROFILE || process.cwd();
     const dir = path.join(home, '.bridge-runner', 'sessions');

@@ -689,7 +689,7 @@
                     </div>
                   </div>
                   <div class="field">
-                    <label for="maxContextTokens" title="Token threshold that triggers compaction (summarizing older turns). When the conversation exceeds this, the runner compresses history to stay within the model's context window.">Context warning budget</label>
+                    <label for="maxContextTokens" title="Warn when the latest request and reply exceed this token count; stop above twice the count. Pre-request estimates only warn. This does not summarize native history; cumulative usage budgets are separate.">Context warning budget</label>
                     <input type="number" id="maxContextTokens" placeholder="optional" min="1000" step="1000" />
                   </div>
                 </div>
