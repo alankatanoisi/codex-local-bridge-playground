@@ -1,0 +1,10 @@
+{
+  "manifest_files": 274,
+  "changed_manifest_files": [],
+  "extra_non_dependency_files": [
+    ".DS_Store",
+    "docs/.DS_Store",
+    "src/.DS_Store",
+    "test/.DS_Store"
+  ]
+}

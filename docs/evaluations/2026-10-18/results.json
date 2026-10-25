@@ -1,0 +1,3216 @@
+[
+  {
+    "id": "mock-deny-write",
+    "mode": "mock",
+    "scenario": "deny-write",
+    "elapsed_ms": 23.287999999999982,
+    "stop_reason": "success",
+    "steps": 2,
+    "usage": {
+      "input_tokens": 200,
+      "output_tokens": 40,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "reasoning_tokens": 0
+    },
+    "reference_cost_usd": 0.0008,
+    "requests": [
+      {
+        "bytes": 2819,
+        "input_bytes": 109,
+        "input_items": 1,
+        "max_output_tokens": 4000,
+        "model": "gpt-6.1-sol",
+        "effort": "low"
+      },
+      {
+        "bytes": 3049,
+        "input_bytes": 339,
+        "input_items": 3,
+        "max_output_tokens": 4000,
+        "model": "gpt-6.1-sol",
+        "effort": "low"
+      }
+    ],
+    "events": [
+      {
+        "type": "system",
+        "t_ms": 8.832790999999986
+      },
+      {
+        "type": "model_request",
+        "t_ms": 9.114582999999982,
+        "step": 1
+      },
+      {
+        "type": "budget",
+        "t_ms": 16.316416000000004
+      },
+      {
+        "type": "assistant",
+        "t_ms": 16.934166000000005,
+        "step": 1
+      },
+      {
+        "type": "budget",
+        "t_ms": 17.249957999999992
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 17.57654099999999,
+        "step": 1,
+        "name": "write_file"
+      },
+      {
+        "type": "approval_required",
+        "t_ms": 18.515040999999997,
+        "step": 1,
+        "name": "write_file"
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 19.375665999999995,
+        "step": 1,
+        "name": "write_file",
+        "is_error": true
+      },
+      {
+        "type": "budget",
+        "t_ms": 19.431749999999994
+      },
+      {
+        "type": "model_request",
+        "t_ms": 20.177707999999996,
+        "step": 2
+      },
+      {
+        "type": "budget",
+        "t_ms": 21.218916000000007
+      },
+      {
+        "type": "assistant",
+        "t_ms": 21.51683299999999,
+        "step": 2
+      },
+      {
+        "type": "result",
+        "t_ms": 21.556250000000006
+      },
+      {
+        "type": "run_end",
+        "t_ms": 23.091207999999995
+      }
+    ],
+    "tools": [
+      {
+        "kind": "model",
+        "duration_ms": 7.819583000000023,
+        "usage": {
+          "input_tokens": 100,
+          "output_tokens": 20,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "kind": "tool",
+        "name": "write_file",
+        "signature": "781c2111da3deba625496dfb728398bf60e75594928953796a6c5693a46cd1b3",
+        "duration_ms": 1.7991250000000036,
+        "is_error": true
+      },
+      {
+        "kind": "model",
+        "duration_ms": 1.3391249999999957,
+        "usage": {
+          "input_tokens": 100,
+          "output_tokens": 20,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "approvals": [
+      {
+        "name": "write_file",
+        "path": "target.txt",
+        "command": null,
+        "decision": "deny",
+        "delay_ms": 0.004333000000002585
+      }
+    ],
+    "checkpoint": {
+      "schemaVersion": 2,
+      "provider": "codex",
+      "item_count": 4,
+      "function_calls": 1
+    },
+    "settings": {
+      "model": "gpt-6.1-sol",
+      "effort": "low",
+      "maxTokens": 4000,
+      "maxSteps": 8,
+      "budgetOutputTokens": 32000,
+      "maxCostUsd": 2,
+      "bare": true,
+      "allowShell": false
+    },
+    "parent_elapsed_ms": 217.29925,
+    "pre_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "post_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "assertions": {
+      "all_files_unchanged": true,
+      "denial_observed": true
+    },
+    "passed": true,
+    "final_text_sha256": "a4c3ed04a95a3da14a9d235c83d868bed7c0f45cf7f3faa751ee8f50598d2211",
+    "existing_unrelated_files_unchanged": true,
+    "added_paths": [],
+    "changed_existing_paths": [],
+    "model_call_count": 2,
+    "tool_request_count": 1,
+    "repeated_tool_signatures": 0,
+    "first_token_latency_ms": null,
+    "actual_billed_usd": null,
+    "live_request_bytes": "see requests"
+  },
+  {
+    "id": "mock-cancel-stream",
+    "mode": "mock",
+    "scenario": "cancel-stream",
+    "elapsed_ms": 49.088417,
+    "stop_reason": "cancelled",
+    "steps": 1,
+    "usage": {
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "reasoning_tokens": 0
+    },
+    "reference_cost_usd": 0,
+    "requests": [
+      {
+        "bytes": 2819,
+        "input_bytes": 109,
+        "input_items": 1,
+        "max_output_tokens": 4000,
+        "model": "gpt-6.1-sol",
+        "effort": "low"
+      }
+    ],
+    "events": [
+      {
+        "type": "system",
+        "t_ms": 9.015833
+      },
+      {
+        "type": "model_request",
+        "t_ms": 9.323875000000001,
+        "step": 1
+      },
+      {
+        "type": "result",
+        "t_ms": 48.100542
+      },
+      {
+        "type": "run_end",
+        "t_ms": 48.90479199999999
+      }
+    ],
+    "tools": [],
+    "approvals": [],
+    "checkpoint": {
+      "schemaVersion": 2,
+      "provider": "codex",
+      "item_count": 1,
+      "function_calls": 0
+    },
+    "settings": {
+      "model": "gpt-6.1-sol",
+      "effort": "low",
+      "maxTokens": 4000,
+      "maxSteps": 8,
+      "budgetOutputTokens": 32000,
+      "maxCostUsd": 2,
+      "bare": true,
+      "allowShell": false
+    },
+    "parent_elapsed_ms": 107.16954100000001,
+    "pre_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "post_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "assertions": {
+      "cancelled": true,
+      "no_tools_started": true
+    },
+    "passed": true,
+    "final_text_sha256": "398ce8d99c7bb9f5afbee209dc098a02373b787eb100f82f161beb9a06a5608e",
+    "existing_unrelated_files_unchanged": true,
+    "added_paths": [],
+    "changed_existing_paths": [],
+    "model_call_count": 1,
+    "tool_request_count": 0,
+    "repeated_tool_signatures": 0,
+    "first_token_latency_ms": null,
+    "actual_billed_usd": null,
+    "live_request_bytes": "see requests"
+  },
+  {
+    "id": "mock-cancel-tools",
+    "mode": "mock",
+    "scenario": "cancel-tools",
+    "elapsed_ms": 29.774375,
+    "stop_reason": "cancelled",
+    "steps": 1,
+    "usage": {
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "reasoning_tokens": 0
+    },
+    "reference_cost_usd": 0.0004,
+    "requests": [
+      {
+        "bytes": 2819,
+        "input_bytes": 109,
+        "input_items": 1,
+        "max_output_tokens": 4000,
+        "model": "gpt-6.1-sol",
+        "effort": "low"
+      }
+    ],
+    "events": [
+      {
+        "type": "system",
+        "t_ms": 8.822707999999999
+      },
+      {
+        "type": "model_request",
+        "t_ms": 9.118916999999996,
+        "step": 1
+      },
+      {
+        "type": "budget",
+        "t_ms": 15.591874999999995
+      },
+      {
+        "type": "assistant",
+        "t_ms": 16.139207999999996,
+        "step": 1
+      },
+      {
+        "type": "budget",
+        "t_ms": 16.461957999999996
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 17.126749999999994,
+        "step": 1,
+        "name": "write_file"
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 26.870708,
+        "step": 1,
+        "name": "write_file",
+        "is_error": false
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 27.306666999999997,
+        "step": 1,
+        "name": "write_file"
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 27.57183299999999,
+        "step": 1,
+        "name": "write_file",
+        "is_error": true
+      },
+      {
+        "type": "result",
+        "t_ms": 28.941124999999992
+      },
+      {
+        "type": "run_end",
+        "t_ms": 29.577042
+      }
+    ],
+    "tools": [
+      {
+        "kind": "model",
+        "duration_ms": 7.020291,
+        "usage": {
+          "input_tokens": 100,
+          "output_tokens": 20,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "kind": "tool",
+        "name": "write_file",
+        "signature": "7ac44bd2143c69ed41d8f285c9df859ba419c824d467843e757c1f8f5732e7b2",
+        "duration_ms": 9.743958000000006,
+        "is_error": false
+      },
+      {
+        "kind": "tool",
+        "name": "write_file",
+        "signature": "3494baa2c1b9c2a455f9d7225a4462968b2fb9708da9db014bde0f7775b3d5c8",
+        "duration_ms": 0.2651659999999936,
+        "is_error": true
+      }
+    ],
+    "approvals": [],
+    "checkpoint": {
+      "schemaVersion": 2,
+      "provider": "codex",
+      "item_count": 5,
+      "function_calls": 2
+    },
+    "settings": {
+      "model": "gpt-6.1-sol",
+      "effort": "low",
+      "maxTokens": 4000,
+      "maxSteps": 8,
+      "budgetOutputTokens": 32000,
+      "maxCostUsd": 2,
+      "bare": true,
+      "allowShell": false
+    },
+    "parent_elapsed_ms": 99.27791699999999,
+    "pre_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "post_hashes": {
+      ".bridge-runner/runs/0591ccf5-d9a2-455c-b748-900d0e33e488/manifest.json": "a0430bc49baf3fc79472416043d4555eeec138f034dd3328d81a321f9afee507",
+      "a.txt": "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "assertions": {
+      "cancelled": true,
+      "first_write_preserved": true,
+      "second_write_prevented": true,
+      "second_tool_not_started": false
+    },
+    "passed": false,
+    "final_text_sha256": "398ce8d99c7bb9f5afbee209dc098a02373b787eb100f82f161beb9a06a5608e",
+    "existing_unrelated_files_unchanged": true,
+    "added_paths": [
+      ".bridge-runner/runs/0591ccf5-d9a2-455c-b748-900d0e33e488/manifest.json",
+      "a.txt"
+    ],
+    "changed_existing_paths": [],
+    "model_call_count": 1,
+    "tool_request_count": 2,
+    "repeated_tool_signatures": 0,
+    "first_token_latency_ms": null,
+    "actual_billed_usd": null,
+    "live_request_bytes": "see requests"
+  },
+  {
+    "id": "mock-tool-failure",
+    "mode": "mock",
+    "scenario": "tool-failure",
+    "elapsed_ms": 22.723792000000003,
+    "stop_reason": "success",
+    "steps": 2,
+    "usage": {
+      "input_tokens": 200,
+      "output_tokens": 40,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "reasoning_tokens": 0
+    },
+    "reference_cost_usd": 0.0008,
+    "requests": [
+      {
+        "bytes": 2819,
+        "input_bytes": 109,
+        "input_items": 1,
+        "max_output_tokens": 4000,
+        "model": "gpt-6.1-sol",
+        "effort": "low"
+      },
+      {
+        "bytes": 3160,
+        "input_bytes": 450,
+        "input_items": 3,
+        "max_output_tokens": 4000,
+        "model": "gpt-6.1-sol",
+        "effort": "low"
+      }
+    ],
+    "events": [
+      {
+        "type": "system",
+        "t_ms": 9.349792
+      },
+      {
+        "type": "model_request",
+        "t_ms": 9.630583999999999,
+        "step": 1
+      },
+      {
+        "type": "budget",
+        "t_ms": 15.883084000000004
+      },
+      {
+        "type": "assistant",
+        "t_ms": 16.419625000000003,
+        "step": 1
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 17.020792,
+        "step": 1,
+        "name": "read_file"
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 18.672417000000003,
+        "step": 1,
+        "name": "read_file",
+        "is_error": true
+      },
+      {
+        "type": "budget",
+        "t_ms": 18.779083999999997
+      },
+      {
+        "type": "budget",
+        "t_ms": 18.811584000000003
+      },
+      {
+        "type": "model_request",
+        "t_ms": 19.976584000000003,
+        "step": 2
+      },
+      {
+        "type": "budget",
+        "t_ms": 21.250999999999998
+      },
+      {
+        "type": "assistant",
+        "t_ms": 21.535249999999998,
+        "step": 2
+      },
+      {
+        "type": "result",
+        "t_ms": 21.573959000000002
+      },
+      {
+        "type": "run_end",
+        "t_ms": 22.519917
+      }
+    ],
+    "tools": [
+      {
+        "kind": "model",
+        "duration_ms": 6.7890410000000045,
+        "usage": {
+          "input_tokens": 100,
+          "output_tokens": 20,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "kind": "tool",
+        "name": "read_file",
+        "signature": "cad0390702834b89675fb6416e7181e9193ad2594a8c897abf855f7becca4029",
+        "duration_ms": 1.6516250000000028,
+        "is_error": true
+      },
+      {
+        "kind": "model",
+        "duration_ms": 1.5586659999999952,
+        "usage": {
+          "input_tokens": 100,
+          "output_tokens": 20,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "approvals": [],
+    "checkpoint": {
+      "schemaVersion": 2,
+      "provider": "codex",
+      "item_count": 4,
+      "function_calls": 1
+    },
+    "settings": {
+      "model": "gpt-6.1-sol",
+      "effort": "low",
+      "maxTokens": 4000,
+      "maxSteps": 8,
+      "budgetOutputTokens": 32000,
+      "maxCostUsd": 2,
+      "bare": true,
+      "allowShell": false
+    },
+    "parent_elapsed_ms": 76.32262500000003,
+    "pre_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "post_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "assertions": {
+      "tool_error_observed": true,
+      "loop_recovered": true,
+      "all_files_unchanged": true
+    },
+    "passed": true,
+    "final_text_sha256": "a4c3ed04a95a3da14a9d235c83d868bed7c0f45cf7f3faa751ee8f50598d2211",
+    "existing_unrelated_files_unchanged": true,
+    "added_paths": [],
+    "changed_existing_paths": [],
+    "model_call_count": 2,
+    "tool_request_count": 1,
+    "repeated_tool_signatures": 0,
+    "first_token_latency_ms": null,
+    "actual_billed_usd": null,
+    "live_request_bytes": "see requests"
+  },
+  {
+    "id": "mock-incomplete-tool",
+    "mode": "mock",
+    "scenario": "incomplete-tool",
+    "elapsed_ms": 17.298457999999997,
+    "stop_reason": "max_output_tokens",
+    "steps": 1,
+    "usage": {
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "reasoning_tokens": 0
+    },
+    "reference_cost_usd": 0.0004,
+    "requests": [
+      {
+        "bytes": 2819,
+        "input_bytes": 109,
+        "input_items": 1,
+        "max_output_tokens": 4000,
+        "model": "gpt-6.1-sol",
+        "effort": "low"
+      }
+    ],
+    "events": [
+      {
+        "type": "system",
+        "t_ms": 9.605082999999993
+      },
+      {
+        "type": "model_request",
+        "t_ms": 9.90775,
+        "step": 1
+      },
+      {
+        "type": "assistant",
+        "t_ms": 16.093791999999993,
+        "step": 1
+      },
+      {
+        "type": "result",
+        "t_ms": 16.569167
+      },
+      {
+        "type": "run_end",
+        "t_ms": 17.183583
+      }
+    ],
+    "tools": [
+      {
+        "kind": "model",
+        "duration_ms": 6.186041999999993,
+        "usage": {
+          "input_tokens": 100,
+          "output_tokens": 20,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "approvals": [],
+    "checkpoint": {
+      "schemaVersion": 2,
+      "provider": "codex",
+      "item_count": 1,
+      "function_calls": 0
+    },
+    "settings": {
+      "model": "gpt-6.1-sol",
+      "effort": "low",
+      "maxTokens": 4000,
+      "maxSteps": 8,
+      "budgetOutputTokens": 32000,
+      "maxCostUsd": 2,
+      "bare": true,
+      "allowShell": false
+    },
+    "parent_elapsed_ms": 71.84791600000007,
+    "pre_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "post_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "assertions": {
+      "incomplete_reported": true,
+      "all_files_unchanged": true,
+      "no_tool_executed": true
+    },
+    "passed": true,
+    "final_text_sha256": "6bbbf99113e778ba49f9a75f03918718229153b06624cc1d34f814b0cea53212",
+    "existing_unrelated_files_unchanged": true,
+    "added_paths": [],
+    "changed_existing_paths": [],
+    "model_call_count": 1,
+    "tool_request_count": 0,
+    "repeated_tool_signatures": 0,
+    "first_token_latency_ms": null,
+    "actual_billed_usd": null,
+    "live_request_bytes": "see requests"
+  },
+  {
+    "id": "mock-small-output",
+    "mode": "mock",
+    "scenario": "small-output",
+    "elapsed_ms": 21.6725,
+    "stop_reason": "max_output_tokens",
+    "steps": 1,
+    "usage": {
+      "input_tokens": 100,
+      "output_tokens": 20,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "reasoning_tokens": 0
+    },
+    "reference_cost_usd": 0.0004,
+    "requests": [
+      {
+        "bytes": 2817,
+        "input_bytes": 109,
+        "input_items": 1,
+        "max_output_tokens": 16,
+        "model": "gpt-6.1-sol",
+        "effort": "low"
+      }
+    ],
+    "events": [
+      {
+        "type": "system",
+        "t_ms": 12.803542
+      },
+      {
+        "type": "model_request",
+        "t_ms": 13.415708000000002,
+        "step": 1
+      },
+      {
+        "type": "assistant",
+        "t_ms": 20.456542000000006,
+        "step": 1
+      },
+      {
+        "type": "result",
+        "t_ms": 21.052542000000003
+      },
+      {
+        "type": "run_end",
+        "t_ms": 21.556458000000006
+      }
+    ],
+    "tools": [
+      {
+        "kind": "model",
+        "duration_ms": 7.040834000000004,
+        "usage": {
+          "input_tokens": 100,
+          "output_tokens": 20,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "approvals": [],
+    "checkpoint": {
+      "schemaVersion": 2,
+      "provider": "codex",
+      "item_count": 1,
+      "function_calls": 0
+    },
+    "settings": {
+      "model": "gpt-6.1-sol",
+      "effort": "low",
+      "maxTokens": 16,
+      "maxSteps": 8,
+      "budgetOutputTokens": 32000,
+      "maxCostUsd": 2,
+      "bare": true,
+      "allowShell": false
+    },
+    "parent_elapsed_ms": 76.51675000000002,
+    "pre_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "post_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "assertions": {
+      "incomplete_reported": true,
+      "all_files_unchanged": true,
+      "no_tool_executed": true
+    },
+    "passed": true,
+    "final_text_sha256": "9834a14ab9bcaa0f6a8da71073617eac8f004e596a3fa11d807b84631b825d9d",
+    "existing_unrelated_files_unchanged": true,
+    "added_paths": [],
+    "changed_existing_paths": [],
+    "model_call_count": 1,
+    "tool_request_count": 0,
+    "repeated_tool_signatures": 0,
+    "first_token_latency_ms": null,
+    "actual_billed_usd": null,
+    "live_request_bytes": "see requests"
+  },
+  {
+    "id": "mock-context",
+    "mode": "mock",
+    "scenario": "context",
+    "elapsed_ms": 26.662959,
+    "stop_reason": "semantic_cycle_detected",
+    "steps": 4,
+    "usage": {
+      "input_tokens": 10000,
+      "output_tokens": 80,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "reasoning_tokens": 0
+    },
+    "reference_cost_usd": 0.0208,
+    "requests": [
+      {
+        "bytes": 2819,
+        "input_bytes": 109,
+        "input_items": 1,
+        "max_output_tokens": 4000,
+        "model": "gpt-6.1-sol",
+        "effort": "low"
+      },
+      {
+        "bytes": 3012,
+        "input_bytes": 302,
+        "input_items": 3,
+        "max_output_tokens": 4000,
+        "model": "gpt-6.1-sol",
+        "effort": "low"
+      },
+      {
+        "bytes": 3205,
+        "input_bytes": 495,
+        "input_items": 5,
+        "max_output_tokens": 4000,
+        "model": "gpt-6.1-sol",
+        "effort": "low"
+      },
+      {
+        "bytes": 3398,
+        "input_bytes": 688,
+        "input_items": 7,
+        "max_output_tokens": 4000,
+        "model": "gpt-6.1-sol",
+        "effort": "low"
+      }
+    ],
+    "events": [
+      {
+        "type": "system",
+        "t_ms": 8.438084000000003
+      },
+      {
+        "type": "model_request",
+        "t_ms": 8.715167000000001,
+        "step": 1
+      },
+      {
+        "type": "budget",
+        "t_ms": 14.736709000000005
+      },
+      {
+        "type": "assistant",
+        "t_ms": 15.368750000000006,
+        "step": 1
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 15.9495,
+        "step": 1,
+        "name": "list_files"
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 17.318417000000004,
+        "step": 1,
+        "name": "list_files",
+        "is_error": false
+      },
+      {
+        "type": "budget",
+        "t_ms": 17.417125000000006
+      },
+      {
+        "type": "budget",
+        "t_ms": 17.444167
+      },
+      {
+        "type": "model_request",
+        "t_ms": 17.946084000000006,
+        "step": 2
+      },
+      {
+        "type": "budget",
+        "t_ms": 18.958709000000006
+      },
+      {
+        "type": "assistant",
+        "t_ms": 19.248042000000005,
+        "step": 2
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 19.584500000000006,
+        "step": 2,
+        "name": "list_files"
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 20.032334000000006,
+        "step": 2,
+        "name": "list_files",
+        "is_error": false
+      },
+      {
+        "type": "budget",
+        "t_ms": 20.053834000000002
+      },
+      {
+        "type": "budget",
+        "t_ms": 20.069709000000003
+      },
+      {
+        "type": "model_request",
+        "t_ms": 20.514334000000005,
+        "step": 3
+      },
+      {
+        "type": "budget",
+        "t_ms": 21.311167000000005
+      },
+      {
+        "type": "assistant",
+        "t_ms": 21.647292,
+        "step": 3
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 22.005584000000006,
+        "step": 3,
+        "name": "list_files"
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 22.457084000000002,
+        "step": 3,
+        "name": "list_files",
+        "is_error": false
+      },
+      {
+        "type": "budget",
+        "t_ms": 22.475959000000003
+      },
+      {
+        "type": "budget",
+        "t_ms": 22.487584000000005
+      },
+      {
+        "type": "model_request",
+        "t_ms": 22.879167000000002,
+        "step": 4
+      },
+      {
+        "type": "budget",
+        "t_ms": 23.858417000000003
+      },
+      {
+        "type": "assistant",
+        "t_ms": 24.152250000000002,
+        "step": 4
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 24.393459,
+        "step": 4,
+        "name": "list_files"
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 24.926084000000003,
+        "step": 4,
+        "name": "list_files",
+        "is_error": false
+      },
+      {
+        "type": "budget",
+        "t_ms": 24.984667
+      },
+      {
+        "type": "run_end",
+        "t_ms": 26.362834000000007
+      }
+    ],
+    "tools": [
+      {
+        "kind": "model",
+        "duration_ms": 6.653583000000005,
+        "usage": {
+          "input_tokens": 1000,
+          "output_tokens": 20,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "kind": "tool",
+        "name": "list_files",
+        "signature": "24eb18ee9afc3d574d3680bf45365179739f67f5f8dde79af36e64c9fd0c1ef4",
+        "duration_ms": 1.3689170000000033,
+        "is_error": false
+      },
+      {
+        "kind": "model",
+        "duration_ms": 1.301957999999999,
+        "usage": {
+          "input_tokens": 2000,
+          "output_tokens": 20,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "kind": "tool",
+        "name": "list_files",
+        "signature": "24eb18ee9afc3d574d3680bf45365179739f67f5f8dde79af36e64c9fd0c1ef4",
+        "duration_ms": 0.4478340000000003,
+        "is_error": false
+      },
+      {
+        "kind": "model",
+        "duration_ms": 1.132957999999995,
+        "usage": {
+          "input_tokens": 3000,
+          "output_tokens": 20,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "kind": "tool",
+        "name": "list_files",
+        "signature": "24eb18ee9afc3d574d3680bf45365179739f67f5f8dde79af36e64c9fd0c1ef4",
+        "duration_ms": 0.4514999999999958,
+        "is_error": false
+      },
+      {
+        "kind": "model",
+        "duration_ms": 1.2730829999999997,
+        "usage": {
+          "input_tokens": 4000,
+          "output_tokens": 20,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "kind": "tool",
+        "name": "list_files",
+        "signature": "24eb18ee9afc3d574d3680bf45365179739f67f5f8dde79af36e64c9fd0c1ef4",
+        "duration_ms": 0.532625000000003,
+        "is_error": false
+      }
+    ],
+    "approvals": [],
+    "checkpoint": {
+      "schemaVersion": 2,
+      "provider": "codex",
+      "item_count": 8,
+      "function_calls": 4
+    },
+    "settings": {
+      "model": "gpt-6.1-sol",
+      "effort": "low",
+      "maxTokens": 4000,
+      "maxSteps": 8,
+      "budgetOutputTokens": 32000,
+      "maxCostUsd": 2,
+      "bare": true,
+      "allowShell": false
+    },
+    "parent_elapsed_ms": 78.20191700000001,
+    "pre_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "post_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "assertions": {
+      "five_requests": false,
+      "history_grew": true,
+      "all_files_unchanged": true
+    },
+    "passed": false,
+    "final_text_sha256": "81533d6b4351dee2f003b093e3769bc93517fec55a75fa3d7203511f50ee9f02",
+    "existing_unrelated_files_unchanged": true,
+    "added_paths": [],
+    "changed_existing_paths": [],
+    "model_call_count": 4,
+    "tool_request_count": 4,
+    "repeated_tool_signatures": 3,
+    "first_token_latency_ms": null,
+    "actual_billed_usd": null,
+    "live_request_bytes": "see requests"
+  },
+  {
+    "id": "mock-retry-400",
+    "mode": "mock",
+    "scenario": "retry-400",
+    "elapsed_ms": 17.33925,
+    "stop_reason": "bridge_error",
+    "steps": 3,
+    "usage": {
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "reasoning_tokens": 0
+    },
+    "reference_cost_usd": 0,
+    "requests": [
+      {
+        "bytes": 2819,
+        "input_bytes": 109,
+        "input_items": 1,
+        "max_output_tokens": 4000,
+        "model": "gpt-6.1-sol",
+        "effort": "low"
+      },
+      {
+        "bytes": 2819,
+        "input_bytes": 109,
+        "input_items": 1,
+        "max_output_tokens": 4000,
+        "model": "gpt-6.1-sol",
+        "effort": "low"
+      },
+      {
+        "bytes": 2819,
+        "input_bytes": 109,
+        "input_items": 1,
+        "max_output_tokens": 4000,
+        "model": "gpt-6.1-sol",
+        "effort": "low"
+      }
+    ],
+    "events": [
+      {
+        "type": "system",
+        "t_ms": 8.308250000000001
+      },
+      {
+        "type": "model_request",
+        "t_ms": 8.582958000000005,
+        "step": 1
+      },
+      {
+        "type": "error",
+        "t_ms": 14.689708000000003
+      },
+      {
+        "type": "model_request",
+        "t_ms": 14.791125000000001,
+        "step": 2
+      },
+      {
+        "type": "error",
+        "t_ms": 15.733333000000002
+      },
+      {
+        "type": "model_request",
+        "t_ms": 15.784625000000005,
+        "step": 3
+      },
+      {
+        "type": "error",
+        "t_ms": 16.572916000000006
+      },
+      {
+        "type": "run_end",
+        "t_ms": 17.212083
+      }
+    ],
+    "tools": [],
+    "approvals": [],
+    "checkpoint": {
+      "schemaVersion": 2,
+      "provider": "codex",
+      "item_count": 1,
+      "function_calls": 0
+    },
+    "settings": {
+      "model": "gpt-6.1-sol",
+      "effort": "low",
+      "maxTokens": 4000,
+      "maxSteps": 3,
+      "budgetOutputTokens": 32000,
+      "maxCostUsd": 2,
+      "bare": true,
+      "allowShell": false
+    },
+    "parent_elapsed_ms": 71.89925000000008,
+    "pre_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "post_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "assertions": {
+      "stopped_with_error": true,
+      "request_count_recorded": true,
+      "all_files_unchanged": true
+    },
+    "passed": true,
+    "final_text_sha256": "6e251c186c277fd493a67bf5f2e903d6214381275ffb561a032df1ed0ef86079",
+    "existing_unrelated_files_unchanged": true,
+    "added_paths": [],
+    "changed_existing_paths": [],
+    "model_call_count": 3,
+    "tool_request_count": 0,
+    "repeated_tool_signatures": 0,
+    "first_token_latency_ms": null,
+    "actual_billed_usd": null,
+    "live_request_bytes": "see requests"
+  },
+  {
+    "id": "live-smoke",
+    "mode": "live",
+    "scenario": "smoke",
+    "elapsed_ms": 2024.060708,
+    "stop_reason": "success",
+    "steps": 1,
+    "usage": {
+      "input_tokens": 267,
+      "output_tokens": 7,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "reasoning_tokens": 0
+    },
+    "reference_cost_usd": 0.0006039999999999999,
+    "requests": [],
+    "events": [
+      {
+        "type": "system",
+        "t_ms": 12.851332999999997
+      },
+      {
+        "type": "model_request",
+        "t_ms": 13.726957999999996,
+        "step": 1
+      },
+      {
+        "type": "budget",
+        "t_ms": 2019.6375830000002
+      },
+      {
+        "type": "assistant",
+        "t_ms": 2021.09875,
+        "step": 1
+      },
+      {
+        "type": "result",
+        "t_ms": 2021.2109580000001
+      },
+      {
+        "type": "run_end",
+        "t_ms": 2023.723791
+      }
+    ],
+    "tools": [
+      {
+        "kind": "model",
+        "duration_ms": 2007.3717920000001,
+        "usage": {
+          "input_tokens": 267,
+          "output_tokens": 7,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "approvals": [],
+    "checkpoint": {
+      "schemaVersion": 2,
+      "provider": "codex",
+      "item_count": 2,
+      "function_calls": 0
+    },
+    "settings": {
+      "model": "gpt-6.1-sol",
+      "effort": "low",
+      "maxTokens": 4000,
+      "maxSteps": 8,
+      "budgetOutputTokens": 32000,
+      "maxCostUsd": 2,
+      "bare": true,
+      "allowShell": false
+    },
+    "parent_elapsed_ms": 2140.961917,
+    "pre_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "post_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "assertions": {
+      "exact_response": true,
+      "all_files_unchanged": true
+    },
+    "passed": true,
+    "final_text_sha256": "feb6b18a98ff85454bf2a9dd4a4df498a6ea5db101fc2e5ba4a75a37e53f123a",
+    "existing_unrelated_files_unchanged": true,
+    "added_paths": [],
+    "changed_existing_paths": [],
+    "model_call_count": 1,
+    "tool_request_count": 0,
+    "repeated_tool_signatures": 0,
+    "first_token_latency_ms": null,
+    "actual_billed_usd": null,
+    "live_request_bytes": null
+  },
+  {
+    "id": "live-read",
+    "mode": "live",
+    "scenario": "read",
+    "elapsed_ms": 5448.381625,
+    "stop_reason": "success",
+    "steps": 2,
+    "usage": {
+      "input_tokens": 1108,
+      "output_tokens": 142,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "reasoning_tokens": 0
+    },
+    "reference_cost_usd": 0.003636,
+    "requests": [],
+    "events": [
+      {
+        "type": "system",
+        "t_ms": 5.150292
+      },
+      {
+        "type": "model_request",
+        "t_ms": 5.4345,
+        "step": 1
+      },
+      {
+        "type": "budget",
+        "t_ms": 3441.647042
+      },
+      {
+        "type": "assistant",
+        "t_ms": 3443.7514170000004,
+        "step": 1
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 3445.322,
+        "step": 1,
+        "name": "read_file"
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 3446.067,
+        "step": 1,
+        "name": "read_file"
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 3446.6780830000002,
+        "step": 1,
+        "name": "read_file"
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 3451.167292,
+        "step": 1,
+        "name": "read_file",
+        "is_error": false
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 3451.7246250000003,
+        "step": 1,
+        "name": "read_file",
+        "is_error": false
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 3452.4368750000003,
+        "step": 1,
+        "name": "read_file",
+        "is_error": false
+      },
+      {
+        "type": "budget",
+        "t_ms": 3452.606667
+      },
+      {
+        "type": "budget",
+        "t_ms": 3452.661083
+      },
+      {
+        "type": "model_request",
+        "t_ms": 3453.351208,
+        "step": 2
+      },
+      {
+        "type": "budget",
+        "t_ms": 5441.272083
+      },
+      {
+        "type": "assistant",
+        "t_ms": 5442.362792,
+        "step": 2
+      },
+      {
+        "type": "result",
+        "t_ms": 5442.6654579999995
+      },
+      {
+        "type": "run_end",
+        "t_ms": 5447.1612079999995
+      }
+    ],
+    "tools": [
+      {
+        "kind": "model",
+        "duration_ms": 3438.3169170000006,
+        "usage": {
+          "input_tokens": 456,
+          "output_tokens": 128,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "kind": "tool",
+        "name": "read_file",
+        "signature": "50b5c2edc532629a98623a9cb69451016bf441b4f97d46d58e44b902315e847e",
+        "duration_ms": 5.758792000000085,
+        "is_error": false
+      },
+      {
+        "kind": "tool",
+        "name": "read_file",
+        "signature": "65ab1401d7c3f4b4022665d1b94aa994d068e03c471c624fb30e6e33c83caaee",
+        "duration_ms": 5.65762500000028,
+        "is_error": false
+      },
+      {
+        "kind": "tool",
+        "name": "read_file",
+        "signature": "31de388f61220a60a6ec5b78728c7ff9c13d25172a7b882e4bb2c40a09866ca5",
+        "duration_ms": 5.845291999999972,
+        "is_error": false
+      },
+      {
+        "kind": "model",
+        "duration_ms": 1989.0115839999999,
+        "usage": {
+          "input_tokens": 652,
+          "output_tokens": 14,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "approvals": [],
+    "checkpoint": {
+      "schemaVersion": 2,
+      "provider": "codex",
+      "item_count": 8,
+      "function_calls": 3
+    },
+    "settings": {
+      "model": "gpt-6.1-sol",
+      "effort": "low",
+      "maxTokens": 4000,
+      "maxSteps": 8,
+      "budgetOutputTokens": 32000,
+      "maxCostUsd": 2,
+      "bare": true,
+      "allowShell": false
+    },
+    "parent_elapsed_ms": 5543.440750000001,
+    "pre_hashes": {
+      "README.txt": "071cfdc6539cf78d759e6a92890695fb48597a236e24024d6f203f091e8ac118",
+      "config.json": "9525502984a31bb55e6a9390d0668cb2a029f3b76110cc7a7dc4bcab090c51e1",
+      "multiply.js": "729400d44078ea9502db85e83f0a4916da84e0bfb5d8e579e50ce072df9e18b1"
+    },
+    "post_hashes": {
+      "README.txt": "071cfdc6539cf78d759e6a92890695fb48597a236e24024d6f203f091e8ac118",
+      "config.json": "9525502984a31bb55e6a9390d0668cb2a029f3b76110cc7a7dc4bcab090c51e1",
+      "multiply.js": "729400d44078ea9502db85e83f0a4916da84e0bfb5d8e579e50ce072df9e18b1"
+    },
+    "assertions": {
+      "answer_key": true,
+      "all_files_unchanged": true
+    },
+    "passed": true,
+    "final_text_sha256": "258b49c55cdf38a6a1cae58a0986d698133dcb5b42ec4b26ea35a401cc36ea9f",
+    "existing_unrelated_files_unchanged": true,
+    "added_paths": [],
+    "changed_existing_paths": [],
+    "model_call_count": 2,
+    "tool_request_count": 3,
+    "repeated_tool_signatures": 0,
+    "first_token_latency_ms": null,
+    "actual_billed_usd": null,
+    "live_request_bytes": null
+  },
+  {
+    "id": "live-edit",
+    "mode": "live",
+    "scenario": "edit",
+    "elapsed_ms": 9838.045917000001,
+    "stop_reason": "success",
+    "steps": 3,
+    "usage": {
+      "input_tokens": 1662,
+      "output_tokens": 111,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "reasoning_tokens": 0
+    },
+    "reference_cost_usd": 0.0044340000000000004,
+    "requests": [],
+    "events": [
+      {
+        "type": "system",
+        "t_ms": 8.060957999999971
+      },
+      {
+        "type": "model_request",
+        "t_ms": 8.40341699999999,
+        "step": 1
+      },
+      {
+        "type": "budget",
+        "t_ms": 4391.96675
+      },
+      {
+        "type": "assistant",
+        "t_ms": 4393.436583,
+        "step": 1
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 4394.9455,
+        "step": 1,
+        "name": "read_file"
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 4399.300125,
+        "step": 1,
+        "name": "read_file",
+        "is_error": false
+      },
+      {
+        "type": "budget",
+        "t_ms": 4399.507583
+      },
+      {
+        "type": "budget",
+        "t_ms": 4399.563625
+      },
+      {
+        "type": "model_request",
+        "t_ms": 4400.406667,
+        "step": 2
+      },
+      {
+        "type": "budget",
+        "t_ms": 6711.9512079999995
+      },
+      {
+        "type": "assistant",
+        "t_ms": 6713.980833,
+        "step": 2
+      },
+      {
+        "type": "budget",
+        "t_ms": 6714.133167
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 6715.028208,
+        "step": 2,
+        "name": "write_file"
+      },
+      {
+        "type": "approval_required",
+        "t_ms": 6716.304875,
+        "step": 2,
+        "name": "write_file"
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 6739.381542,
+        "step": 2,
+        "name": "write_file",
+        "is_error": false
+      },
+      {
+        "type": "budget",
+        "t_ms": 6739.656333
+      },
+      {
+        "type": "model_request",
+        "t_ms": 6741.899917,
+        "step": 3
+      },
+      {
+        "type": "budget",
+        "t_ms": 9834.635792000001
+      },
+      {
+        "type": "assistant",
+        "t_ms": 9835.972875000001,
+        "step": 3
+      },
+      {
+        "type": "result",
+        "t_ms": 9836.050500000001
+      },
+      {
+        "type": "run_end",
+        "t_ms": 9837.657375
+      }
+    ],
+    "tools": [
+      {
+        "kind": "model",
+        "duration_ms": 4385.033165999999,
+        "usage": {
+          "input_tokens": 476,
+          "output_tokens": 40,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "kind": "tool",
+        "name": "read_file",
+        "signature": "5686338746dc004b43c837ec0be27b48cbf5ccce74dc19ca29e56dfccdd906ca",
+        "duration_ms": 4.354624999999942,
+        "is_error": false
+      },
+      {
+        "kind": "model",
+        "duration_ms": 2313.5741659999994,
+        "usage": {
+          "input_tokens": 541,
+          "output_tokens": 33,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "kind": "tool",
+        "name": "write_file",
+        "signature": "13c086424b8746b6582f42cd73ab7ebdc80b46d0c9a93c2235a93ee8c1075883",
+        "duration_ms": 24.35333400000036,
+        "is_error": false
+      },
+      {
+        "kind": "model",
+        "duration_ms": 3094.0729580000016,
+        "usage": {
+          "input_tokens": 645,
+          "output_tokens": 38,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "approvals": [
+      {
+        "name": "write_file",
+        "path": "target.js",
+        "command": null,
+        "decision": "allow",
+        "delay_ms": 0.012625000000298314
+      }
+    ],
+    "checkpoint": {
+      "schemaVersion": 2,
+      "provider": "codex",
+      "item_count": 6,
+      "function_calls": 2
+    },
+    "settings": {
+      "model": "gpt-6.1-sol",
+      "effort": "low",
+      "maxTokens": 4000,
+      "maxSteps": 8,
+      "budgetOutputTokens": 32000,
+      "maxCostUsd": 2,
+      "bare": true,
+      "allowShell": false
+    },
+    "parent_elapsed_ms": 10314.814249999998,
+    "pre_hashes": {
+      "target.js": "71465ff1388b925d4f4fb24492543d4260a2cf227d89f069fc913c611cf0cffd",
+      "test.cjs": "4043ee54e52e311456053fe48f97840ba5203bf848a07b0d2e831bdcccbcc4e6",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "post_hashes": {
+      ".bridge-runner/backups/target.js-1792368831379-0-c3a74a.bak": "71465ff1388b925d4f4fb24492543d4260a2cf227d89f069fc913c611cf0cffd",
+      ".bridge-runner/runs/889b2dd8-a8ad-45a1-894d-47ad76ccb18e/manifest.json": "d8dd180e65d11b4261ba94735a0fab131493a249e55313bc15098b4b0632d038",
+      "target.js": "bceda4100b2dd542f085974a6fb9ed3366be9190a7e04f46229e86a3dd7ade4b",
+      "test.cjs": "4043ee54e52e311456053fe48f97840ba5203bf848a07b0d2e831bdcccbcc4e6",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "independent_test_exit": 0,
+    "pre_test_exit": null,
+    "assertions": {
+      "independent_test_passed": true,
+      "only_target_changed": false,
+      "test_unchanged": true
+    },
+    "passed": false,
+    "final_text_sha256": "ab2239bd6ad39b7a834dc0a58155185625eec56c3ed04fa259209b01a10ebc27",
+    "existing_unrelated_files_unchanged": true,
+    "added_paths": [
+      ".bridge-runner/backups/target.js-1792368831379-0-c3a74a.bak",
+      ".bridge-runner/runs/889b2dd8-a8ad-45a1-894d-47ad76ccb18e/manifest.json"
+    ],
+    "changed_existing_paths": [
+      "target.js"
+    ],
+    "model_call_count": 3,
+    "tool_request_count": 2,
+    "repeated_tool_signatures": 0,
+    "first_token_latency_ms": null,
+    "actual_billed_usd": null,
+    "live_request_bytes": null
+  },
+  {
+    "id": "mock-context-diverse",
+    "mode": "mock",
+    "scenario": "context-diverse",
+    "elapsed_ms": 42.90483400000001,
+    "stop_reason": "success",
+    "steps": 5,
+    "usage": {
+      "input_tokens": 15000,
+      "output_tokens": 100,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "reasoning_tokens": 0
+    },
+    "reference_cost_usd": 0.031,
+    "requests": [
+      {
+        "bytes": 1917,
+        "input_bytes": 109,
+        "input_items": 1,
+        "max_output_tokens": 4000,
+        "model": "gpt-6.1-sol",
+        "effort": "low"
+      },
+      {
+        "bytes": 2199,
+        "input_bytes": 391,
+        "input_items": 3,
+        "max_output_tokens": 4000,
+        "model": "gpt-6.1-sol",
+        "effort": "low"
+      },
+      {
+        "bytes": 2581,
+        "input_bytes": 773,
+        "input_items": 5,
+        "max_output_tokens": 4000,
+        "model": "gpt-6.1-sol",
+        "effort": "low"
+      },
+      {
+        "bytes": 3063,
+        "input_bytes": 1255,
+        "input_items": 7,
+        "max_output_tokens": 4000,
+        "model": "gpt-6.1-sol",
+        "effort": "low"
+      },
+      {
+        "bytes": 3645,
+        "input_bytes": 1837,
+        "input_items": 9,
+        "max_output_tokens": 4000,
+        "model": "gpt-6.1-sol",
+        "effort": "low"
+      }
+    ],
+    "events": [
+      {
+        "type": "system",
+        "t_ms": 11.907709000000004
+      },
+      {
+        "type": "model_request",
+        "t_ms": 12.230042000000005,
+        "step": 1
+      },
+      {
+        "type": "budget",
+        "t_ms": 19.037209000000004
+      },
+      {
+        "type": "assistant",
+        "t_ms": 19.716167000000006,
+        "step": 1
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 20.360209000000005,
+        "step": 1,
+        "name": "read_file"
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 22.539709000000002,
+        "step": 1,
+        "name": "read_file",
+        "is_error": false
+      },
+      {
+        "type": "budget",
+        "t_ms": 22.652292000000003
+      },
+      {
+        "type": "budget",
+        "t_ms": 22.686584000000003
+      },
+      {
+        "type": "model_request",
+        "t_ms": 23.397375000000004,
+        "step": 2
+      },
+      {
+        "type": "budget",
+        "t_ms": 24.68112500000001
+      },
+      {
+        "type": "assistant",
+        "t_ms": 25.096917000000005,
+        "step": 2
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 25.534750000000003,
+        "step": 2,
+        "name": "read_file"
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 27.152792000000005,
+        "step": 2,
+        "name": "read_file",
+        "is_error": false
+      },
+      {
+        "type": "budget",
+        "t_ms": 27.179584000000006
+      },
+      {
+        "type": "budget",
+        "t_ms": 27.19745900000001
+      },
+      {
+        "type": "model_request",
+        "t_ms": 27.65866700000001,
+        "step": 3
+      },
+      {
+        "type": "budget",
+        "t_ms": 28.56066700000001
+      },
+      {
+        "type": "assistant",
+        "t_ms": 28.840000000000003,
+        "step": 3
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 29.590458999999996,
+        "step": 3,
+        "name": "read_file"
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 31.194874999999996,
+        "step": 3,
+        "name": "read_file",
+        "is_error": false
+      },
+      {
+        "type": "budget",
+        "t_ms": 31.212834
+      },
+      {
+        "type": "budget",
+        "t_ms": 31.224709000000004
+      },
+      {
+        "type": "model_request",
+        "t_ms": 31.763125000000002,
+        "step": 4
+      },
+      {
+        "type": "budget",
+        "t_ms": 32.965875
+      },
+      {
+        "type": "assistant",
+        "t_ms": 33.373667,
+        "step": 4
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 33.615334000000004,
+        "step": 4,
+        "name": "read_file"
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 35.835499999999996,
+        "step": 4,
+        "name": "read_file",
+        "is_error": false
+      },
+      {
+        "type": "budget",
+        "t_ms": 35.919709
+      },
+      {
+        "type": "budget",
+        "t_ms": 35.93629200000001
+      },
+      {
+        "type": "model_request",
+        "t_ms": 36.611458999999996,
+        "step": 5
+      },
+      {
+        "type": "budget",
+        "t_ms": 37.844834000000006
+      },
+      {
+        "type": "assistant",
+        "t_ms": 38.39775,
+        "step": 5
+      },
+      {
+        "type": "result",
+        "t_ms": 38.438584000000006
+      },
+      {
+        "type": "run_end",
+        "t_ms": 41.101167000000004
+      }
+    ],
+    "tools": [
+      {
+        "kind": "model",
+        "duration_ms": 7.486125000000001,
+        "usage": {
+          "input_tokens": 1000,
+          "output_tokens": 20,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "kind": "tool",
+        "name": "read_file",
+        "signature": "47192737d54cfb4fb53a48bfe204d2f5656491f290c4763e8ecf7832754cba0f",
+        "duration_ms": 2.1794999999999973,
+        "is_error": false
+      },
+      {
+        "kind": "model",
+        "duration_ms": 1.699542000000001,
+        "usage": {
+          "input_tokens": 2000,
+          "output_tokens": 20,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "kind": "tool",
+        "name": "read_file",
+        "signature": "f38558d3f9f24d80d0468c075941b51b5aedf36e44f17f620565a833927833fc",
+        "duration_ms": 1.6180420000000026,
+        "is_error": false
+      },
+      {
+        "kind": "model",
+        "duration_ms": 1.181332999999995,
+        "usage": {
+          "input_tokens": 3000,
+          "output_tokens": 20,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "kind": "tool",
+        "name": "read_file",
+        "signature": "88c5b1ea0c84732843a68caeb73f3e7a7dd776938790baa04532c8b0bacf5b24",
+        "duration_ms": 1.6044160000000005,
+        "is_error": false
+      },
+      {
+        "kind": "model",
+        "duration_ms": 1.6105419999999953,
+        "usage": {
+          "input_tokens": 4000,
+          "output_tokens": 20,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "kind": "tool",
+        "name": "read_file",
+        "signature": "1d52a6d06bf71ae4b6315b0467f9596acabdacef475aa0320b8337998461060b",
+        "duration_ms": 2.220165999999992,
+        "is_error": false
+      },
+      {
+        "kind": "model",
+        "duration_ms": 1.7862910000000056,
+        "usage": {
+          "input_tokens": 5000,
+          "output_tokens": 20,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "approvals": [],
+    "checkpoint": {
+      "schemaVersion": 2,
+      "provider": "codex",
+      "item_count": 10,
+      "function_calls": 4
+    },
+    "settings": {
+      "model": "gpt-6.1-sol",
+      "effort": "low",
+      "maxTokens": 4000,
+      "maxSteps": 8,
+      "budgetOutputTokens": 32000,
+      "maxCostUsd": 2,
+      "bare": true,
+      "allowShell": false
+    },
+    "parent_elapsed_ms": 106.76633399999999,
+    "pre_hashes": {
+      "chunk1.txt": "d85be1187abee7a174242b9534637c476d8dae2b5f03e60c69d1ab03949b72cc",
+      "chunk2.txt": "bb424e2150f3abf1011fbf6abe5a19f1b2dae80d186933037835f2fce171935d",
+      "chunk3.txt": "6c94a096827c9282c1aa35190885a7c95fa9e846e4bea0ad4e089dca0e77b8c9",
+      "chunk4.txt": "edc05049e5ad37d490ba4532cf0c681524aaf35c9366717a59bfdd6ca996292d"
+    },
+    "post_hashes": {
+      "chunk1.txt": "d85be1187abee7a174242b9534637c476d8dae2b5f03e60c69d1ab03949b72cc",
+      "chunk2.txt": "bb424e2150f3abf1011fbf6abe5a19f1b2dae80d186933037835f2fce171935d",
+      "chunk3.txt": "6c94a096827c9282c1aa35190885a7c95fa9e846e4bea0ad4e089dca0e77b8c9",
+      "chunk4.txt": "edc05049e5ad37d490ba4532cf0c681524aaf35c9366717a59bfdd6ca996292d"
+    },
+    "assertions": {
+      "five_requests": true,
+      "history_grew": true,
+      "all_files_unchanged": true
+    },
+    "passed": true,
+    "final_text_sha256": "a4c3ed04a95a3da14a9d235c83d868bed7c0f45cf7f3faa751ee8f50598d2211",
+    "existing_unrelated_files_unchanged": true,
+    "added_paths": [],
+    "changed_existing_paths": [],
+    "model_call_count": 5,
+    "tool_request_count": 4,
+    "repeated_tool_signatures": 0,
+    "first_token_latency_ms": null,
+    "actual_billed_usd": null,
+    "live_request_bytes": "see requests"
+  },
+  {
+    "id": "live-repair",
+    "mode": "live",
+    "scenario": "repair",
+    "elapsed_ms": 12566.110125,
+    "stop_reason": "success",
+    "steps": 6,
+    "usage": {
+      "input_tokens": 5859,
+      "output_tokens": 197,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "reasoning_tokens": 0
+    },
+    "reference_cost_usd": 0.013688,
+    "requests": [],
+    "events": [
+      {
+        "type": "system",
+        "t_ms": 9.477584000000007
+      },
+      {
+        "type": "model_request",
+        "t_ms": 9.957084000000009,
+        "step": 1
+      },
+      {
+        "type": "budget",
+        "t_ms": 1608.242042
+      },
+      {
+        "type": "assistant",
+        "t_ms": 1609.205875,
+        "step": 1
+      },
+      {
+        "type": "budget",
+        "t_ms": 1609.5932090000001
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 1610.038125,
+        "step": 1,
+        "name": "bash"
+      },
+      {
+        "type": "approval_required",
+        "t_ms": 1611.196834,
+        "step": 1,
+        "name": "bash"
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 1658.352875,
+        "step": 1,
+        "name": "bash",
+        "is_error": true
+      },
+      {
+        "type": "budget",
+        "t_ms": 1658.436792
+      },
+      {
+        "type": "model_request",
+        "t_ms": 1659.132792,
+        "step": 2
+      },
+      {
+        "type": "budget",
+        "t_ms": 3775.66675
+      },
+      {
+        "type": "assistant",
+        "t_ms": 3776.389542,
+        "step": 2
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 3776.972334,
+        "step": 2,
+        "name": "read_file"
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 3779.6295,
+        "step": 2,
+        "name": "read_file",
+        "is_error": false
+      },
+      {
+        "type": "budget",
+        "t_ms": 3779.685834
+      },
+      {
+        "type": "budget",
+        "t_ms": 3779.716084
+      },
+      {
+        "type": "model_request",
+        "t_ms": 3780.4512090000003,
+        "step": 3
+      },
+      {
+        "type": "budget",
+        "t_ms": 5825.551125
+      },
+      {
+        "type": "assistant",
+        "t_ms": 5826.505083999999,
+        "step": 3
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 5827.001749999999,
+        "step": 3,
+        "name": "read_file"
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 5828.624583999999,
+        "step": 3,
+        "name": "read_file",
+        "is_error": false
+      },
+      {
+        "type": "budget",
+        "t_ms": 5828.671375
+      },
+      {
+        "type": "budget",
+        "t_ms": 5828.699834
+      },
+      {
+        "type": "model_request",
+        "t_ms": 5829.674375,
+        "step": 4
+      },
+      {
+        "type": "budget",
+        "t_ms": 7696.717584
+      },
+      {
+        "type": "assistant",
+        "t_ms": 7697.783834,
+        "step": 4
+      },
+      {
+        "type": "budget",
+        "t_ms": 7697.89225
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 7698.817709,
+        "step": 4,
+        "name": "write_file"
+      },
+      {
+        "type": "approval_required",
+        "t_ms": 7699.286542,
+        "step": 4,
+        "name": "write_file"
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 7721.505125,
+        "step": 4,
+        "name": "write_file",
+        "is_error": false
+      },
+      {
+        "type": "budget",
+        "t_ms": 7721.598583999999
+      },
+      {
+        "type": "model_request",
+        "t_ms": 7722.315959,
+        "step": 5
+      },
+      {
+        "type": "budget",
+        "t_ms": 10444.229041999999
+      },
+      {
+        "type": "assistant",
+        "t_ms": 10447.062292,
+        "step": 5
+      },
+      {
+        "type": "budget",
+        "t_ms": 10447.222292
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 10448.312042,
+        "step": 5,
+        "name": "bash"
+      },
+      {
+        "type": "approval_required",
+        "t_ms": 10449.666625,
+        "step": 5,
+        "name": "bash"
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 10522.5265,
+        "step": 5,
+        "name": "bash",
+        "is_error": false
+      },
+      {
+        "type": "budget",
+        "t_ms": 10522.564124999999
+      },
+      {
+        "type": "model_request",
+        "t_ms": 10523.277,
+        "step": 6
+      },
+      {
+        "type": "budget",
+        "t_ms": 12554.39375
+      },
+      {
+        "type": "assistant",
+        "t_ms": 12556.933917,
+        "step": 6
+      },
+      {
+        "type": "result",
+        "t_ms": 12557.169958999999
+      },
+      {
+        "type": "run_end",
+        "t_ms": 12564.132667
+      }
+    ],
+    "tools": [
+      {
+        "kind": "model",
+        "duration_ms": 1599.248791,
+        "usage": {
+          "input_tokens": 596,
+          "output_tokens": 21,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "kind": "tool",
+        "name": "bash",
+        "signature": "e06a15899ce5a05a15d16477df846af50e7db8563b7846cfd8c6260fa891c805",
+        "command": "node test.cjs",
+        "duration_ms": 48.314750000000004,
+        "is_error": true
+      },
+      {
+        "kind": "model",
+        "duration_ms": 2117.2567499999996,
+        "usage": {
+          "input_tokens": 900,
+          "output_tokens": 38,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "kind": "tool",
+        "name": "read_file",
+        "signature": "d88a3ad6301b8b0be989618cc4bc06decd0d01c9cd38f79b95dcda945afbc23e",
+        "duration_ms": 2.657165999999961,
+        "is_error": false
+      },
+      {
+        "kind": "model",
+        "duration_ms": 2046.0538749999992,
+        "usage": {
+          "input_tokens": 963,
+          "output_tokens": 39,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "kind": "tool",
+        "name": "read_file",
+        "signature": "69f31b7bcb104a496a6761296e5c0fe8797ef347814f50da39fb7d96174b93ff",
+        "duration_ms": 1.6228339999997843,
+        "is_error": false
+      },
+      {
+        "kind": "model",
+        "duration_ms": 1868.1094590000002,
+        "usage": {
+          "input_tokens": 1052,
+          "output_tokens": 33,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "kind": "tool",
+        "name": "write_file",
+        "signature": "13c086424b8746b6582f42cd73ab7ebdc80b46d0c9a93c2235a93ee8c1075883",
+        "duration_ms": 22.687415999999757,
+        "is_error": false
+      },
+      {
+        "kind": "model",
+        "duration_ms": 2724.746333000001,
+        "usage": {
+          "input_tokens": 1155,
+          "output_tokens": 21,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "kind": "tool",
+        "name": "bash",
+        "signature": "e06a15899ce5a05a15d16477df846af50e7db8563b7846cfd8c6260fa891c805",
+        "command": "node test.cjs",
+        "duration_ms": 74.21445800000038,
+        "is_error": false
+      },
+      {
+        "kind": "model",
+        "duration_ms": 2033.6569170000002,
+        "usage": {
+          "input_tokens": 1193,
+          "output_tokens": 45,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "approvals": [
+      {
+        "name": "bash",
+        "path": null,
+        "command": "node test.cjs",
+        "decision": "allow",
+        "delay_ms": 0.004791999999952168
+      },
+      {
+        "name": "write_file",
+        "path": "target.js",
+        "command": null,
+        "decision": "allow",
+        "delay_ms": 0.003208000000086031
+      },
+      {
+        "name": "bash",
+        "path": null,
+        "command": "node test.cjs",
+        "decision": "allow",
+        "delay_ms": 0.007499999999708962
+      }
+    ],
+    "checkpoint": {
+      "schemaVersion": 2,
+      "provider": "codex",
+      "item_count": 12,
+      "function_calls": 5
+    },
+    "settings": {
+      "model": "gpt-6.1-sol",
+      "effort": "low",
+      "maxTokens": 4000,
+      "maxSteps": 8,
+      "budgetOutputTokens": 32000,
+      "maxCostUsd": 2,
+      "bare": true,
+      "allowShell": true
+    },
+    "parent_elapsed_ms": 12680.916541999999,
+    "pre_hashes": {
+      "target.js": "71465ff1388b925d4f4fb24492543d4260a2cf227d89f069fc913c611cf0cffd",
+      "test.cjs": "4043ee54e52e311456053fe48f97840ba5203bf848a07b0d2e831bdcccbcc4e6",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "post_hashes": {
+      ".bridge-runner/backups/target.js-1792368842410-0-690672.bak": "71465ff1388b925d4f4fb24492543d4260a2cf227d89f069fc913c611cf0cffd",
+      ".bridge-runner/runs/49fe6094-58d6-4e95-898b-1e5e766274aa/manifest.json": "164b4aad4f7411f4eec33370f0d36dc4534919b60229586d33d57dffc1d62a26",
+      "target.js": "bceda4100b2dd542f085974a6fb9ed3366be9190a7e04f46229e86a3dd7ade4b",
+      "test.cjs": "4043ee54e52e311456053fe48f97840ba5203bf848a07b0d2e831bdcccbcc4e6",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "independent_test_exit": 0,
+    "pre_test_exit": 1,
+    "assertions": {
+      "independent_test_passed": true,
+      "only_target_changed": false,
+      "test_unchanged": true,
+      "test_failed_before": true
+    },
+    "passed": false,
+    "final_text_sha256": "bd75c2c3bf8d525e93f4a5fb7b7153ed8716435c2fd5141c566adc18cd5a5149",
+    "existing_unrelated_files_unchanged": true,
+    "added_paths": [
+      ".bridge-runner/backups/target.js-1792368842410-0-690672.bak",
+      ".bridge-runner/runs/49fe6094-58d6-4e95-898b-1e5e766274aa/manifest.json"
+    ],
+    "changed_existing_paths": [
+      "target.js"
+    ],
+    "model_call_count": 6,
+    "tool_request_count": 5,
+    "repeated_tool_signatures": 1,
+    "first_token_latency_ms": null,
+    "actual_billed_usd": null,
+    "live_request_bytes": null
+  },
+  {
+    "id": "live-remember",
+    "mode": "live",
+    "scenario": "remember",
+    "elapsed_ms": 2689.252583,
+    "stop_reason": "success",
+    "steps": 1,
+    "usage": {
+      "input_tokens": 291,
+      "output_tokens": 31,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "reasoning_tokens": 0
+    },
+    "reference_cost_usd": 0.000892,
+    "requests": [],
+    "events": [
+      {
+        "type": "system",
+        "t_ms": 7.788125000000001
+      },
+      {
+        "type": "model_request",
+        "t_ms": 8.101500000000001,
+        "step": 1
+      },
+      {
+        "type": "budget",
+        "t_ms": 2681.202917
+      },
+      {
+        "type": "assistant",
+        "t_ms": 2685.336833,
+        "step": 1
+      },
+      {
+        "type": "result",
+        "t_ms": 2685.5123750000002
+      },
+      {
+        "type": "run_end",
+        "t_ms": 2688.702167
+      }
+    ],
+    "tools": [
+      {
+        "kind": "model",
+        "duration_ms": 2677.2353329999996,
+        "usage": {
+          "input_tokens": 291,
+          "output_tokens": 31,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "approvals": [],
+    "checkpoint": {
+      "schemaVersion": 2,
+      "provider": "codex",
+      "item_count": 2,
+      "function_calls": 0
+    },
+    "settings": {
+      "model": "gpt-6.1-sol",
+      "effort": "low",
+      "maxTokens": 4000,
+      "maxSteps": 8,
+      "budgetOutputTokens": 32000,
+      "maxCostUsd": 2,
+      "bare": true,
+      "allowShell": false
+    },
+    "parent_elapsed_ms": 2769.989500000001,
+    "pre_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "post_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "assertions": {
+      "checkpoint_saved": true
+    },
+    "passed": true,
+    "final_text_sha256": "ab353a3f1e0350a135ea8c0275c79394579f625592475ebe88e19f78c8964f85",
+    "existing_unrelated_files_unchanged": true,
+    "added_paths": [],
+    "changed_existing_paths": [],
+    "model_call_count": 1,
+    "tool_request_count": 0,
+    "repeated_tool_signatures": 0,
+    "first_token_latency_ms": null,
+    "actual_billed_usd": null,
+    "live_request_bytes": null
+  },
+  {
+    "id": "live-recall",
+    "mode": "live",
+    "scenario": "recall",
+    "elapsed_ms": 3254.895334,
+    "stop_reason": "success",
+    "steps": 1,
+    "usage": {
+      "input_tokens": 347,
+      "output_tokens": 19,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "reasoning_tokens": 0
+    },
+    "reference_cost_usd": 0.000884,
+    "requests": [],
+    "events": [
+      {
+        "type": "system",
+        "t_ms": 5.243791999999999
+      },
+      {
+        "type": "model_request",
+        "t_ms": 5.539874999999995,
+        "step": 1
+      },
+      {
+        "type": "budget",
+        "t_ms": 3248.993334
+      },
+      {
+        "type": "assistant",
+        "t_ms": 3250.870167,
+        "step": 1
+      },
+      {
+        "type": "result",
+        "t_ms": 3251.053375
+      },
+      {
+        "type": "run_end",
+        "t_ms": 3254.341
+      }
+    ],
+    "tools": [
+      {
+        "kind": "model",
+        "duration_ms": 3245.330292,
+        "usage": {
+          "input_tokens": 347,
+          "output_tokens": 19,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "approvals": [],
+    "checkpoint": {
+      "schemaVersion": 2,
+      "provider": "codex",
+      "item_count": 4,
+      "function_calls": 0
+    },
+    "settings": {
+      "model": "gpt-6.1-sol",
+      "effort": "low",
+      "maxTokens": 4000,
+      "maxSteps": 8,
+      "budgetOutputTokens": 32000,
+      "maxCostUsd": 2,
+      "bare": true,
+      "allowShell": false
+    },
+    "parent_elapsed_ms": 3335.3953749999973,
+    "pre_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "post_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "assertions": {
+      "random_fact_recalled": true,
+      "checkpoint_loaded": true
+    },
+    "passed": true,
+    "final_text_sha256": "0b22bad292a4897386e65522434c5e7e48d611c5be03c750bedc8ca4e51fc0f6",
+    "existing_unrelated_files_unchanged": true,
+    "added_paths": [],
+    "changed_existing_paths": [],
+    "model_call_count": 1,
+    "tool_request_count": 0,
+    "repeated_tool_signatures": 0,
+    "first_token_latency_ms": null,
+    "actual_billed_usd": null,
+    "live_request_bytes": null
+  },
+  {
+    "id": "live-read-repeat",
+    "mode": "live",
+    "scenario": "read",
+    "elapsed_ms": 8454.930291,
+    "stop_reason": "success",
+    "steps": 2,
+    "usage": {
+      "input_tokens": 1108,
+      "output_tokens": 142,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "reasoning_tokens": 0
+    },
+    "reference_cost_usd": 0.003636,
+    "requests": [],
+    "events": [
+      {
+        "type": "system",
+        "t_ms": 5.6548330000000036
+      },
+      {
+        "type": "model_request",
+        "t_ms": 5.9545829999999995,
+        "step": 1
+      },
+      {
+        "type": "budget",
+        "t_ms": 3146.823458
+      },
+      {
+        "type": "assistant",
+        "t_ms": 3150.1238329999996,
+        "step": 1
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 3152.9161249999997,
+        "step": 1,
+        "name": "read_file"
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 3153.7424159999996,
+        "step": 1,
+        "name": "read_file"
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 3154.4294579999996,
+        "step": 1,
+        "name": "read_file"
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 3161.857583,
+        "step": 1,
+        "name": "read_file",
+        "is_error": false
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 3162.782291,
+        "step": 1,
+        "name": "read_file",
+        "is_error": false
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 3163.8406659999996,
+        "step": 1,
+        "name": "read_file",
+        "is_error": false
+      },
+      {
+        "type": "budget",
+        "t_ms": 3164.046708
+      },
+      {
+        "type": "budget",
+        "t_ms": 3164.127375
+      },
+      {
+        "type": "model_request",
+        "t_ms": 3165.1291659999997,
+        "step": 2
+      },
+      {
+        "type": "budget",
+        "t_ms": 8447.929208000001
+      },
+      {
+        "type": "assistant",
+        "t_ms": 8448.729041,
+        "step": 2
+      },
+      {
+        "type": "result",
+        "t_ms": 8449.758541000001
+      },
+      {
+        "type": "run_end",
+        "t_ms": 8452.698708
+      }
+    ],
+    "tools": [
+      {
+        "kind": "model",
+        "duration_ms": 3144.1692499999995,
+        "usage": {
+          "input_tokens": 456,
+          "output_tokens": 128,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "kind": "tool",
+        "name": "read_file",
+        "signature": "50b5c2edc532629a98623a9cb69451016bf441b4f97d46d58e44b902315e847e",
+        "duration_ms": 9.411207999999988,
+        "is_error": false
+      },
+      {
+        "kind": "tool",
+        "name": "read_file",
+        "signature": "65ab1401d7c3f4b4022665d1b94aa994d068e03c471c624fb30e6e33c83caaee",
+        "duration_ms": 9.039875000000393,
+        "is_error": false
+      },
+      {
+        "kind": "tool",
+        "name": "read_file",
+        "signature": "31de388f61220a60a6ec5b78728c7ff9c13d25172a7b882e4bb2c40a09866ca5",
+        "duration_ms": 8.941458000000239,
+        "is_error": false
+      },
+      {
+        "kind": "model",
+        "duration_ms": 5283.599875000001,
+        "usage": {
+          "input_tokens": 652,
+          "output_tokens": 14,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      }
+    ],
+    "approvals": [],
+    "checkpoint": {
+      "schemaVersion": 2,
+      "provider": "codex",
+      "item_count": 8,
+      "function_calls": 3
+    },
+    "settings": {
+      "model": "gpt-6.1-sol",
+      "effort": "low",
+      "maxTokens": 4000,
+      "maxSteps": 8,
+      "budgetOutputTokens": 32000,
+      "maxCostUsd": 2,
+      "bare": true,
+      "allowShell": false
+    },
+    "parent_elapsed_ms": 8557.715584,
+    "pre_hashes": {
+      "README.txt": "071cfdc6539cf78d759e6a92890695fb48597a236e24024d6f203f091e8ac118",
+      "config.json": "9525502984a31bb55e6a9390d0668cb2a029f3b76110cc7a7dc4bcab090c51e1",
+      "multiply.js": "729400d44078ea9502db85e83f0a4916da84e0bfb5d8e579e50ce072df9e18b1"
+    },
+    "post_hashes": {
+      "README.txt": "071cfdc6539cf78d759e6a92890695fb48597a236e24024d6f203f091e8ac118",
+      "config.json": "9525502984a31bb55e6a9390d0668cb2a029f3b76110cc7a7dc4bcab090c51e1",
+      "multiply.js": "729400d44078ea9502db85e83f0a4916da84e0bfb5d8e579e50ce072df9e18b1"
+    },
+    "assertions": {
+      "answer_key": true,
+      "all_files_unchanged": true
+    },
+    "passed": true,
+    "final_text_sha256": "258b49c55cdf38a6a1cae58a0986d698133dcb5b42ec4b26ea35a401cc36ea9f",
+    "existing_unrelated_files_unchanged": true,
+    "added_paths": [],
+    "changed_existing_paths": [],
+    "model_call_count": 2,
+    "tool_request_count": 3,
+    "repeated_tool_signatures": 0,
+    "first_token_latency_ms": null,
+    "actual_billed_usd": null,
+    "live_request_bytes": null
+  },
+  {
+    "id": "mock-context-budget",
+    "mode": "mock",
+    "scenario": "context-budget",
+    "elapsed_ms": 32.606792,
+    "stop_reason": "context_budget_exceeded",
+    "steps": 4,
+    "usage": {
+      "input_tokens": 10000,
+      "output_tokens": 80,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "reasoning_tokens": 0
+    },
+    "reference_cost_usd": 0.0208,
+    "requests": [
+      {
+        "bytes": 1917,
+        "input_bytes": 109,
+        "input_items": 1,
+        "max_output_tokens": 4000,
+        "model": "gpt-6.1-sol",
+        "effort": "low"
+      },
+      {
+        "bytes": 2199,
+        "input_bytes": 391,
+        "input_items": 3,
+        "max_output_tokens": 4000,
+        "model": "gpt-6.1-sol",
+        "effort": "low"
+      },
+      {
+        "bytes": 2581,
+        "input_bytes": 773,
+        "input_items": 5,
+        "max_output_tokens": 4000,
+        "model": "gpt-6.1-sol",
+        "effort": "low"
+      },
+      {
+        "bytes": 3063,
+        "input_bytes": 1255,
+        "input_items": 7,
+        "max_output_tokens": 4000,
+        "model": "gpt-6.1-sol",
+        "effort": "low"
+      }
+    ],
+    "events": [
+      {
+        "type": "system",
+        "t_ms": 11.542333999999997
+      },
+      {
+        "type": "model_request",
+        "t_ms": 11.848250000000007,
+        "step": 1
+      },
+      {
+        "type": "budget",
+        "t_ms": 18.737291999999997
+      },
+      {
+        "type": "assistant",
+        "t_ms": 19.399709,
+        "step": 1
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 19.96650000000001,
+        "step": 1,
+        "name": "read_file"
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 21.93804200000001,
+        "step": 1,
+        "name": "read_file",
+        "is_error": false
+      },
+      {
+        "type": "budget",
+        "t_ms": 22.05225
+      },
+      {
+        "type": "budget",
+        "t_ms": 22.083250000000007
+      },
+      {
+        "type": "model_request",
+        "t_ms": 22.52962500000001,
+        "step": 2
+      },
+      {
+        "type": "budget",
+        "t_ms": 23.662667
+      },
+      {
+        "type": "assistant",
+        "t_ms": 23.940167000000002,
+        "step": 2
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 24.178708999999998,
+        "step": 2,
+        "name": "read_file"
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 25.301625,
+        "step": 2,
+        "name": "read_file",
+        "is_error": false
+      },
+      {
+        "type": "budget",
+        "t_ms": 25.323000000000008
+      },
+      {
+        "type": "budget",
+        "t_ms": 25.338459
+      },
+      {
+        "type": "model_request",
+        "t_ms": 25.781334,
+        "step": 3
+      },
+      {
+        "type": "budget",
+        "t_ms": 26.550624999999997
+      },
+      {
+        "type": "assistant",
+        "t_ms": 26.817459,
+        "step": 3
+      },
+      {
+        "type": "tool_use",
+        "t_ms": 27.041292,
+        "step": 3,
+        "name": "read_file"
+      },
+      {
+        "type": "tool_result",
+        "t_ms": 28.38754200000001,
+        "step": 3,
+        "name": "read_file",
+        "is_error": false
+      },
+      {
+        "type": "budget",
+        "t_ms": 28.404584
+      },
+      {
+        "type": "budget",
+        "t_ms": 28.416334000000006
+      },
+      {
+        "type": "model_request",
+        "t_ms": 28.97745900000001,
+        "step": 4
+      },
+      {
+        "type": "budget",
+        "t_ms": 30.04887500000001
+      },
+      {
+        "type": "error",
+        "t_ms": 30.37295900000001
+      },
+      {
+        "type": "run_end",
+        "t_ms": 31.753417
+      }
+    ],
+    "tools": [
+      {
+        "kind": "model",
+        "duration_ms": 7.551458999999994,
+        "usage": {
+          "input_tokens": 1000,
+          "output_tokens": 20,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "kind": "tool",
+        "name": "read_file",
+        "signature": "47192737d54cfb4fb53a48bfe204d2f5656491f290c4763e8ecf7832754cba0f",
+        "duration_ms": 1.9715419999999995,
+        "is_error": false
+      },
+      {
+        "kind": "model",
+        "duration_ms": 1.4105419999999924,
+        "usage": {
+          "input_tokens": 2000,
+          "output_tokens": 20,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "kind": "tool",
+        "name": "read_file",
+        "signature": "f38558d3f9f24d80d0468c075941b51b5aedf36e44f17f620565a833927833fc",
+        "duration_ms": 1.1229160000000036,
+        "is_error": false
+      },
+      {
+        "kind": "model",
+        "duration_ms": 1.0361249999999984,
+        "usage": {
+          "input_tokens": 3000,
+          "output_tokens": 20,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      {
+        "kind": "tool",
+        "name": "read_file",
+        "signature": "88c5b1ea0c84732843a68caeb73f3e7a7dd776938790baa04532c8b0bacf5b24",
+        "duration_ms": 1.346250000000012,
+        "is_error": false
+      }
+    ],
+    "approvals": [],
+    "checkpoint": {
+      "schemaVersion": 2,
+      "provider": "codex",
+      "item_count": 7,
+      "function_calls": 3
+    },
+    "settings": {
+      "model": "gpt-6.1-sol",
+      "effort": "low",
+      "maxTokens": 4000,
+      "maxSteps": 8,
+      "budgetOutputTokens": 32000,
+      "maxCostUsd": 2,
+      "bare": true,
+      "allowShell": false
+    },
+    "parent_elapsed_ms": 116.883458,
+    "pre_hashes": {
+      "chunk1.txt": "d85be1187abee7a174242b9534637c476d8dae2b5f03e60c69d1ab03949b72cc",
+      "chunk2.txt": "bb424e2150f3abf1011fbf6abe5a19f1b2dae80d186933037835f2fce171935d",
+      "chunk3.txt": "6c94a096827c9282c1aa35190885a7c95fa9e846e4bea0ad4e089dca0e77b8c9",
+      "chunk4.txt": "edc05049e5ad37d490ba4532cf0c681524aaf35c9366717a59bfdd6ca996292d"
+    },
+    "post_hashes": {
+      "chunk1.txt": "d85be1187abee7a174242b9534637c476d8dae2b5f03e60c69d1ab03949b72cc",
+      "chunk2.txt": "bb424e2150f3abf1011fbf6abe5a19f1b2dae80d186933037835f2fce171935d",
+      "chunk3.txt": "6c94a096827c9282c1aa35190885a7c95fa9e846e4bea0ad4e089dca0e77b8c9",
+      "chunk4.txt": "edc05049e5ad37d490ba4532cf0c681524aaf35c9366717a59bfdd6ca996292d"
+    },
+    "assertions": {
+      "cumulative_guard_stopped": true,
+      "request_sizes_observed": true,
+      "all_files_unchanged": true
+    },
+    "passed": true,
+    "final_text_sha256": "74cb0e91ccba62aea9ef5ede0aed44ccee1c6e753a6f6c4cee20f7db2e2d7d75",
+    "existing_unrelated_files_unchanged": true,
+    "added_paths": [],
+    "changed_existing_paths": [],
+    "model_call_count": 4,
+    "tool_request_count": 3,
+    "repeated_tool_signatures": 0,
+    "first_token_latency_ms": null,
+    "actual_billed_usd": null,
+    "live_request_bytes": "see requests"
+  }
+]

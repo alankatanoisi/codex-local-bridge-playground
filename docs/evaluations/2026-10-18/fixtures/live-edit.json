@@ -1,0 +1,5 @@
+{
+  "target.js": "module.exports = value => value * 2;\n",
+  "test.cjs": "const assert = require('node:assert/strict'); const f = require('./target'); assert.equal(f(4),12); assert.equal(f(-2),-6);\n",
+  "unrelated.txt": "keep this unchanged\n"
+}

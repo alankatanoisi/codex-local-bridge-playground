@@ -1,0 +1,27 @@
+[
+  {
+    "check": "integrity",
+    "exit_code": 1,
+    "elapsed_seconds": 0.136
+  },
+  {
+    "check": "install",
+    "exit_code": 0,
+    "elapsed_seconds": 1.116
+  },
+  {
+    "check": "test",
+    "exit_code": 0,
+    "elapsed_seconds": 4.724
+  },
+  {
+    "check": "lint",
+    "exit_code": 0,
+    "elapsed_seconds": 2.333
+  },
+  {
+    "check": "format",
+    "exit_code": 0,
+    "elapsed_seconds": 1.8
+  }
+]

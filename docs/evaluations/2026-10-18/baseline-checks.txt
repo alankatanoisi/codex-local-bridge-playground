@@ -1,0 +1,13 @@
+Initial supplied integrity checker: PASS, 274 files, exit 0 (before installation).
+Subsequent strict checker: FAIL, exit 1; four Finder .DS_Store additions.
+All 274 manifest-listed files still match; no runner fixes were made.
+
+integrity: exit 1, 0.136s
+install: exit 0, 1.116s
+test: exit 0, 4.724s
+lint: exit 0, 2.333s
+format: exit 0, 1.800s
+
+npm test: 635 pass, 0 fail, 0 skipped, 0 todo.
+Complete local logs are retained in results/private-logs; excluded from the return archive.
+SECURITY.md absent from incoming snapshot.

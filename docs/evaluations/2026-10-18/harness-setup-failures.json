@@ -1,0 +1,185 @@
+[
+  {
+    "id": "mock-deny-write",
+    "mode": "mock",
+    "scenario": "deny-write",
+    "error": "Unsupported session schemaVersion undefined (expected 2). Start a new session; the file was left untouched.",
+    "elapsed_ms": 15.284292,
+    "parent_elapsed_ms": 84.857416,
+    "pre_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "post_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "assertions": {
+      "all_files_unchanged": true,
+      "denial_observed": false
+    },
+    "passed": false,
+    "final_text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "id": "mock-cancel-stream",
+    "mode": "mock",
+    "scenario": "cancel-stream",
+    "error": "Unsupported session schemaVersion undefined (expected 2). Start a new session; the file was left untouched.",
+    "elapsed_ms": 8.108791999999994,
+    "parent_elapsed_ms": 60.89641700000001,
+    "pre_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "post_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "assertions": {
+      "cancelled": false,
+      "no_tools_started": true
+    },
+    "passed": false,
+    "final_text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "id": "mock-cancel-tools",
+    "mode": "mock",
+    "scenario": "cancel-tools",
+    "error": "Unsupported session schemaVersion undefined (expected 2). Start a new session; the file was left untouched.",
+    "elapsed_ms": 7.531165999999999,
+    "parent_elapsed_ms": 58.46066700000002,
+    "pre_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "post_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "assertions": {
+      "cancelled": false,
+      "first_write_preserved": false,
+      "second_write_prevented": true,
+      "second_tool_not_started": false
+    },
+    "passed": false,
+    "final_text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "id": "mock-tool-failure",
+    "mode": "mock",
+    "scenario": "tool-failure",
+    "error": "Unsupported session schemaVersion undefined (expected 2). Start a new session; the file was left untouched.",
+    "elapsed_ms": 8.156875000000007,
+    "parent_elapsed_ms": 60.78908299999996,
+    "pre_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "post_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "assertions": {
+      "tool_error_observed": false,
+      "loop_recovered": false,
+      "all_files_unchanged": true
+    },
+    "passed": false,
+    "final_text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "id": "mock-incomplete-tool",
+    "mode": "mock",
+    "scenario": "incomplete-tool",
+    "error": "Unsupported session schemaVersion undefined (expected 2). Start a new session; the file was left untouched.",
+    "elapsed_ms": 8.512332999999998,
+    "parent_elapsed_ms": 67.55983399999998,
+    "pre_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "post_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "assertions": {
+      "incomplete_reported": false,
+      "all_files_unchanged": true,
+      "no_tool_executed": true
+    },
+    "passed": false,
+    "final_text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "id": "mock-small-output",
+    "mode": "mock",
+    "scenario": "small-output",
+    "error": "Unsupported session schemaVersion undefined (expected 2). Start a new session; the file was left untouched.",
+    "elapsed_ms": 7.622624999999999,
+    "parent_elapsed_ms": 64.143167,
+    "pre_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "post_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "assertions": {
+      "incomplete_reported": false,
+      "all_files_unchanged": true,
+      "no_tool_executed": true
+    },
+    "passed": false,
+    "final_text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "id": "mock-context",
+    "mode": "mock",
+    "scenario": "context",
+    "error": "Unsupported session schemaVersion undefined (expected 2). Start a new session; the file was left untouched.",
+    "elapsed_ms": 8.630916999999997,
+    "parent_elapsed_ms": 62.05970799999999,
+    "pre_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "post_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "assertions": {
+      "five_requests": false,
+      "history_grew": false,
+      "all_files_unchanged": true
+    },
+    "passed": false,
+    "final_text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "id": "mock-retry-400",
+    "mode": "mock",
+    "scenario": "retry-400",
+    "error": "Unsupported session schemaVersion undefined (expected 2). Start a new session; the file was left untouched.",
+    "elapsed_ms": 7.893749999999997,
+    "parent_elapsed_ms": 64.22620800000001,
+    "pre_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "post_hashes": {
+      "target.txt": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "unrelated.txt": "4bdd22aec05d9c3f75861905f8cbafba14cd6ea6b4a034f3e25aae5e7e1e7992"
+    },
+    "assertions": {
+      "stopped_with_error": false,
+      "request_count_recorded": false,
+      "all_files_unchanged": true
+    },
+    "passed": false,
+    "final_text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

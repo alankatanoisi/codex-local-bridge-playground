@@ -1,0 +1,38 @@
+{
+  "os": "macOS-27.2-arm64-arm-64bit",
+  "hardware_model": "MacBookAir10,1",
+  "cpu": "Apple M1",
+  "memory_bytes": 8589934592,
+  "node": "v22.22.3",
+  "npm": "10.9.8",
+  "architecture": "arm64",
+  "base_commit": "21af777f802fbc05832ce117ef5c7ce39e9580ff",
+  "manifest_sha256": "e1470d9e9be906cfe56b54bde63b36f82f6736f863c7092992d114115f7ba8e1",
+  "snapshot_has_git": false,
+  "settings": {
+    "model": "gpt-6.1-sol",
+    "effort": "low",
+    "max_output_tokens_per_request": 4000,
+    "max_steps": 8,
+    "external_timeout_seconds": 180,
+    "max_live_attempts": 10,
+    "campaign_ceiling_minutes": 30,
+    "user_budget_usd": 25,
+    "per_attempt_reference_budget_usd": 2,
+    "credential_source": "supplied local host; upstream token never read by harness"
+  },
+  "initial_integrity": {
+    "exit_code": 0,
+    "files": 274
+  },
+  "post_install_manifest_comparison": {
+    "changed_manifest_files": [],
+    "extra_non_dependency_files": [
+      ".DS_Store",
+      "test/.DS_Store",
+      "docs/.DS_Store",
+      "src/.DS_Store"
+    ]
+  },
+  "live_campaign_observed_span_seconds": 45.482
+}

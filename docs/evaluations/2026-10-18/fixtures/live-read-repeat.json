@@ -1,0 +1,5 @@
+{
+  "config.json": "{\"base\":9,\"color\":\"amber\"}\n",
+  "multiply.js": "exports.factor = 3;\n",
+  "README.txt": "Multiply config.base by multiply.factor; report product and color.\n"
+}
