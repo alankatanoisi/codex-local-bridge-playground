@@ -22,8 +22,8 @@ describe('model-client (native)', () => {
     assert.equal(typeof modelClient.postStream, 'function');
   });
 
-  it('createRequest maps effort max → high', () => {
+  it('createRequest preserves native effort max', () => {
     const body = modelClient.createRequest({ model: 'gpt-5.5', effort: 'max' });
-    assert.deepEqual(body.reasoning, { effort: 'high' });
+    assert.deepEqual(body.reasoning, { effort: 'max' });
   });
 });

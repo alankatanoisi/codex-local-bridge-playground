@@ -16,8 +16,8 @@
  *   - The backend is streaming-only: `stream: false` is rejected upstream, so
  *     this module has one wire path (SSE) and `requestBuffered()` is just the
  *     streaming path with collection instead of a callback.
- *   - `max_output_tokens` is rejected upstream ("Unsupported parameter");
- *     fail fast locally with a clear message.
+ *   - `max_output_tokens` is supported (live-verified 2026-10-17).
+ *     Validate it before sending; incomplete replies must not execute tools.
  *
  * Safety invariants:
  *   - The token never appears in errors, trace events, or return values.
@@ -30,8 +30,10 @@
 
 const http = require('http');
 const https = require('https');
+const { StringDecoder } = require('node:string_decoder');
 const safety = require('./safety');
-const { parseRetryAfter } = require('./model-retry');
+const { validateMaxOutputTokens } = require('./model-controls');
+const { parseRetryAfter, retryMetadata, readBridgeRetryMetadata } = require('./model-retry');
 const { headerSummary, bytes, sha256 } = require('../trace-utils');
 
 const CODEX_RESPONSES_URL = 'https://chatgpt.com/backend-api/codex/responses';
@@ -74,12 +76,7 @@ function normalizeRequestBody(body) {
   if (body.stream === false) {
     throw new Error('Codex backend is streaming-only: stream:false is rejected upstream. Omit stream or use true.');
   }
-  if ('max_output_tokens' in body) {
-    throw new Error(
-      'max_output_tokens is an unsupported parameter on the Codex backend. ' +
-        'Output budgets stay a runner-side concern (budget tracker).',
-    );
-  }
+  if ('max_output_tokens' in body) validateMaxOutputTokens(body.max_output_tokens);
   return { ...body, stream: true };
 }
 
@@ -127,9 +124,20 @@ function scrubbedError(prefix, rawText) {
  * @returns {Promise<{streamed: true, response: object|null, output_text: string, usage: object, events_seen: string[], _transport: object}>}
  */
 function requestStream(body, onEvent, opts = {}) {
-  const token = resolveAccessToken(opts.env);
+  const abortError = () => Object.assign(new Error('Request cancelled by caller.'), { name: 'AbortError' });
+  if (opts.signal?.aborted) return Promise.reject(abortError());
+  const env = opts.env || process.env;
+  const localUrl = env.CODEX_BRIDGE_URL;
+  if (localUrl) {
+    const local = new URL(localUrl);
+    if (local.protocol !== 'http:' || local.hostname !== '127.0.0.1' || local.username || local.password)
+      throw new Error('CODEX_BRIDGE_URL must be a loopback HTTP address');
+    if (opts.url && opts.url !== localUrl) throw new Error('Conflicting local bridge and explicit endpoint');
+    if (!env.CODEX_BRIDGE_CALLER_TOKEN) throw new Error('CODEX_BRIDGE_CALLER_TOKEN is required');
+  }
+  const token = localUrl ? env.CODEX_BRIDGE_CALLER_TOKEN : resolveAccessToken(env);
   const normalized = normalizeRequestBody(body);
-  const url = opts.url || CODEX_RESPONSES_URL;
+  const url = localUrl || opts.url || CODEX_RESPONSES_URL;
   const trace = opts.trace || null;
   const timeoutMs = opts.timeoutMs || REQUEST_TIMEOUT_MS;
   const bodyStr = JSON.stringify(normalized);
@@ -156,7 +164,29 @@ function requestStream(body, onEvent, opts = {}) {
   }
 
   return new Promise((resolve, reject) => {
+    let settled = false;
+    let terminalReceived = false;
+    let req;
+    let responseStream;
+    const cleanup = () => opts.signal?.removeEventListener('abort', onAbort);
+    const succeed = (value) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(value);
+    };
+    const onAbort = () => {
+      // A completed answer already has usage: let it finish so the caller can
+      // record the paid result, then stop before executing any proposed tool.
+      if (terminalReceived) return;
+      fail(abortError());
+    };
     const fail = (err) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      responseStream?.destroy();
+      req?.destroy();
       if (trace) {
         trace.append('codex_request_failed', {
           run_id: opts.runId,
@@ -177,31 +207,51 @@ function requestStream(body, onEvent, opts = {}) {
       agent: isHttps ? keepAliveHttpsAgent : keepAliveHttpAgent,
     };
 
-    const req = (isHttps ? https : http).request(requestOptions, (res) => {
+    req = (isHttps ? https : http).request(requestOptions, (res) => {
+      responseStream = res;
+      res.on('aborted', () =>
+        fail(Object.assign(new Error('Codex response stream was interrupted'), { code: 'ECONNRESET' })),
+      );
+      res.on('error', (err) => fail(Object.assign(scrubbedError('Stream error: ', err.message), retryMetadata(err))));
+
       if (res.statusCode !== 200) {
         const chunks = [];
         res.on('data', (c) => chunks.push(c));
         res.on('end', () => {
-          const error = scrubbedError(
-            'Codex backend returned HTTP ' + res.statusCode + ': ',
-            Buffer.concat(chunks).toString('utf8'),
-          );
+          const raw = Buffer.concat(chunks).toString('utf8');
+          const error = scrubbedError('Codex backend returned HTTP ' + res.statusCode + ': ', raw);
           // Keep numeric retry metadata separate from the redacted message.
           // The runner must not parse arbitrary backend prose to decide retries.
-          error.statusCode = res.statusCode;
-          error.retryAfterMs = parseRetryAfter(res.headers['retry-after']);
+          if (localUrl) {
+            // Only the explicitly selected local-service route may interpret
+            // this envelope. A direct upstream cannot impersonate the relay.
+            let detail;
+            try {
+              detail = JSON.parse(raw)?.error;
+            } catch {
+              /* A malformed local error stays unclassified and stops safely. */
+            }
+            Object.assign(error, readBridgeRetryMetadata(detail) || {});
+          } else {
+            error.statusCode = res.statusCode;
+            error.retryAfterMs = parseRetryAfter(res.headers['retry-after']);
+          }
           fail(error);
         });
         return;
       }
 
       let buffer = '';
+      // Network chunks are byte pieces, not whole characters. Retain unfinished
+      // UTF-8 bytes until the next piece arrives, before splitting SSE frames.
+      const decoder = new StringDecoder('utf8');
       let outputText = '';
       let finalResponse = null;
       let usage = {};
       const eventsSeen = [];
 
       const handleFrame = (frame) => {
+        if (settled) return;
         const dataLines = frame
           .split('\n')
           .filter((l) => l.startsWith('data:'))
@@ -225,27 +275,43 @@ function requestStream(body, onEvent, opts = {}) {
           outputText += event.delta;
         }
         if ((event.type === 'response.completed' || event.type === 'response.incomplete') && event.response) {
+          terminalReceived = true;
           finalResponse = event.response;
           if (event.response.usage) usage = event.response.usage;
         }
         if (event.type === 'response.failed' || event.type === 'error') {
           const detail = (event.response && event.response.error) || event.error || event;
-          fail(scrubbedError('Codex backend reported a failed response: ', JSON.stringify(detail)));
+          const error = scrubbedError('Codex backend reported a failed response: ', JSON.stringify(detail));
+          if (localUrl) Object.assign(error, readBridgeRetryMetadata(detail) || {});
+          fail(error);
           return;
         }
 
-        if (onEvent) onEvent(event);
+        if (onEvent) {
+          try {
+            onEvent(event);
+          } catch (err) {
+            fail(scrubbedError('Event handler failed: ', err.message));
+          }
+        }
       };
 
       res.on('data', (chunk) => {
-        buffer += chunk.toString('utf8');
+        buffer += decoder.write(chunk);
         const parts = buffer.split('\n\n');
         buffer = parts.pop() || ''; // keep incomplete frame in the buffer
         for (const frame of parts) handleFrame(frame);
       });
 
       res.on('end', () => {
+        buffer += decoder.end();
         if (buffer.trim()) handleFrame(buffer);
+        if (settled) return;
+        // A dropped stream is not a successful answer, even if some text arrived.
+        if (!finalResponse) {
+          fail(new Error('Codex stream ended without a terminal response event'));
+          return;
+        }
 
         const meta = {
           status_code: res.statusCode,
@@ -265,7 +331,7 @@ function requestStream(body, onEvent, opts = {}) {
             usage,
           });
         }
-        resolve({
+        succeed({
           streamed: true,
           response: finalResponse,
           output_text: outputText,
@@ -274,8 +340,6 @@ function requestStream(body, onEvent, opts = {}) {
           _transport: meta,
         });
       });
-
-      res.on('error', (err) => fail(scrubbedError('Stream error: ', err.message)));
     });
 
     req.on('error', (err) => {
@@ -291,6 +355,11 @@ function requestStream(body, onEvent, opts = {}) {
       req.destroy(error);
     });
 
+    opts.signal?.addEventListener('abort', onAbort, { once: true });
+    if (opts.signal?.aborted) {
+      onAbort();
+      return;
+    }
     req.write(bodyStr);
     req.end();
   });

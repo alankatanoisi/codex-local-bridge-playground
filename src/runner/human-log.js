@@ -113,7 +113,10 @@ class HumanLog {
       'cache read tokens: ' + summary.cacheReadTokens,
       'cache creation tokens: ' + summary.cacheCreationTokens,
       'cache read share: ' + Math.round((summary.cacheReadShare || 0) * 100) + '%',
-      'estimated cost: ~$' + (summary.costUsd || 0).toFixed(4),
+      typeof summary.costUsd !== 'number'
+        ? 'estimated cost: unknown (no model pricing)'
+        : 'estimated cost: ~$' + summary.costUsd.toFixed(4),
+      ...(summary.costReferenceOnly ? ['Cost is a rate-card reference, not verified account billing.'] : []),
     ].join('\n');
     this.appendSection('Usage & Cost', body);
   }

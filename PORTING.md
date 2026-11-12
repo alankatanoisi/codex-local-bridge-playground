@@ -15,4 +15,6 @@ Format: date · direction · source commit · one-line description.
 
 ## Ported fixes
 
-- (none yet)
+- 2026-10-17 · Claude → Codex · reference checkout `0a26f14` · Borrowed the interface concepts for progress, injected approvals, and cancellation; implemented independently for native Responses history. No ACP adapter, bridge host, or Starlark code copied.
+
+- 2026-10-17 · Claude → Codex · local ACP reference · Independently implemented ACP v1 session/config/permission patterns and T3 model-list/mode compatibility. Added Codex-only standalone host with environment credentials and separate local caller authentication. No Claude credential or Starlark code copied.

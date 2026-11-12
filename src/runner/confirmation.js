@@ -24,7 +24,8 @@ const TTY_PATH = '/dev/tty';
  * @param {number} [timeoutMs]    — optional auto-deny timeout in milliseconds
  * @returns {Promise<'allow' | 'deny'>}
  */
-function ask(proposedAction, timeoutMs) {
+function ask(proposedAction, timeoutMs, { signal } = {}) {
+  if (signal?.aborted) return Promise.resolve('deny');
   return new Promise((resolve) => {
     console.error('\n─── CONFIRM ───');
     console.error(proposedAction);
@@ -91,7 +92,11 @@ function ask(proposedAction, timeoutMs) {
       }, timeoutMs);
     }
 
+    const cancel = () => decide('deny');
+    signal?.addEventListener('abort', cancel, { once: true });
+
     function cleanup() {
+      signal?.removeEventListener('abort', cancel);
       if (timer) clearTimeout(timer);
       stream.removeListener('data', onData);
       stream.removeListener('end', onUnavailable);
@@ -104,6 +109,7 @@ function ask(proposedAction, timeoutMs) {
     stream.on('data', onData);
     stream.on('end', onUnavailable);
     stream.on('error', onUnavailable);
+    if (signal?.aborted) cancel();
   });
 }
 

@@ -19,6 +19,9 @@ const STOP_REASONS = Object.freeze({
   USER_DENIED: 'user_denied',
   TOOL_FAILURE_ESCALATION: 'tool_failure_escalation',
   CANCELLED: 'cancelled',
+  MAX_OUTPUT_TOKENS: 'max_output_tokens',
+  MODEL_INCOMPLETE: 'model_incomplete',
+  PRICING_UNKNOWN: 'pricing_unknown',
   WORKSPACE_NOT_TRUSTED: 'workspace_not_trusted',
   SEMANTIC_CYCLE_DETECTED: 'semantic_cycle_detected',
   WALL_CLOCK_BUDGET_EXCEEDED: 'wall_clock_budget_exceeded',
@@ -41,6 +44,7 @@ const KERNEL_EVENT_TYPES = Object.freeze([
   'approval_required',
   'error',
   'result',
+  'run_end',
   'compaction',
   'budget',
   'repeat_tool_warning',
@@ -76,7 +80,7 @@ const KERNEL_EVENT_TYPES = Object.freeze([
  * @property {string} model
  * @property {number} maxTokens
  * @property {number} [maxSteps]
- * @property {string} [outputFormat] — text | json | stream-json
+ * @property {string} [outputFormat] — text | json | stream-json | silent
  * @property {string} [sessionId] — canonical session store id
  * @property {string} [sessionPath] — flat JSON session file path
  * @property {boolean} [resume]
@@ -96,6 +100,9 @@ const KERNEL_EVENT_TYPES = Object.freeze([
  * @property {boolean} [verbose]
  * @property {boolean} [quiet]
  * @property {boolean} [stream]
+ * @property {AbortSignal} [signal] — stop requests and prevent new tool effects
+ * @property {(event: object) => void} [onEvent] — redacted structured progress
+ * @property {{ask: Function}} [confirm] — explicit allow/deny UI decisions
  * @property {string} [systemPromptOverride]
  */
 

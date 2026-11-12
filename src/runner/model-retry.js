@@ -5,6 +5,29 @@
 const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 const RETRYABLE_NETWORK_CODES = new Set(['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'EAI_AGAIN', 'EPIPE']);
 const MAX_RETRY_WAIT_MS = 30000;
+const BRIDGE_ERROR_TYPE = 'codex_bridge_error';
+
+// A relay must carry the reason for failure, rather than turning every error
+// into a retryable 502. Copy only classification fields, never raw headers,
+// credentials, stacks, or arbitrary properties attached to an Error object.
+function retryMetadata(error) {
+  const metadata = {};
+  if (Number.isInteger(error?.statusCode) && error.statusCode >= 400 && error.statusCode <= 599) {
+    metadata.statusCode = error.statusCode;
+  }
+  if (RETRYABLE_NETWORK_CODES.has(error?.code)) metadata.code = error.code;
+  if (Number.isFinite(error?.retryAfterMs) && error.retryAfterMs >= 0) {
+    metadata.retryAfterMs = error.retryAfterMs;
+  }
+  return metadata;
+}
+
+function readBridgeRetryMetadata(error) {
+  if (error?.type !== BRIDGE_ERROR_TYPE || error.version !== 1) return null;
+  // An empty result deliberately means "unclassified". It must not inherit
+  // the relay's generic HTTP 502 status and accidentally become retryable.
+  return retryMetadata(error.retry);
+}
 
 function parseRetryAfter(value, now = Date.now()) {
   if (typeof value !== 'string' || !value.trim()) return null;
@@ -33,4 +56,11 @@ function retryDelayMs(error, retriesSoFar) {
   return Math.max(Math.min(250 * 2 ** retriesSoFar, 2000), serverWait);
 }
 
-module.exports = { parseRetryAfter, retryDelayMs, MAX_RETRY_WAIT_MS };
+module.exports = {
+  parseRetryAfter,
+  retryDelayMs,
+  MAX_RETRY_WAIT_MS,
+  BRIDGE_ERROR_TYPE,
+  retryMetadata,
+  readBridgeRetryMetadata,
+};

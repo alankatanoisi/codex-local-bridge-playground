@@ -390,36 +390,43 @@ function scrubObject(value, scrubFn = scrubSecrets, options = {}, parentKey = nu
 const STREAM_SCRUB_WINDOW = 4096;
 
 /**
- * Create a streaming scrubber that emits scrubbed chunks while holding a
- * trailing window in case a secret straddles a chunk boundary. push() returns
- * the scrubbed prefix safe to emit; end() returns whatever's left.
+ * Keep a trailing window AND the unfinished line before displaying text.
+ * Cutting at an arbitrary character can split a token into two unrecognizable
+ * halves. Most redaction rules fit within a line; private keys span lines, so
+ * retain a whole key block until its closing marker arrives as well.
  *
- * Correctness depends on no secret pattern matching more than
- * STREAM_SCRUB_WINDOW bytes — true for the current SECRET_PATTERNS, which
- * top out a few hundred chars for PEM blocks.
+ * This is a display delay, not a memory limit. Long lines/keys can exceed the
+ * window; callers still enforce their own total output limits.
  */
 function makeStreamingScrubber() {
   let buffer = '';
-  function scrubFull(text) {
-    if (!text) return text;
-    let out = text;
-    for (const { pattern, replacement } of SECRET_PATTERNS) {
-      out = out.replace(pattern, replacement);
-    }
-    return out;
-  }
   return {
     push(chunk) {
       if (!chunk) return '';
       buffer += chunk;
       if (buffer.length <= STREAM_SCRUB_WINDOW) return '';
-      const safeEnd = buffer.length - STREAM_SCRUB_WINDOW;
+      // Include only complete lines outside the trailing window. A very long
+      // line waits until end() rather than exposing a possible partial token.
+      let safeEnd = buffer.lastIndexOf('\n', buffer.length - STREAM_SCRUB_WINDOW - 1) + 1;
+      const beginnings = /-----BEGIN (RSA|OPENSSH|EC|DSA|PGP) PRIVATE KEY-----/g;
+      let opening;
+      while ((opening = beginnings.exec(buffer)) && opening.index < safeEnd) {
+        const closing = '-----END ' + opening[1] + ' PRIVATE KEY-----';
+        const closingIndex = buffer.indexOf(closing, beginnings.lastIndex);
+        if (closingIndex === -1 || closingIndex + closing.length > safeEnd) {
+          // Leave the opening line in the buffer too; the regular redactor
+          // needs both markers together to recognize the complete key block.
+          safeEnd = buffer.lastIndexOf('\n', opening.index - 1) + 1;
+          break;
+        }
+        beginnings.lastIndex = closingIndex + closing.length;
+      }
       const head = buffer.slice(0, safeEnd);
       buffer = buffer.slice(safeEnd);
-      return scrubFull(head);
+      return scrubSecrets(head);
     },
     end() {
-      const out = scrubFull(buffer);
+      const out = scrubSecrets(buffer);
       buffer = '';
       return out;
     },

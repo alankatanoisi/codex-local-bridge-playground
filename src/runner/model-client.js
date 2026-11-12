@@ -20,32 +20,14 @@
 
 const transport = require('./codex-transport');
 const items = require('./items');
+const safety = require('./safety');
 
-/** Runner --effort max has no native twin yet; map to high until a live capture settles it. */
-const EFFORT_MAP = Object.freeze({
-  low: 'low',
-  medium: 'medium',
-  high: 'high',
-  max: 'high',
-});
-
-/**
- * Map CLI/runner effort to a Responses reasoning.effort value.
- * @param {string|null|undefined} effort
- * @returns {string|null}
- */
-function mapEffort(effort) {
-  if (effort === undefined || effort === null || effort === '') return null;
-  const key = String(effort).toLowerCase();
-  if (!(key in EFFORT_MAP)) {
-    throw new Error('--effort must be one of: low, medium, high, max (max maps to high on Codex)');
-  }
-  return EFFORT_MAP[key];
-}
+const { EFFORT_LEVELS, normalizeEffort: mapEffort, validateMaxOutputTokens } = require('./model-controls');
+const EFFORT_MAP = Object.freeze(Object.fromEntries(EFFORT_LEVELS.map((level) => [level, level])));
 
 /**
  * Build a native Responses request body for the Codex backend.
- * Omits max_output_tokens (rejected upstream). Forces store:false + stream:true
+ * Forwards the explicit output limit (including reasoning). Forces store:false + stream:true
  * via transport.normalizeRequestBody when sent.
  *
  * @param {object} opts
@@ -81,6 +63,8 @@ function createRequest(opts = {}) {
     body.tool_choice = opts.toolChoice === undefined ? 'auto' : opts.toolChoice;
   }
 
+  if (opts.maxTokens !== undefined) body.max_output_tokens = validateMaxOutputTokens(opts.maxTokens);
+
   const effort = mapEffort(opts.effort);
   if (effort) body.reasoning = { effort };
 
@@ -100,6 +84,9 @@ function createRequest(opts = {}) {
  */
 function createStreamAssembler(options = {}) {
   const streamOutput = !!options.streamOutput;
+  // A secret can arrive in several text deltas. Scrub a buffered display copy
+  // before printing, while leaving the native model items intact internally.
+  const displayScrubber = streamOutput ? safety.makeStreamingScrubber() : null;
   /** @type {Map<number, object>} */
   const byIndex = new Map();
   /** @type {Map<number, string>} */
@@ -110,9 +97,10 @@ function createStreamAssembler(options = {}) {
   const completed = [];
   let responseId = null;
   let status = null;
+  let incompleteDetails = null;
   let rawUsage = {};
   let outputText = '';
-  let lastStreamed = '';
+  let sawTextDelta = false;
 
   function ensureSlot(outputIndex, seed) {
     if (!byIndex.has(outputIndex)) {
@@ -160,8 +148,9 @@ function createStreamAssembler(options = {}) {
       textBuffers.set(idx, (textBuffers.get(idx) || '') + delta);
       outputText += delta;
       if (streamOutput && delta) {
-        process.stdout.write(delta);
-        lastStreamed += delta;
+        sawTextDelta = true;
+        const safeChunk = displayScrubber.push(delta);
+        if (safeChunk) process.stdout.write(safeChunk);
       }
       const slot = ensureSlot(idx, { type: 'message', role: 'assistant', content: [] });
       slot.content = [{ type: 'output_text', text: textBuffers.get(idx) }];
@@ -198,12 +187,17 @@ function createStreamAssembler(options = {}) {
     if ((event.type === 'response.completed' || event.type === 'response.incomplete') && event.response) {
       responseId = event.response.id || responseId;
       status = event.response.status || status;
+      incompleteDetails = event.response.incomplete_details || null;
       if (event.response.usage) rawUsage = event.response.usage;
     }
   }
 
   function finish() {
-    if (streamOutput && lastStreamed) process.stdout.write('\n');
+    if (streamOutput && sawTextDelta) {
+      const safeTail = displayScrubber.end();
+      if (safeTail) process.stdout.write(safeTail);
+      process.stdout.write('\n');
+    }
 
     // Compact completed list (remove holes) while preserving order.
     const output = [];
@@ -229,6 +223,7 @@ function createStreamAssembler(options = {}) {
       streamed: true,
       id: responseId,
       status,
+      incomplete_details: incompleteDetails,
       output,
       output_text: outputText || items.extractText(output),
       usage,
@@ -274,6 +269,7 @@ function postStream(body, onEvent, urlOrOpts, opts) {
     runId: options.runId,
     turn: options.turn,
     timeoutMs: options.timeoutMs,
+    signal: options.signal,
   };
 
   return transport

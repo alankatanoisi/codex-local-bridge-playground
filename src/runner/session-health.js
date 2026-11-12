@@ -12,6 +12,7 @@ const DEGRADED_STOP_REASONS = new Set([
   STOP_REASONS.CONTEXT_BUDGET_EXCEEDED,
   STOP_REASONS.TOOL_FAILURE_ESCALATION,
   STOP_REASONS.BRIDGE_ERROR,
+  STOP_REASONS.RESUME_FAILED,
 ]);
 
 const MAX_COMPACTION_GENERATION = 5;
@@ -67,6 +68,28 @@ function buildHealth(input) {
 
 function assertResumeAllowed(sessionStore, options = {}) {
   const health = getHealth(sessionStore);
+  // A tool proposal needs a matching receipt before native history can resume.
+  // A hard kill can leave proposals in the checkpoint while an edit has already
+  // happened. Never guess a result or repeat that edit just to repair history.
+  const unanswered = new Set();
+  for (const item of sessionStore?.items || []) {
+    if (item.type === 'function_call') unanswered.add(item.call_id);
+    else if (item.type === 'function_call_output') unanswered.delete(item.call_id);
+  }
+  if (unanswered.size) {
+    return {
+      allowed: false,
+      health,
+      reason: 'incomplete_tool_history',
+      pendingCalls: unanswered.size,
+      message:
+        'Saved session has ' +
+        unanswered.size +
+        ' tool call(s) without a recorded result, possibly after an interruption. ' +
+        'Some edits may already have completed. Start a fresh session and inspect existing files. ' +
+        '--ack-resume-risk cannot repair missing results; saved history will not be rewritten automatically.',
+    };
+  }
   if (!isDegraded(health)) {
     return { allowed: true, health };
   }

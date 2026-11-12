@@ -36,6 +36,26 @@ describe('B4 streaming scrubber', () => {
     const tail = s.end();
     assert.equal(tail.length, 100);
   });
+
+  it('keeps a token intact when the display window would cut through it', () => {
+    const s = safety.makeStreamingScrubber();
+    const token = 'at-WindowFixture_0123456789_PRIVATE';
+    // Put the old fixed cut twelve characters into the token. Scrubbing each
+    // half separately cannot recognize either half as the original secret.
+    const text = 'public\n' + token + '\n' + 'x'.repeat(safety.STREAM_SCRUB_WINDOW + 11 - token.length);
+    const displayed = s.push(text) + s.end();
+    assert.equal(displayed, safety.scrubSecrets(text));
+  });
+
+  it('holds an unfinished private key block longer than the display window', () => {
+    const s = safety.makeStreamingScrubber();
+    const start = 'public\n-----BEGIN RSA PRIVATE KEY-----\n' + 'A'.repeat(6000) + '\n';
+    const end = '-----END RSA PRIVATE KEY-----\nmore public text\n';
+    // A key block can span many lines. Its opening line must remain buffered
+    // until the closing line arrives, even if the usual window is exceeded.
+    const displayed = s.push(start) + s.push(end) + s.end();
+    assert.equal(displayed, safety.scrubSecrets(start + end));
+  });
 });
 
 describe('B4 read_file streaming path', () => {

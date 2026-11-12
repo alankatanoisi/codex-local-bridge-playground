@@ -1,5 +1,10 @@
 # Codex protocol notes (Phase 0)
 
+> **2026-10-17 correction:** the backend now accepts and enforces `max_output_tokens` (live probe: 16 tokens,
+> `response.incomplete`, reason `max_output_tokens`). `gpt-6.1-sol` succeeded; the old `gpt-5.5` choice was rejected
+> for this ChatGPT-authenticated route. The older observations below are historical, not current defaults.
+> See [reopening handoff](../codex-reopening-2026-10-17.html) for implementation and test details.
+
 Pinned 2026-07-08 against a **live 200 streamed response** captured with a throwaway curl probe on the capture
 machine. Updated 2026-07-10 for Phase 3 native rewrite (function-call fixtures + capture helper). This is the contract
 Phase 2 (transport) and Phase 3 (native client) build against. If any of this drifts, update this file and the
@@ -103,21 +108,21 @@ Assistant message items include `phase: "final_answer"`. Again `response.output:
 - Request/response metadata includes `reasoning: { effort: "medium", context, mode, summary }`.
 - CLI `--effort` maps to `reasoning.effort`.
 - Live function-call / final-answer captures at `medium` did **not** emit a `reasoning` output item or encrypted
-  content, even with `include: ["reasoning.encrypted_content"]`. When a reasoning item *does* appear, preserve it
+  content, even with `include: ["reasoning.encrypted_content"]`. When a reasoning item _does_ appear, preserve it
   verbatim across turns under `store: false` (same opaque round-trip pattern as Anthropic thinking signatures).
 - `temperature` was accepted/echoed as `1` on these captures (not rejected). Effort value `max` is still untested —
   map runner `max` to the nearest accepted value when first observed.
 
 ## Usage field names (exact)
 
-| Responses API field                         | Runner-internal field        |
-| ------------------------------------------- | ---------------------------- |
-| `input_tokens`                              | `input_tokens`               |
-| `input_tokens_details.cached_tokens`        | `cache_read_input_tokens`    |
-| `input_tokens_details.cache_write_tokens`   | ignore / treat as 0          |
-| `output_tokens`                             | `output_tokens`              |
-| `output_tokens_details.reasoning_tokens`    | (new; record in transcripts) |
-| `total_tokens`                              | (derived; ignore)            |
+| Responses API field                       | Runner-internal field        |
+| ----------------------------------------- | ---------------------------- |
+| `input_tokens`                            | `input_tokens`               |
+| `input_tokens_details.cached_tokens`      | `cache_read_input_tokens`    |
+| `input_tokens_details.cache_write_tokens` | ignore / treat as 0          |
+| `output_tokens`                           | `output_tokens`              |
+| `output_tokens_details.reasoning_tokens`  | (new; record in transcripts) |
+| `total_tokens`                            | (derived; ignore)            |
 
 Live captures include `cache_write_tokens: 0` under `input_tokens_details`. There is still no meaningful cache-write
 billing signal for this lane — keep runner `cache_creation_input_tokens` fixed at 0.

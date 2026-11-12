@@ -84,11 +84,11 @@ describe('codex transport request validation', () => {
     assert.throws(() => transport.normalizeRequestBody({ model: 'gpt-5.5', stream: false }), /streaming-only/);
   });
 
-  it('rejects max_output_tokens (unsupported upstream)', () => {
-    assert.throws(
-      () => transport.normalizeRequestBody({ model: 'gpt-5.5', max_output_tokens: 100 }),
-      /max_output_tokens/,
-    );
+  it('accepts a bounded output limit and rejects invalid limits', () => {
+    assert.equal(transport.normalizeRequestBody({ max_output_tokens: 16 }).max_output_tokens, 16);
+    for (const value of [0, -1, 1.5, Infinity, '16']) {
+      assert.throws(() => transport.normalizeRequestBody({ max_output_tokens: value }), /positive safe integer/);
+    }
   });
 
   it('forces stream:true on outgoing bodies', () => {

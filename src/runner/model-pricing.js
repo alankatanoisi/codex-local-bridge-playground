@@ -4,11 +4,25 @@
  * Model pricing table — estimate only, for budget warnings and usage summaries.
  *
  * Rates are USD per million tokens. Each row documents its provider-specific
- * cache semantics. The active gpt-5.5 row is explicitly reference-only because
- * public OpenAI API rates do not establish ChatGPT subscription billing.
+ * cache semantics. The active gpt-6.1-sol row is reference-only; its published rate card
+ * does not establish the actual charge for this account.
  */
 
 const PRICING_PER_MILLION = Object.freeze({
+  // Standard Codex rates verified 2026-10-17. USD is the published Enterprise
+  // reference, not a claim about this account's invoice or included allowance.
+  // Credit rates: 50 input / 2.5 cached input / 250 output per million tokens.
+  'gpt-6.1-sol': {
+    input: 2,
+    output: 10,
+    cache_read: 0.1,
+    cache_write: 0,
+    input_includes_cache_read: true,
+    reference_only: true,
+    reference_note: 'Standard Enterprise USD reference; not verified account billing.',
+    credits_per_usd: 25,
+    long_context_threshold: 272000,
+  },
   // Official OpenAI API Standard rates for short-context gpt-5.5 requests,
   // checked 2026-08-10. This runner authenticates through a ChatGPT Business
   // programmatic token, so the row is an estimate/reference only; it does not
@@ -32,7 +46,7 @@ const PRICING_PER_MILLION = Object.freeze({
 
 // Resolve rates defensively so new/alias model names (e.g. a future
 // claude-opus-4-8) fall back to the right family instead of silently using the
-// generic default. Lookup order: exact key, then family prefix, then default.
+// generic default. Lookup order: exact key, then legacy family prefix, then unknown.
 const FAMILY_PREFIXES = [
   { prefix: 'claude-opus', key: 'claude-opus-4-6' },
   { prefix: 'claude-sonnet', key: 'claude-sonnet-4-6' },
@@ -40,17 +54,21 @@ const FAMILY_PREFIXES = [
 ];
 
 function resolveRates(model) {
-  if (model && PRICING_PER_MILLION[model]) return PRICING_PER_MILLION[model];
+  // Only rows we explicitly added are prices. Every ordinary JavaScript object
+  // also inherits names such as "constructor"; those are not model rate cards.
+  if (typeof model === 'string' && Object.hasOwn(PRICING_PER_MILLION, model)) return PRICING_PER_MILLION[model];
   if (typeof model === 'string') {
     for (const { prefix, key } of FAMILY_PREFIXES) {
       if (model.startsWith(prefix)) return PRICING_PER_MILLION[key];
     }
   }
-  return PRICING_PER_MILLION.default;
+  // Unknown is not zero and not a guessed price from a different provider.
+  return null;
 }
 
 function estimateCostUsd(model, usage) {
   const rates = resolveRates(model);
+  if (!rates) return null;
   const u = usage || {};
   const input = (u.input_tokens || 0) / 1_000_000;
   const output = (u.output_tokens || 0) / 1_000_000;
@@ -63,8 +81,13 @@ function estimateCostUsd(model, usage) {
   // cached Responses token once at full price and again at the cache price.
   const fullRateInput = rates.input_includes_cache_read ? Math.max(0, input - cacheRead) : input;
 
+  // This helper prices ONE request. The runner sums those prices, because
+  // several short turns must not accidentally trigger a long-context rate.
+  const longContext = rates.long_context_threshold && (u.input_tokens || 0) > rates.long_context_threshold;
   return (
-    fullRateInput * rates.input + output * rates.output + cacheRead * rates.cache_read + cacheWrite * rates.cache_write
+    (fullRateInput * rates.input + cacheRead * rates.cache_read) * (longContext ? 2 : 1) +
+    output * rates.output * (longContext ? 1.5 : 1) +
+    cacheWrite * rates.cache_write
   );
 }
 
@@ -78,7 +101,7 @@ function estimateCostUsd(model, usage) {
  * deliberately named "read share" rather than "hit rate" — it measures reuse,
  * not a true cache hit rate.
  */
-function summarizeUsage(model, usage) {
+function summarizeUsage(model, usage, options = {}) {
   const u = usage || {};
   const rates = resolveRates(model);
   const inputTokens = u.input_tokens || 0;
@@ -89,10 +112,11 @@ function summarizeUsage(model, usage) {
   // Responses counts cached reads inside input_tokens. Claude-style usage
   // keeps them separate. Match the model's public usage shape so the displayed
   // prompt total and reuse percentage describe the same token population.
-  const totalInputTokens = rates.input_includes_cache_read
-    ? inputTokens + cacheCreationTokens
-    : inputTokens + cacheReadTokens + cacheCreationTokens;
-  const costUsd = estimateCostUsd(model, u);
+  const totalInputTokens =
+    !rates || rates.input_includes_cache_read
+      ? inputTokens + cacheCreationTokens
+      : inputTokens + cacheReadTokens + cacheCreationTokens;
+  const costUsd = Object.hasOwn(options, 'costUsd') ? options.costUsd : estimateCostUsd(model, u);
   const cacheReadShare = totalInputTokens > 0 ? cacheReadTokens / totalInputTokens : 0;
 
   const parts = ['in=' + inputTokens, 'out=' + outputTokens];
@@ -100,8 +124,8 @@ function summarizeUsage(model, usage) {
   if (cacheReadTokens) parts.push('cache_read=' + cacheReadTokens);
   if (cacheCreationTokens) parts.push('cache_write=' + cacheCreationTokens);
   parts.push('(reuse ' + Math.round(cacheReadShare * 100) + '%)');
-  parts.push('~$' + costUsd.toFixed(4));
-  if (rates.reference_only) parts.push('(reference only; not subscription billing)');
+  parts.push(costUsd === null ? 'cost unknown (no model pricing)' : '~$' + costUsd.toFixed(4));
+  if (rates?.reference_only) parts.push('(reference only; not subscription billing)');
   const oneLine = '[runner usage] ' + parts.join(' ');
 
   return {
@@ -113,7 +137,10 @@ function summarizeUsage(model, usage) {
     cacheCreationTokens,
     totalInputTokens,
     costUsd,
-    costReferenceOnly: !!rates.reference_only,
+    costKnown: costUsd !== null,
+    costReferenceOnly: !!rates?.reference_only,
+    costReferenceNote: rates?.reference_note || null,
+    estimatedCredits: costUsd !== null && rates?.credits_per_usd ? costUsd * rates.credits_per_usd : null,
     cacheReadShare,
     oneLine,
   };

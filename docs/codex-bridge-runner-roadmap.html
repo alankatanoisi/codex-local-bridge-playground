@@ -226,6 +226,16 @@
     </style>
   </head>
   <body>
+    <aside style="margin:24px auto;padding:20px;max-width:1050px;background:#dcfce7;border-left:5px solid #059669">
+      <strong>November 11, 2026 review — implemented runner, ACP adapter, and standalone host.</strong>
+      The preserved checkout passed 677 existing offline tests. Five regression tests reproduced redaction and pricing edge cases; the repaired suite passes 682 tests.
+      The model remains the configured gpt-6.1-sol default; this offline review did not revalidate service controls or prices.
+      November 3 evidence separately covers actual T3 with a fake backend and eight real backend requests outside T3, including synthetic context and a runner tool loop.
+      Combined live T3 behavior, actual billing, endurance, and maximum context remain unverified. Starlark and native compaction remain deferred.
+      <a href="codex-acp-hosting.html">Current hosting guide</a> · <a href="codex-cleanup-review-2026-11-11.html">Dated review and handoff</a>.
+      The sections below preserve the earlier roadmap and dated backend observations; older pending labels describe their own checkpoints.
+    </aside>
+
     <header>
       <h1>Codex Bridge Runner — Feasibility &amp; Roadmap</h1>
       <p>
@@ -233,7 +243,7 @@
         drives OpenAI's Codex models through the same local agent loop? Short answer: yes — this document reviews the
         current runtime capabilities, measures the provider coupling, and lays out a phased build plan.
       </p>
-      <div class="meta">docs/codex-bridge-runner-roadmap.html · updated 2026-08-10 · fork copy (authoritative) · status: Phase 3 Stage 7 implementation complete; bounded live read-only proof pending</div>
+      <div class="meta">docs/codex-bridge-runner-roadmap.html · review signpost updated 2026-11-11 · historical roadmap snapshot: 2026-08-10 · current verification: linked review above</div>
     </header>
 
     <main>
@@ -628,7 +638,7 @@
         </div>
 
         <div class="phase">
-          <h3>Phase 3 — Native Responses rewrite <span class="badge amber">Stage 7 live proof pending</span></h3>
+          <h3>Phase 3 — Native Responses rewrite <span class="badge green">Bounded live proof recorded</span></h3>
           <div class="phase-meta">fork repo · feature branch <code>codex/phase-3-responses-native</code> · touches: ~19 runner files · explicit non-goals: :11438 bridge, ModelRuntime, Claude convergence</div>
           <p><strong>Name:</strong> Native DNA, thin client — internal state is Responses items; transport stays direct over <code>codex-transport.js</code>.</p>
           <h4>Stage 0 — Record decision + hygiene <span class="badge green">Done</span></h4>
@@ -675,12 +685,12 @@
             <li>Late fence test: no <code>/v1/messages</code>, <code>cache_control</code>, or Anthropic request shapes on the active Codex path.</li>
             <li><strong>Status:</strong> golden <code>model_script</code>s are now native Responses output items (the two rewritten cases passed against unchanged expects — behavior-identical) and the harness rejects the retired Anthropic content-block grammar at load time; a new <code>reasoning-replay-tool-loop</code> golden proves an opaque <code>reasoning</code> item plus <code>reasoning_tokens</code> usage ride through the loop untouched. <code>test/runner/codex-offline-e2e.test.js</code> drives the real run loop against a mock SSE server replaying the Stage 1 live captures — native request on turn 1, the real <code>list_files</code> tool on a temp workspace, <code>function_call</code>/<code>function_call_output</code> pairing with the captured <code>call_id</code> on turn 2, and a final answer, with wire-level Anthropic-shape checks on every captured request body. <code>test/runner/codex-fence.test.js</code> adds the late fence: a static source scan of the active path (<code>run.js</code>, <code>model-client.js</code>, <code>codex-transport.js</code>, <code>items.js</code>, <code>tool-pipeline.js</code>) plus request-shape and endpoint/auth assertions. The dormant Anthropic <code>cache_control</code> budgeting block in <code>run.js</code> (unreachable on the Codex path) was deleted outright and its legacy tests retired.</li>
           </ul>
-          <h4>Stage 7 — Pricing + docs + live closeout <span class="badge amber">Live proof pending</span></h4>
+          <h4>Stage 7 — Pricing + docs + live closeout <span class="badge green">Bounded proof recorded</span></h4>
           <ul>
             <li><strong>Implemented:</strong> <code>gpt-5.5</code> public OpenAI API Standard short-context rates — $5.00 input, $0.50 cached input, $30.00 output per million tokens; cache-write 0. The usage line says <code>reference only; not subscription billing</code>, and Responses cached tokens are not double-counted.</li>
             <li><strong>Implemented:</strong> roadmap, CLAUDE.md, and README.md describe the landed native implementation; AGENTS.md was reviewed and already matched it.</li>
             <li><strong>Implemented:</strong> only the three superseded 2026-07-10 Phase 3 proposal/critique documents moved to <code>docs/lab-notes/proposals/archive/</code>. Protocol notes, item contract, architecture review, and implementation evidence remain active references.</li>
-            <li><strong>Pending:</strong> one tightly bounded live read-only agent run in a throwaway lab, gated on <code>CODEX_ACCESS_TOKEN</code> being available without printing it.</li>
+            <li><strong>Later evidence:</strong> the October 17 reopening records bounded live proof; the November 3 handoff adds separate T3/mock and paid-backend trials. See the current hosting guide for the remaining integration and billing limits. The roadmap above is the earlier implementation plan.</li>
           </ul>
           <p><strong>Exit criteria:</strong> <code>function_call</code> SSE fixtures committed; offline client + e2e green; <code>npm test</code> / lint / format green; one live read-only agent run; docs no longer claim boundary translation.</p>
         </div>
@@ -797,7 +807,7 @@
           <li><strong>Done (2026-07-10):</strong> Phase 3 Stage 1 live fixtures captured — <code>responses-stream-function-call.sse</code> and <code>responses-stream-final-answer.sse</code> (leak-grep 0); protocol notes extended with observed grammar.</li>
           <li><strong>Done (2026-07-10):</strong> Phase 3 Stages 2–5 — native item contract, model-client vertical spike, run loop/pipeline boundary, and schema-v2 persistence/observability.</li>
           <li><strong>Done (2026-07-11): Phase 3 Stage 6</strong> — golden scripts rewritten as native output items (legacy grammar rejected at load time), offline mock-SSE end-to-end loop over the live captures with a real local tool, and the late Anthropic-shape fence test; dead <code>cache_control</code> budgeting deleted from <code>run.js</code>. Native compaction stays a focused follow-up.</li>
-          <li><strong>In progress (2026-08-10) — Phase 3 Stage 7:</strong> <code>gpt-5.5</code> reference-only pricing, native-implementation doc alignment, and selective proposal archiving are implemented; one bounded live read-only proof remains to close the phase exit criteria.</li>
+          <li><strong>Current signpost (2026-11-11):</strong> native Responses implementation and bounded live proof are recorded; model controls, ACP, and hosting were added in the reopening work. Current offline checks pass 682 tests. Follow the linked review for outstanding combined live T3, billing, and endurance work.</li>
           <li><strong>Housekeeping:</strong> rotate the <code>at-…</code> token in the ChatGPT dashboard if it appeared in a terminal, then <code>unset CODEX_ACCESS_TOKEN</code>.</li>
           <li><strong>Phase 4:</strong> live capability ladder including session resume and compaction checks.</li>
         </ol>

@@ -22,7 +22,7 @@
 const transport = require('../src/runner/codex-transport');
 
 const modelFlagIndex = process.argv.indexOf('--model');
-const MODEL = modelFlagIndex !== -1 ? process.argv[modelFlagIndex + 1] : 'gpt-5.5';
+const MODEL = modelFlagIndex !== -1 ? process.argv[modelFlagIndex + 1] : 'gpt-6.1-sol';
 
 function pingBody(text) {
   return {

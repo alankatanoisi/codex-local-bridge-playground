@@ -875,7 +875,7 @@ cat "/Users/alanman/path/to/another/project/README.md" | node bin/local-bridge-r
             <tr>
               <td><code>--stream</code></td>
               <td>off</td>
-              <td>Print model output live as it streams</td>
+              <td>Print redacted model output in buffered chunks; unfinished lines and private key blocks wait until they can be scrubbed together</td>
             </tr>
             <tr>
               <td><code>--verbose</code></td>
@@ -1057,7 +1057,7 @@ node bin/local-bridge-coordinator.js \
           <strong>Not a sandbox</strong>
           A shell command can unset proxy variables or use a protocol those variables do not control. Use
           <code>--no-network</code> as defense in depth, not as a promise that bash has no network. See the
-          <a href="threat-model.html">threat model</a> for details.
+          <a href="threat-model.md">threat model</a> for details.
         </div>
       </section>
 
@@ -1137,7 +1137,7 @@ node bin/local-bridge-coordinator.js \
           <strong>Mutations are gated</strong>
           Edit tools ask for confirmation by default. Shell is disabled by default. Unsafe paths and secret-looking
           files are blocked even when the mutation tools are enabled. For the full threat model, see
-          <a href="threat-model.html">threat-model.md</a>.
+          <a href="threat-model.md">threat-model.md</a>.
         </div>
         <ul>
           <li>

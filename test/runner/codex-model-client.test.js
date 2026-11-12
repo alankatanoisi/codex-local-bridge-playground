@@ -5,9 +5,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 
 const modelClient = require('../../src/runner/model-client');
 const items = require('../../src/runner/items');
+const safety = require('../../src/runner/safety');
 
 const FIXTURE_TOKEN = 'at-Fixture0Token1Value2With3Entropy4';
 const FIXTURE_DIR = path.join(__dirname, 'fixtures', 'codex');
@@ -45,10 +47,10 @@ describe('model-client createRequest', () => {
     assert.equal('max_output_tokens' in body, false);
   });
 
-  it('maps effort max → high', () => {
-    assert.equal(modelClient.mapEffort('max'), 'high');
+  it('preserves native effort max', () => {
+    assert.equal(modelClient.mapEffort('max'), 'max');
     const body = modelClient.createRequest({ model: 'gpt-5.5', effort: 'max' });
-    assert.deepEqual(body.reasoning, { effort: 'high' });
+    assert.deepEqual(body.reasoning, { effort: 'max' });
   });
 
   it('rejects unknown effort values', () => {
@@ -57,6 +59,36 @@ describe('model-client createRequest', () => {
 });
 
 describe('model-client stream assembler (unit)', () => {
+  it('redacts terminal output even when a token crosses delta and display boundaries', () => {
+    // Capture a child process so replacing stdout cannot hide test-runner output.
+    // All token-shaped strings here are invented fixtures, never account secrets.
+    const secrets = [
+      'at-DisplayFixture_0123456789_PRIVATE',
+      'sk-DisplayFixture0123456789PRIVATE',
+      'eyJabcdefghijk.abcdefghijklm.abcdefghijklm',
+    ];
+    const text = 'Public summary.\n'.repeat(300) + secrets.join(' ') + '\n' + 'More public text.\n'.repeat(300);
+    for (const size of [1, 11, 2048, 4103]) {
+      const script = `
+        const { createStreamAssembler } = require(${JSON.stringify(require.resolve('../../src/runner/model-client'))});
+        const text = ${JSON.stringify(text)};
+        const assembler = createStreamAssembler({ streamOutput: true });
+        for (let offset = 0; offset < text.length; offset += ${size}) {
+          assembler.handleEvent({ type: 'response.output_text.delta', delta: text.slice(offset, offset + ${size}) });
+        }
+        assembler.finish();
+      `;
+      const displayed = execFileSync(process.execPath, ['-e', script], { encoding: 'utf8' });
+      for (const secret of secrets) assert.equal(displayed.includes(secret), false, 'delta size ' + size);
+      // Matching the complete scrubbed answer also catches leaked fragments,
+      // duplicated output, or ordinary text lost between buffered chunks.
+      assert.equal(displayed, safety.scrubSecrets(text) + '\n');
+      assert.match(displayed, /\[REDACTED/);
+      assert.match(displayed, /Public summary/);
+      assert.match(displayed, /More public text/);
+    }
+  });
+
   it('assembles function_call from deltas even when response.output is empty', () => {
     const asm = modelClient.createStreamAssembler();
     asm.handleEvent({

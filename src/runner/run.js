@@ -21,7 +21,7 @@ const { runBootstrap } = require('./bootstrap');
 const { SessionLedger } = require('./session-ledger');
 const { emitHint } = require('./beginner-hints');
 const { buildAutopsy, writeAutopsyFile, detectSemanticCycles } = require('./loop-autopsy');
-const { estimateCostUsd, summarizeUsage } = require('./model-pricing');
+const { estimateCostUsd, summarizeUsage, resolveRates } = require('./model-pricing');
 const { loadInstructionMemory } = require('./memory/instruction-memory');
 const { isAutoMemoryEnabled } = require('./memory/auto-memory');
 const instructionDelta = require('./instruction-delta');
@@ -48,20 +48,17 @@ const { finalizeArchiveExport } = require('./archive/run-exporter');
 const { disposeSessions } = require('./lsp/lsp-session');
 const { createBudgetTracker } = require('./budget-tracker');
 const { writeRunManifest } = require('./recovery/run-manifest');
+const {
+  DEFAULT_MODEL,
+  DEFAULT_MAX_OUTPUT_TOKENS,
+  normalizeEffort,
+  validateMaxOutputTokens,
+} = require('./model-controls');
+const { notifyObserver, createApprovalPort } = require('./hosted-ports');
 
 const DEFAULT_MAX_STEPS = 16;
 const MAX_CONSECUTIVE_FAILURES = 2;
-const VALID_EFFORT_LEVELS = new Set(['low', 'medium', 'high', 'max']);
-
-function normalizeEffort(effort) {
-  if (!effort) return null;
-  const level = String(effort).toLowerCase();
-  if (!VALID_EFFORT_LEVELS.has(level)) {
-    throw new Error('--effort must be one of: low, medium, high, max');
-  }
-  return level;
-}
-const OUTPUT_FORMATS = new Set(['text', 'json', 'stream-json']);
+const OUTPUT_FORMATS = new Set(['text', 'json', 'stream-json', 'silent']);
 
 function extractTextBlocks(contentOrOutput) {
   // Native Responses path: output is an item list.
@@ -158,15 +155,17 @@ function coerceNativeResponse(response) {
   return response;
 }
 
-function makeOutput(outputFormat) {
+function makeOutput(outputFormat, onEvent) {
   const events = [];
   function emit(type, fields) {
-    const event = { type, ...(fields || {}) };
+    const event = safety.scrubObject({ type, ...(fields || {}) });
     events.push(event);
     if (outputFormat === 'stream-json') process.stdout.write(JSON.stringify(event) + '\n');
+    notifyObserver(onEvent, event);
     return event;
   }
   function finish(result) {
+    result = safety.scrubObject(result);
     if (outputFormat === 'json') process.stdout.write(JSON.stringify(result) + '\n');
     else if (outputFormat === 'text' && result.finalText && !result.streamed) console.log(result.finalText);
   }
@@ -336,12 +335,20 @@ function maybeRunSessionExtract(sessionExtract, ctx, autopsy, sessionPath) {
 }
 
 async function run(options) {
+  // Validate controls before opening session files or sending a paid request.
+  options = {
+    ...options,
+    model: options.model ?? DEFAULT_MODEL,
+    maxTokens: options.maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
+  };
   if (options.agentProfile) {
     options = applyProfileToRunOptions(options.agentProfile, options);
   }
   if (options.toolProfileName) {
     options = applyToolProfileToRunOptions(options);
   }
+  validateMaxOutputTokens(options.maxTokens);
+  normalizeEffort(options.effort);
   const contextPolicy = resolveContextPolicy(options);
   options = { ...options, contextPolicy };
 
@@ -402,11 +409,10 @@ async function run(options) {
     enableLsp,
     toolProfile,
   } = options;
-  // maxTokens / callerToken are Claude-lane leftovers: Codex rejects max_output_tokens
-  // (budgets stay runner-side) and auth is CODEX_ACCESS_TOKEN via transport.
-  void maxTokens;
+  // Local caller tokens never replace the upstream environment credential.
   void callerToken;
 
+  let estimatedCostTotal = resolveRates(model) ? 0 : null;
   const outputFormat = OUTPUT_FORMATS.has(options.outputFormat) ? options.outputFormat : 'text';
 
   const exposedToolsList =
@@ -434,6 +440,7 @@ async function run(options) {
     spawnDepth: spawnDepth ?? (parseInt(process.env.BRIDGE_RUNNER_SPAWN_DEPTH, 10) || 0),
     workspaceTrusted: false,
     autoMemory: isAutoMemoryEnabled({ autoMemory }),
+    signal: options.signal,
   };
 
   ctx.allowedTools = computeAllowedTools(ctx);
@@ -564,7 +571,7 @@ async function run(options) {
 
   const transcript = transcriptPath ? new Transcript(transcriptPath) : null;
   const humanLog = humanLogPath ? new HumanLog(humanLogPath, { verbose, quiet }) : null;
-  const output = makeOutput(outputFormat);
+  const output = makeOutput(outputFormat, options.onEvent);
   const startedAt = Date.now();
   const inheritedParentBudget =
     parentBudgetRemaining ||
@@ -634,7 +641,7 @@ async function run(options) {
   const pipeline = createToolPipeline({
     ctx,
     runId,
-    confirm,
+    confirm: createApprovalPort(confirm, options.confirm, options.signal),
     sinks: { ledger, hooks, output, trace, transcript, humanLog, archive: archiveCollector },
     verbosity: { verbose, quiet },
     failureLimit: MAX_CONSECUTIVE_FAILURES,
@@ -669,7 +676,8 @@ async function run(options) {
     // under quiet), transcript, and human-log. Routing it here covers every
     // terminal path (success, budget, error) with one site. stdout is left
     // untouched so the final answer stays clean/pipeable.
-    const usageSummary = summarizeUsage(model, result.usage);
+    const usageSummary = summarizeUsage(model, result.usage, { costUsd: estimatedCostTotal });
+    result.usageSummary = usageSummary;
     if (!quiet) {
       console.error(usageSummary.oneLine);
       if (verbose) {
@@ -688,7 +696,7 @@ async function run(options) {
           '[runner usage]   cache read share ' +
             Math.round(usageSummary.cacheReadShare * 100) +
             '% / estimated cost ~$' +
-            usageSummary.costUsd.toFixed(4),
+            (usageSummary.costUsd === null ? 'unknown' : usageSummary.costUsd.toFixed(4)),
         );
       }
     }
@@ -726,7 +734,7 @@ async function run(options) {
           steps: result.steps,
           duration_ms: result.duration_ms,
           usage: result.usage,
-          estimatedCostUsd: estimateCostUsd(model, result.usage),
+          estimatedCostUsd: estimatedCostTotal,
           transcriptPath: transcript?.filePath,
           tracePath: trace?.filePath,
           sessionPath: resolvedSessionPath,
@@ -749,7 +757,11 @@ async function run(options) {
         console.error('[runner tip] ' + formatFreshSessionTip(sessionId || null));
       }
     }
-    return result;
+    // Only opted-in hosted clients get the additional terminal event; preserve
+    // the existing command-line event sequence for replay consumers.
+    if (typeof options.onEvent === 'function')
+      output.emit('run_end', { stopReason: result.stopReason, steps: result.steps, usage: result.usage, usageSummary });
+    return safety.scrubObject(result);
   }
 
   let messages;
@@ -869,6 +881,27 @@ async function run(options) {
   let transportRetries = 0;
   const effortLevel = normalizeEffort(effort);
 
+  function stopRun(reason, text, step, extra = {}) {
+    const result = {
+      stopReason: reason,
+      finalText: text,
+      steps: step,
+      duration_ms: Date.now() - startedAt,
+      usage: totalUsage,
+      events: output.events,
+      ...extra,
+    };
+    if (reason !== STOP_REASONS.CANCELLED && outputFormat !== 'silent') process.exitCode = 1;
+    persistSession(sessionStore, messages, ctx, !!noSessionPersistence);
+    if (transcript) transcript.append({ type: 'run_stopped', stopReason: reason, step });
+    if (humanLog) humanLog.writeError(text, { stopReason: reason });
+    if (ledger) appendLedger(ledger, hooks, 'run_stopped', { runId, stopReason: reason });
+    hooks.dispatch('session_end', { runId, stopReason: reason });
+    output.emit('result', { subtype: reason, num_turns: step, usage: totalUsage });
+    output.finish(result);
+    return completeRun(result);
+  }
+
   if (taskScope && !quiet && !plan) {
     console.error('[runner] tip: --task-scope runs work best with --plan for the first pass.');
   }
@@ -927,6 +960,12 @@ async function run(options) {
   }
 
   for (let step = 1; step <= steps; step++) {
+    if (options.signal?.aborted) return stopRun(STOP_REASONS.CANCELLED, 'Cancelled by caller.', step - 1);
+    if (maxCostUsd && estimatedCostTotal === null) {
+      return stopRun(STOP_REASONS.PRICING_UNKNOWN, 'Cannot enforce a cost budget: model pricing is unknown.', step - 1);
+    }
+    const beforeBudget = budgetTracker.evaluate(totalUsage, ctx);
+    if (beforeBudget.stop) return stopRun(beforeBudget.stop, beforeBudget.message, step - 1);
     hooks.dispatch('pre_model_request', { step, runId });
 
     const instructionChange = instructionDelta.detectChange(ctx.cwdRealpath);
@@ -1015,6 +1054,9 @@ async function run(options) {
       input: messages,
       tools,
       effort: effortLevel,
+      // The per-request limit includes reasoning and cannot exceed the remaining
+      // run-wide output allowance. No additional request starts at zero.
+      maxTokens: Math.min(maxTokens, budgetTracker.remainingAfterUsage(totalUsage).output_tokens ?? maxTokens),
       ...(typeof temperature === 'number' && !isNaN(temperature) ? { temperature } : {}),
     });
 
@@ -1053,8 +1095,9 @@ async function run(options) {
       // bridgeUrl is reused as an optional transport URL override for tests.
       const clientOpts = {
         streamOutput: !!(stream && outputFormat === 'text'),
+        signal: options.signal,
         headers: bridgeTraceHeaders(trace, runId, step),
-        env: process.env,
+        env: options.transportEnv || process.env,
         runId,
         turn: step,
         trace,
@@ -1066,6 +1109,8 @@ async function run(options) {
       }
       response = coerceNativeResponse(response);
     } catch (err) {
+      if (options.signal?.aborted || err.name === 'AbortError')
+        return stopRun(STOP_REASONS.CANCELLED, 'Cancelled by caller.', step);
       const msg = 'Codex transport error on step ' + step + ': ' + err.message;
       if (archiveCollector) archiveCollector.recordError(step, msg);
       const hint = emitHint(msg, { quiet, verbose });
@@ -1089,7 +1134,14 @@ async function run(options) {
               MAX_CONSECUTIVE_FAILURES +
               ')',
           );
-        await delay(waitMs);
+        try {
+          // Waiting is part of the cancellable prompt too. A long Retry-After
+          // must not keep its session locked after the caller presses Cancel.
+          await delay(waitMs, undefined, { signal: options.signal });
+        } catch (waitError) {
+          if (waitError.name === 'AbortError') return stopRun(STOP_REASONS.CANCELLED, 'Cancelled by caller.', step);
+          throw waitError;
+        }
         continue;
       }
       if (transcript) transcript.flush();
@@ -1114,6 +1166,27 @@ async function run(options) {
     if (transcript) transcript.append({ type: 'assistant', step, content: response.output || response.content });
     if (humanLog) humanLog.writeAssistant(step, response);
     totalUsage = addUsage(totalUsage, response.usage);
+    const requestCost = estimateCostUsd(model, response.usage);
+    estimatedCostTotal = estimatedCostTotal === null || requestCost === null ? null : estimatedCostTotal + requestCost;
+    if (options.signal?.aborted) return stopRun(STOP_REASONS.CANCELLED, 'Cancelled by caller.', step);
+    if (response.status === 'incomplete' || response.stop_reason === 'incomplete') {
+      // Even a syntactically valid function call from a truncated turn is not
+      // permission to execute it. Keep partial calls out of resumable history.
+      const partialText = response.output_text || '';
+      output.emit('assistant', { step, partial: true, text: partialText, usage: response.usage });
+      const reason =
+        response.incomplete_details?.reason === 'max_output_tokens'
+          ? STOP_REASONS.MAX_OUTPUT_TOKENS
+          : STOP_REASONS.MODEL_INCOMPLETE;
+      return stopRun(reason, partialText || 'Model response incomplete; no tools were executed.', step, {
+        incompleteDetails: response.incomplete_details || null,
+      });
+    }
+    // Check on text-only turns as well as tool turns. This is a rate-card
+    // estimate at completed-response boundaries, not an account billing cap.
+    if (maxCostUsd && estimatedCostTotal >= maxCostUsd) {
+      return stopRun(STOP_REASONS.COST_BUDGET_EXCEEDED, 'Reference cost budget reached.', step);
+    }
     const budgetStopAfterModel = emitBudgetBoundary(step, totalUsage);
     if (budgetStopAfterModel) {
       const { stop, message } = budgetStopAfterModel;
@@ -1345,7 +1418,7 @@ async function run(options) {
           return { stop: STOP_REASONS.WALL_CLOCK_BUDGET_EXCEEDED, message: 'Wall clock budget exceeded' };
         }
         if (maxCostUsd) {
-          const cost = estimateCostUsd(model, totalUsage);
+          const cost = estimatedCostTotal;
           if (cost > maxCostUsd) {
             return {
               stop: STOP_REASONS.COST_BUDGET_EXCEEDED,
@@ -1359,6 +1432,13 @@ async function run(options) {
       },
     });
 
+    if (options.signal?.aborted) {
+      const settledItems = items.pipelineResultsToOutputItems([...syntheticParseErrors, ...(turn.toolResults || [])]);
+      messages.push(...settledItems);
+      if (ledger && settledItems.length)
+        appendLedger(ledger, hooks, 'function_call_outputs', { runId, step, items: settledItems });
+      return stopRun(STOP_REASONS.CANCELLED, 'Cancelled by caller.', step);
+    }
     emitBudgetBoundary(step, totalUsage);
 
     if (turn.aborted) {

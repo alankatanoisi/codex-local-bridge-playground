@@ -187,6 +187,7 @@ function wrapPermissionResult(perm, toolName, args) {
 }
 
 async function execute(toolName, args, ctx, toolUseId) {
+  if (ctx.signal?.aborted) return { ok: false, text: 'Cancelled before tool execution.' };
   const resolved = resolveToolName(toolName);
   const canonical = resolved.canonical;
   const perm = permissions.check(canonical, args, ctx);
@@ -224,6 +225,7 @@ async function execute(toolName, args, ctx, toolUseId) {
 }
 
 async function executeForce(toolName, args, ctx, toolUseId) {
+  if (ctx.signal?.aborted) return { ok: false, text: 'Cancelled before tool execution.' };
   const resolved = resolveToolName(toolName);
   const canonical = resolved.canonical;
   const perm = permissions.check(canonical, args, { ...ctx, acceptEdits: true, dontAsk: true });

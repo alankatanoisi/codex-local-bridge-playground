@@ -18,18 +18,37 @@
   ],
   "scripts": {
     "test": "node --require ./test/setup.js --test test/*.test.js test/runner/*.test.js",
-    "lint": "eslint --config eslint.config.cjs src/ test/",
-    "lint:fix": "eslint --config eslint.config.cjs src/ test/ --fix",
+    "lint": "eslint --config eslint.config.cjs src/ test/ bin/ scripts/",
+    "lint:fix": "eslint --config eslint.config.cjs src/ test/ bin/ scripts/ --fix",
     "format": "prettier --write \"src/**/*.js\" \"test/**/*.js\" \"*.json\" \"*.md\"",
     "format:check": "prettier --check \"src/**/*.js\" \"test/**/*.js\" \"*.json\" \"*.md\"",
     "runner:eval": "node bin/local-bridge-runner.js runner eval",
     "smoke:codex": "node scripts/codex-transport-smoke.js",
-    "capture:codex": "node scripts/capture-codex-fixture.js"
+    "capture:codex": "node scripts/capture-codex-fixture.js",
+    "acp": "node bin/local-bridge-acp.js",
+    "host": "node bin/codex-host.js",
+    "package:standalone": "node scripts/package-standalone.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
     "eslint": "^9.0.0",
     "globals": "^15.0.0",
     "prettier": "^3.0.0"
-  }
+  },
+  "bin": {
+    "codex-playground-acp": "bin/local-bridge-acp.js",
+    "codex-playground-host": "bin/codex-host.js",
+    "codex-playground-runner": "bin/local-bridge-runner.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "src/",
+    "bin/",
+    "docs/codex-acp-hosting.html",
+    "docs/codex-acp-hosting.md",
+    "README.md",
+    "PORTING.md"
+  ]
 }

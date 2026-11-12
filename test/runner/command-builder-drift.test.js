@@ -119,9 +119,8 @@ describe('command-builder drift', () => {
   });
 
   it('model dropdown includes the runner default model', () => {
-    // The runner default model is set in model-pricing.js defaultModelKey.
-    // claude-sonnet-4-6 is the canonical default as of this test's creation.
-    const defaultModel = 'claude-sonnet-4-6';
+    // The browser and CLI must agree on the same maintained model default.
+    const { DEFAULT_MODEL: defaultModel } = require('../../src/runner/model-controls');
     assert.ok(
       BUILDER_HTML.includes('value="' + defaultModel + '"'),
       'Model dropdown missing default model: ' + defaultModel,

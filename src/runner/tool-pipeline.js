@@ -374,7 +374,7 @@ function createToolPipeline(deps = {}) {
     // wall-clock, cost) after reads are recorded but before any write effect.
     if (midTurnCheck) {
       const verdict = await midTurnCheck(readOutcomes);
-      if (verdict && verdict.stop) {
+      if (verdict && verdict.stop && !ctx.signal?.aborted) {
         return {
           toolResults,
           outcomes,
@@ -392,7 +392,7 @@ function createToolPipeline(deps = {}) {
     // emitted order. Never in plan mode: executeForce would bypass the
     // plan-mode fabrication and write for real.
     const parallelResults = new Map();
-    if (ctx.acceptEdits === true && !ctx.plan && writeTools.length > 1) {
+    if (ctx.acceptEdits === true && !ctx.plan && !ctx.signal && writeTools.length > 1) {
       const groups = _groupDisjointWrites(writeTools, ctx);
       for (const group of groups) {
         if (group.length < 2) continue;
@@ -419,7 +419,7 @@ function createToolPipeline(deps = {}) {
 
       let result = parallelResults.has(tu.id) ? parallelResults.get(tu.id) : await execute(tu.name, args, ctx, tu.id);
 
-      if (result.needsConfirmation) {
+      if (result.needsConfirmation && !ctx.signal?.aborted) {
         bestEffort(
           'trace',
           () =>
@@ -454,7 +454,11 @@ function createToolPipeline(deps = {}) {
         if (ctx.plan) {
           result = fabricatePlanResult(result);
         } else {
-          const choice = await confirm.ask(result.proposedAction, ctx.confirmTimeout);
+          const choice = await confirm.ask(result.proposedAction, ctx.confirmTimeout, {
+            tool_use_id: tu.id,
+            name: tu.name,
+            input: args,
+          });
           bestEffort(
             'trace',
             () =>
@@ -493,7 +497,7 @@ function createToolPipeline(deps = {}) {
 
     const hadSuccessfulWrite = outcomes.some((o) => o.phase === 'write' && o.result && o.result.ok);
     if (hadSuccessfulWrite && !ctx.plan) {
-      const watch = runIfEnabled(ctx);
+      const watch = ctx.signal?.aborted ? { ran: false } : runIfEnabled(ctx);
       if (watch.ran) {
         const appendix = formatVerificationAppendix(watch);
         const lastWrite = [...outcomes].reverse().find((o) => o.phase === 'write');

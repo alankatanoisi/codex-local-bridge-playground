@@ -61,4 +61,59 @@ describe('session health', () => {
     assert.equal(check.allowed, true);
     assert.equal(check.acknowledged, true);
   });
+
+  // A hard kill can leave a structurally valid checkpoint between a model's
+  // tool proposal and its receipt. Resuming it must not send invalid history
+  // or guess whether the proposed edit already happened.
+  for (const acknowledged of [false, true]) {
+    it('refuses an unanswered native call even with risk acknowledgement ' + acknowledged, () => {
+      const store = new SessionStore(path.join(tmp, 'unfinished-' + acknowledged + '.state.json'));
+      store.load();
+      store.setItems([{ type: 'function_call', call_id: 'fixture', name: 'write_file', arguments: '{}' }]);
+      const check = health.assertResumeAllowed(store, { ackResumeRisk: acknowledged });
+      assert.equal(check.allowed, false);
+      assert.equal(check.reason, 'incomplete_tool_history');
+      assert.equal(check.pendingCalls, 1);
+      assert.match(check.message, /fresh|new.session/i);
+    });
+  }
+
+  it('counts only still-unanswered calls in a multi-tool checkpoint', () => {
+    const store = new SessionStore(path.join(tmp, 'partly-finished.state.json'));
+    store.load();
+    store.setItems([
+      { type: 'function_call', call_id: 'first', name: 'write_file', arguments: '{}' },
+      { type: 'function_call', call_id: 'second', name: 'write_file', arguments: '{}' },
+      { type: 'function_call_output', call_id: 'first', output: 'completed' },
+    ]);
+    assert.equal(health.assertResumeAllowed(store).pendingCalls, 1);
+  });
+
+  it('allows fully paired native tool history with out-of-order receipts', () => {
+    const store = new SessionStore(path.join(tmp, 'paired.state.json'));
+    store.load();
+    store.setItems([
+      { type: 'function_call', call_id: 'first', name: 'read_file', arguments: '{}' },
+      { type: 'function_call', call_id: 'second', name: 'read_file', arguments: '{}' },
+      { type: 'function_call_output', call_id: 'second', output: 'second result' },
+      { type: 'function_call_output', call_id: 'first', output: 'first result' },
+    ]);
+    assert.equal(health.assertResumeAllowed(store).allowed, true);
+  });
+
+  it('treats a denied or cancelled tool receipt as a completed pairing', () => {
+    const store = new SessionStore(path.join(tmp, 'denied.state.json'));
+    store.load();
+    store.setItems([
+      { type: 'function_call', call_id: 'fixture', name: 'write_file', arguments: '{}' },
+      { type: 'function_call_output', call_id: 'fixture', output: 'ERROR: User denied this action.' },
+    ]);
+    assert.equal(health.assertResumeAllowed(store).allowed, true);
+  });
+
+  it('marks a rejected resume as degraded instead of recommending resume_ok', () => {
+    const result = health.buildHealth({ stopReason: STOP_REASONS.RESUME_FAILED });
+    assert.equal(result.degraded, true);
+    assert.equal(result.recommendation, health.RECOMMENDATIONS.FRESH_SESSION);
+  });
 });

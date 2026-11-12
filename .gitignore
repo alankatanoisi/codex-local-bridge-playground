@@ -9,3 +9,6 @@ actions-runner/
 .DS_Store
 **/.DS_Store
 .codegraphy/*
+
+# Locally built standalone packages
+dist/

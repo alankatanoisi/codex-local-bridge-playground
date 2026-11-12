@@ -618,11 +618,11 @@
               </div>
             </div>
             <div class="field">
-              <label for="runnerPath" title="The folder where the runner code lives — you paste the generated command into Terminal while cd'd into this folder. Usually the claude-local-bridge-playground checkout.">Runner repo folder (where you run the command)</label>
+              <label for="runnerPath" title="The folder where the runner code lives — you paste the generated command into Terminal while cd'd into this folder. Use the codex-local-bridge-playground checkout.">Runner repo folder (where you run the command)</label>
               <input
                 type="text"
                 id="runnerPath"
-                placeholder="/Users/alanman/Developer/claude-local-bridge-playground"
+                placeholder="/Users/alanman/Developer/codex-local-bridge-playground"
               />
             </div>
           </div>
@@ -658,16 +658,9 @@
               <div class="card">
                 <h2>Model &amp; limits</h2>
                 <div class="field">
-                  <label for="model" title="Which Claude model the runner sends prompts to. Bigger models (like Opus) are smarter but slower and more expensive per turn.">Model</label>
+                  <label for="model" title="Codex model used for this run. This default passed the October 17 live proof.">Model</label>
                   <select id="model">
-                    <option value="claude-sonnet-4-6" selected>claude-sonnet-4-6 (default)</option>
-                    <option value="claude-sonnet-5">claude-sonnet-5</option>
-                    <option value="claude-fable-5">claude-fable-5</option>
-                    <option value="claude-opus-4-8">claude-opus-4-8</option>
-                    <option value="claude-opus-4-7">claude-opus-4-7</option>
-                    <option value="claude-sonnet-4-5">claude-sonnet-4-5</option>
-                    <option value="claude-haiku-4-5">claude-haiku-4-5</option>
-                    <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet</option>
+                    <option value="gpt-6.1-sol" selected>gpt-6.1-sol (default)</option>
                   </select>
                 </div>
                 <div class="row">
@@ -676,16 +669,16 @@
                     <input type="number" id="maxSteps" value="16" min="1" max="200" />
                   </div>
                   <div class="field">
-                    <label for="maxTokens" title="Maximum tokens the model can output in a single response. Higher values let the model write longer answers or bigger code blocks, but cost more.">Max tokens</label>
+                    <label for="maxTokens" title="Per-response output limit, including reasoning. Hitting it stops the run; incomplete tool calls are never executed.">Max tokens</label>
                     <input type="number" id="maxTokens" value="2000" min="100" max="32000" />
                   </div>
                 </div>
                 <div class="row">
                   <div class="field">
-                    <label for="temperature" title="Controls randomness in model output. 0 = most deterministic, 1 = most creative. Leave blank to use the model's default. Opus 4.8 rejects non-default values.">Temperature</label>
+                    <label for="temperature" title="Controls randomness in model output. 0 = most deterministic, 1 = most creative. Leave blank to use the model's default. Leave blank for this Codex model.">Temperature</label>
                     <input type="number" id="temperature" placeholder="model default" min="0" max="1" step="0.1" />
                     <div class="note show">
-                      &#8505; Leave this blank for Opus 4.8; Anthropic rejects non-default sampling settings on that model.
+                      &#8505; Leave this blank: custom sampling settings are not verified for this Codex model.
                     </div>
                   </div>
                   <div class="field">
@@ -880,6 +873,7 @@
                       <option value="low">low</option>
                       <option value="medium">medium</option>
                       <option value="high">high</option>
+                      <option value="xhigh">xhigh</option>
                       <option value="max">max</option>
                     </select>
                   </div>
@@ -1037,12 +1031,12 @@
                   need deep debugging.
                 </div>
                 <div class="field">
-                  <label for="bridgeUrl" title="Override the URL the runner uses to reach the local bridge. Default is http://127.0.0.1:11437. Change this when the bridge runs on a different port or host (like inside Docker).">Bridge URL override</label>
-                  <input type="text" id="bridgeUrl" placeholder="http://host.docker.internal:11437" />
+                  <label for="bridgeUrl" title="Advanced: overrides the model endpoint and sends your credential there. Leave blank for the normal Codex endpoint.">Model endpoint override (advanced)</label>
+                  <input type="text" id="bridgeUrl" placeholder="Leave blank for the Codex endpoint" />
                 </div>
                 <div class="field">
-                  <label for="callerToken" title="If the bridge has caller authentication enabled (requireCallerAuth in VS Code settings), enter the token here. Can be a literal token or an environment variable reference like $BRIDGE_CALLER_TOKEN.">Caller auth token (optional)</label>
-                  <input type="text" id="callerToken" placeholder="$BRIDGE_CALLER_TOKEN or local-dev-token" />
+                  <!-- Kept hidden for existing form bindings; credentials never belong in saved browser state. -->
+                  <input type="hidden" id="callerToken" disabled value="" />
                 </div>
               </div>
 
@@ -1184,21 +1178,17 @@
           <div class="card" id="preflightCard" style="font-size: 0.82rem;">
             <h2>Before you run</h2>
             <ol style="padding-left: 1.2rem; margin: 0.3rem 0 0; color: var(--muted); line-height: 1.7;">
-              <li><strong style="color: var(--text);">Bridge running?</strong> Paste in Terminal: <code style="font-size: 0.75rem;">curl -s http://127.0.0.1:11437/health</code> — expect <code>{"status":"ok"}</code>.</li>
+              <li><strong style="color: var(--text);">Authentication ready?</strong> The Terminal launching the runner needs CODEX_ACCESS_TOKEN in its environment. Do not enter the token into this page. A missing-token error means that Terminal does not have the variable.</li>
               <li><strong style="color: var(--text);">In the right folder?</strong> Run the command from the runner repo folder shown above. The target project is separate; set it via <code>--cwd</code> or the Target folder field.</li>
               <li><strong style="color: var(--text);">First time in this folder?</strong> The runner will ask for <code>--trust-workspace</code> consent the first time you target a new project.</li>
               <li><strong style="color: var(--text);">New to this?</strong> Start with a <em>read-only</em> preset — it inspects files without changing anything.</li>
             </ol>
           </div>
           <div class="card" style="font-size: 0.8rem; color: var(--muted)">
-            <strong>Tip:</strong> Paste into <strong>Terminal</strong> and press Enter. Bridge:
-            <code style="font-size: 0.75rem">127.0.0.1:11437</code>. Full flag list:
-            <code style="font-size: 0.75rem">node bin/local-bridge-runner.js --help</code> (run from the playground
-            folder). If the bridge says <code style="font-size: 0.75rem">Unauthorized: Missing Bearer token</code>,
-            caller auth is enabled; either disable it in VS Code settings or set Caller auth token here. Use
-            <code style="font-size: 0.75rem">stream-json</code> when another script or agent needs to parse every runner
-            event (including <code>compaction</code> and <code>stopReason</code>). Set a human-readable log path when
-            you want a plain text record of the prompt, tool calls, and final answer.
+            <strong>Tip:</strong> Open Terminal from Applications → Utilities, paste the generated command, and press Enter.
+            It changes into the runner folder before starting. A successful run prints an answer and usage summary.
+            Use <code>stream-json</code> when another program needs structured progress events.
+            Native history compaction remains deferred; the inherited compaction switch is not a working Codex feature.
           </div>
           <!-- 3.2: glossary -->
           <details class="card" id="glossaryCard" style="font-size: 0.82rem; margin-bottom: 0;">
@@ -1371,7 +1361,7 @@ node bin/local-bridge-undo.js run &lt;run-id|session-id&gt; --cwd /path/to/proje
       const permissionStyle = document.getElementById('permissionStyle');
       const permissionStyleHint = document.getElementById('permissionStyleHint');
 
-      const PLAYGROUND = '/Users/alanman/Developer/claude-local-bridge-playground';
+      const PLAYGROUND = '/Users/alanman/Developer/codex-local-bridge-playground';
       const READ_TOOL_NAMES = ['list_files', 'read_file', 'search_text', 'glob', 'git_status', 'ask_user_question'];
       const DEFAULT_TOOL_NAMES = [
         'list_files',
@@ -1453,7 +1443,7 @@ node bin/local-bridge-undo.js run &lt;run-id|session-id&gt; --cwd /path/to/proje
       const DEFAULTS = {
         maxSteps: 16,
         maxTokens: 2000,
-        model: 'claude-sonnet-4-6',
+        model: 'gpt-6.1-sol',
         shellTimeout: 30000,
         outputFormat: 'text',
         traceLevel: 'off',
@@ -1578,7 +1568,7 @@ node bin/local-bridge-undo.js run &lt;run-id|session-id&gt; --cwd /path/to/proje
         if (traceLevel.value !== DEFAULTS.traceLevel) parts.push('--trace-level ' + traceLevel.value);
         if (tracePath.value.trim()) parts.push('--trace-path ' + shellQuote(tracePath.value.trim()));
         if (bridgeUrl.value.trim()) parts.push('--bridge-url ' + shellQuote(bridgeUrl.value.trim()));
-        if (callerToken.value.trim()) parts.push('--caller-token ' + shellQuoteOrEnv(callerToken.value.trim()));
+        // Authentication comes from the launching process, never the browser form.
         if (systemPrompt.value.trim()) parts.push('--system-prompt ' + shellQuote(systemPrompt.value.trim()));
         if (systemPromptFile.value.trim())
           parts.push('--system-prompt-file ' + shellQuote(systemPromptFile.value.trim()));
@@ -2075,7 +2065,7 @@ node bin/local-bridge-undo.js run &lt;run-id|session-id&gt; --cwd /path/to/proje
           traceLevel: traceLevel.value,
           tracePath: tracePath.value,
           bridgeUrl: bridgeUrl.value,
-          callerToken: callerToken.value,
+
           systemPrompt: systemPrompt.value,
           systemPromptFile: systemPromptFile.value,
           appendSystemPrompt: appendSystemPrompt.value,
@@ -2135,7 +2125,7 @@ node bin/local-bridge-undo.js run &lt;run-id|session-id&gt; --cwd /path/to/proje
           'temperature', 'maxContextTokens', 'maxToolCalls', 'cwd', 'runnerPath',
           'permissionStyle', 'outputFormat', 'shellTimeout', 'confirmTimeout',
           'logLevel', 'resumePath', 'transcript', 'humanLog', 'traceLevel',
-          'tracePath', 'bridgeUrl', 'callerToken', 'systemPrompt', 'systemPromptFile',
+          'tracePath', 'bridgeUrl', 'systemPrompt', 'systemPromptFile',
           'appendSystemPrompt', 'appendSystemPromptFile', 'sessionId', 'sessionPath',
           'forkFrom', 'agentProfile', 'customAgent', 'toolProfile', 'maxWallClockMs',
           'maxCostUsd', 'budgetInputTokens', 'budgetOutputTokens', 'effort',
@@ -2147,7 +2137,7 @@ node bin/local-bridge-undo.js run &lt;run-id|session-id&gt; --cwd /path/to/proje
           temperature, maxContextTokens, maxToolCalls, cwd, runnerPath,
           permissionStyle, outputFormat, shellTimeout, confirmTimeout,
           logLevel, resumePath, transcript, humanLog, traceLevel,
-          tracePath, bridgeUrl, callerToken, systemPrompt, systemPromptFile,
+          tracePath, bridgeUrl, systemPrompt, systemPromptFile,
           appendSystemPrompt, appendSystemPromptFile, sessionId, sessionPath,
           forkFrom, agentProfile, customAgent, toolProfile, maxWallClockMs,
           maxCostUsd, budgetInputTokens, budgetOutputTokens, effort,
@@ -2191,6 +2181,9 @@ node bin/local-bridge-undo.js run &lt;run-id|session-id&gt; --cwd /path/to/proje
           if (!raw) return false;
           const state = JSON.parse(raw);
           if (!state || typeof state !== 'object') return false;
+          // Remove the retired credential field from older saved form versions.
+          delete state.callerToken;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
           applyFormState(state);
           return true;
         } catch (_) {

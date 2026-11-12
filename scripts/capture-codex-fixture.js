@@ -17,7 +17,7 @@
  * Options:
  *   --preset <name>   pong | function-call | final-answer (default: pong)
  *   --out <path>      output file (required)
- *   --model <id>      default gpt-5.5
+ *   --model <id>      default gpt-6.1-sol
  *   --effort <level>  reasoning.effort (default: medium)
  *   --dry-run         print request summary only, no network
  */
@@ -50,7 +50,7 @@ const LIST_FILES_TOOL = {
 };
 
 function parseArgs(argv) {
-  const opts = { preset: 'pong', model: 'gpt-5.5', effort: 'medium', dryRun: false, out: null };
+  const opts = { preset: 'pong', model: 'gpt-6.1-sol', effort: 'medium', dryRun: false, out: null };
   for (let i = 2; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--dry-run') opts.dryRun = true;

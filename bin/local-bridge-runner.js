@@ -17,8 +17,7 @@ const { run } = require('../src/runner/run');
 const { applyPromptTemplates, resolvePromptTemplate, substituteParameters } = require('../src/runner/prompt-templates');
 const safety = require('../src/runner/safety');
 
-const DEFAULT_MODEL = 'gpt-5.5';
-const DEFAULT_MAX_TOKENS = 2000;
+const { DEFAULT_MODEL, DEFAULT_MAX_OUTPUT_TOKENS: DEFAULT_MAX_TOKENS, validateMaxOutputTokens } = require('../src/runner/model-controls');
 const DEFAULT_MAX_STEPS = 16;
 
 function showHelp() {
@@ -34,7 +33,7 @@ Options:\n\
   --model <model>      Model name (default: ' +
       DEFAULT_MODEL +
       ')\n\
-  --max-tokens <n>     Max tokens per request (default: ' +
+  --max-tokens <n>     Max output tokens per request, including reasoning (default: ' +
       DEFAULT_MAX_TOKENS +
       ')\n\
   --max-steps <n>      Max tool loops (default: ' +
@@ -59,7 +58,7 @@ Options:\n\
   --fork-from <id>     Fork an existing session to a new session id/path\n\
   --task-scope         Task-scoped preset: tighter steps + compaction (see playbook)\n\
   --compact-each-turn  Aggressive compaction preset (compact-after-task UX)\n\
-  --effort <level>     Model effort: low, medium, high, or max (runner path only)\n\
+  --effort <level>     Model effort: low, medium, high, xhigh, or max (runner path only)\n\
   --auto-memory        Opt-in runner auto-memory in context (default off)\n\
   --trusted-workspace  Enable hooks from .bridge-runner/hooks.json in cwd\n\
   --trust-workspace    Record trust consent for cwd (required in CI/non-interactive)\n\
@@ -105,7 +104,7 @@ Options:\n\
   --continue           Resume from the latest transcript in ~/.bridge-runner/logs/\n\
   --plan               Plan mode: describe actions instead of executing them\n\
   --output-format <f>  Output style: text, json, or stream-json (default: text)\n\
-  --stream             Stream model output live to terminal as it arrives\n\
+  --stream             Print redacted model output in buffered chunks\n\
   --verbose            Print step-by-step progress to stderr\n\
   --help               Show this help\n\
 \n\
@@ -348,7 +347,13 @@ async function main() {
     process.exit(1);
   }
   const model = args.values.model || DEFAULT_MODEL;
-  let maxTokens = parseInt(args.values['max-tokens'], 10) || DEFAULT_MAX_TOKENS;
+  let maxTokens;
+  try {
+    maxTokens = validateMaxOutputTokens(args.values['max-tokens'] === undefined ? DEFAULT_MAX_TOKENS : Number(args.values['max-tokens']));
+  } catch (err) {
+    console.error('Error: ' + err.message);
+    process.exit(1);
+  }
   let maxSteps = parseInt(args.values['max-steps'], 10) || DEFAULT_MAX_STEPS;
   const verboseFromFlag = !!args.values.verbose;
   const logLevel = args.values['log-level'];
@@ -644,7 +649,6 @@ async function main() {
     explicitOptions: {
       maxSteps: args.values['max-steps'] !== undefined,
     },
-    exposedTools,
   });
 }
 

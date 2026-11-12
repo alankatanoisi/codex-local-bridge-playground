@@ -57,9 +57,21 @@ describe('model-pricing: estimateCostUsd', () => {
     assert.ok(Math.abs(cost - (3.0 + 15.0 + 0.3 + 6.0)) < 1e-9);
   });
 
-  it('falls back to default for an unknown model', () => {
+  it('reports unknown pricing instead of guessing a price', () => {
     const cost = estimateCostUsd('totally-unknown-model', { input_tokens: M });
-    assert.equal(cost, 3.0); // default input rate
+    assert.equal(cost, null);
+    assert.equal(resolveRates('totally-unknown-model'), null);
+    assert.match(summarizeUsage('totally-unknown-model', { input_tokens: M }).oneLine, /cost unknown/);
+  });
+
+  it('does not treat inherited JavaScript object names as model prices', () => {
+    // Ordinary objects contain built-in names even when we never added them.
+    // A model with one of those names must still have unknown pricing.
+    for (const model of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+      assert.equal(resolveRates(model), null, model);
+      assert.equal(estimateCostUsd(model, { input_tokens: M }), null, model);
+      assert.match(summarizeUsage(model, { input_tokens: M }).oneLine, /cost unknown/);
+    }
   });
 
   it('resolves new/alias names by family prefix, not default', () => {
@@ -141,5 +153,22 @@ describe('model-pricing: summarizeUsage', () => {
       reasoning_tokens: 12,
     });
     assert.ok(s.oneLine.includes('reasoning=12'));
+  });
+});
+
+// Rates apply to an individual request; reasoning is already inside output tokens.
+describe('current Codex reference pricing', () => {
+  it('prices cached input once and exposes the standard credit reference', () => {
+    const usage = { input_tokens: 100000, cache_read_input_tokens: 25000, output_tokens: 1000, reasoning_tokens: 500 };
+    const s = summarizeUsage('gpt-6.1-sol', usage);
+    assert.ok(Math.abs(s.costUsd - 0.1625) < 1e-10);
+    assert.ok(Math.abs(s.estimatedCredits - 4.0625) < 1e-10);
+    assert.equal(s.costReferenceOnly, true);
+  });
+  it('applies long-context rates only above the per-request boundary', () => {
+    assert.equal(estimateCostUsd('gpt-6.1-sol', { input_tokens: 272000 }), 0.544);
+    assert.ok(Math.abs(estimateCostUsd('gpt-6.1-sol', { input_tokens: 300000, output_tokens: 1000 }) - 1.215) < 1e-10);
+    const s = summarizeUsage('gpt-6.1-sol', { input_tokens: 300000 }, { costUsd: 0.6 });
+    assert.equal(s.costUsd, 0.6); // Three 100K turns, not one long-context request.
   });
 });
